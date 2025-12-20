@@ -1,0 +1,65 @@
+<?php
+
+use App\Http\Controllers\Api\HealthController;
+use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\KidController;
+use App\Http\Controllers\Api\PhotoController;
+use App\Http\Controllers\Api\SyncController;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
+
+Route::get('/user', function (Request $request) {
+    return $request->user();
+})->middleware('auth:sanctum');
+
+Route::get('/health', function () {
+    return response()->json([
+        'status' => 'ok',
+        'timestamp' => now()->toIso8601String(),
+        'service' => 'kinlore-api',
+    ]);
+});
+
+Route::get('/health/detailed', [HealthController::class, 'detailed'])->name('health.detailed')->middleware('auth:sanctum');
+
+// Authentication routes (public)
+Route::prefix('auth')->group(function () {
+    Route::post('/register', [AuthController::class, 'register']);
+    Route::post('/login', [AuthController::class, 'login']);
+    
+    // Protected auth routes
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::post('/logout', [AuthController::class, 'logout']);
+        Route::post('/logout-all', [AuthController::class, 'logoutAll']);
+        Route::post('/refresh', [AuthController::class, 'refresh']);
+        Route::get('/me', [AuthController::class, 'me']);
+        Route::get('/sessions', [AuthController::class, 'sessions']);
+        Route::delete('/sessions/{tokenId}', [AuthController::class, 'revokeSession']);
+    });
+});
+
+
+// Protected routes
+Route::middleware('auth:sanctum')->group(function () {
+    // Get current user
+    Route::get('/user', function (Request $request) {
+        return $request->user();
+    });
+
+    // Kids routes
+    Route::apiResource('kids', KidController::class);
+
+    // Moments routes (scoped to kid)
+    Route::prefix('kids/{kid}')->group(function () {
+        Route::get('/moments', [PhotoController::class, 'index']);
+        Route::post('/moments', [PhotoController::class, 'store']);
+        Route::get('/moments/uploaded-identifiers', [PhotoController::class, 'uploadedIdentifiers']);
+    });
+    
+    // Moment management
+    Route::delete('/moments/{moment}', [PhotoController::class, 'destroy']);
+
+    // Sync routes (WatermelonDB)
+    Route::post('/sync/pull', [SyncController::class, 'pull']);
+    Route::post('/sync/push', [SyncController::class, 'push']);
+});

@@ -1,0 +1,118 @@
+<?php
+
+namespace Tests\Feature\Auth;
+
+use Tests\TestCase;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+
+class RegistrationTest extends TestCase
+{
+    use RefreshDatabase;
+
+    public function test_user_can_register(): void
+    {
+        $response = $this->postJson('/api/auth/register', [
+            'name' => 'Test User',
+            'email' => 'test@kinlore.local',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ]);
+
+        $response->assertStatus(201);
+        $response->assertJsonStructure([
+            'success',
+            'message',
+            'data' => [
+                'user' => ['id', 'name', 'email', 'created_at'],
+                'token',
+                'token_type',
+            ],
+        ]);
+
+        $this->assertDatabaseHas('users', [
+            'email' => 'test@kinlore.local',
+            'name' => 'Test User',
+        ]);
+    }
+
+    public function test_user_cannot_register_with_invalid_email(): void
+    {
+        $response = $this->postJson('/api/auth/register', [
+            'name' => 'Test User',
+            'email' => 'invalid-email',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['email']);
+    }
+
+    public function test_user_cannot_register_with_short_password(): void
+    {
+        $response = $this->postJson('/api/auth/register', [
+            'name' => 'Test User',
+            'email' => 'test@kinlore.local',
+            'password' => '123',
+            'password_confirmation' => '123',
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['password']);
+    }
+
+    public function test_user_cannot_register_with_mismatched_password(): void
+    {
+        $response = $this->postJson('/api/auth/register', [
+            'name' => 'Test User',
+            'email' => 'test@kinlore.local',
+            'password' => 'password123',
+            'password_confirmation' => 'different123',
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['password']);
+    }
+
+    public function test_user_cannot_register_with_duplicate_email(): void
+    {
+        User::factory()->create(['email' => 'test@kinlore.local']);
+
+        $response = $this->postJson('/api/auth/register', [
+            'name' => 'Test User',
+            'email' => 'test@kinlore.local',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['email']);
+    }
+
+    public function test_registration_requires_name(): void
+    {
+        $response = $this->postJson('/api/auth/register', [
+            'email' => 'test@kinlore.local',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['name']);
+    }
+
+    public function test_registered_user_receives_token(): void
+    {
+        $response = $this->postJson('/api/auth/register', [
+            'name' => 'Test User',
+            'email' => 'test@kinlore.local',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ]);
+
+        $response->assertStatus(201);
+        $this->assertNotEmpty($response->json('data.token'));
+        $this->assertEquals('Bearer', $response->json('data.token_type'));
+    }
+}
