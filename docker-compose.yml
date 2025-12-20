@@ -78,19 +78,16 @@ services:
     networks:
       - kinlore-network
 
-  # Laravel API (Nginx + PHP-FPM)
+  # Laravel API (Apache + mod_php)
   api:
     build:
       context: ./kinlore-api
       dockerfile: Dockerfile
-      args:
-        USER_ID: ${USER_ID:-1000}
-        GROUP_ID: ${GROUP_ID:-1000}
     container_name: kinlore-api
     restart: unless-stopped
     ports:
-      - 80:80
-      - 443:443
+      - "80:80"
+      - "443:443"
     env_file:
       - ./kinlore-api/.env
     environment:
@@ -135,14 +132,12 @@ services:
       SEED_USER_EMAIL: ${SEED_USER_EMAIL:-}
       SEED_USER_PASSWORD: ${SEED_USER_PASSWORD:-}
     volumes:
-      - ./kinlore-api:/var/www/html
-      - ./kinlore-api/storage:/var/www/html/storage:delegated
-      - ./kinlore-api/bootstrap/cache:/var/www/html/bootstrap/cache:delegated
+      # Persistent storage for uploads and Laravel storage
+      - api_storage:/var/www/html/storage
       # Webroot for ACME challenge files
       - certbot_www:/var/www/certbot:ro
-      # Where certbot stores certs (nginx will read these)
+      # SSL certificates from certbot
       - letsencrypt:/etc/letsencrypt:ro
-      - ./kinlore-api/docker/zz-uploads.ini:/usr/local/etc/php/conf.d/zz-uploads.ini:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -153,7 +148,7 @@ services:
     networks:
       - kinlore-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      test: ["CMD", "curl", "-f", "http://localhost/api/health"]
       interval: 30s
       timeout: 3s
       retries: 3
@@ -204,6 +199,8 @@ volumes:
   seaweedfs_filer:
     driver: local
   redis_data:
+    driver: local
+  api_storage:
     driver: local
   certbot_www:
     driver: local

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 set -e
 
 echo "🚀 Starting Kinlore API..."
@@ -60,6 +60,6 @@ if [ "$APP_ENV" = "local" ]; then
   php artisan view:clear
 fi
 
-# Start supervisor (Nginx + PHP-FPM)
-echo "✅ Starting Nginx and PHP-FPM..."
-exec /usr/bin/supervisord -c /etc/supervisord.conf
+# Start Apache in foreground
+echo "✅ Starting Apache..."
+exec apache2-foreground
