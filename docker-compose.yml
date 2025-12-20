@@ -137,6 +137,10 @@ services:
       - ./kinlore-api:/var/www/html
       - ./kinlore-api/storage:/var/www/html/storage:delegated
       - ./kinlore-api/bootstrap/cache:/var/www/html/bootstrap/cache:delegated
+      # Webroot for ACME challenge files
+      - certbot_www:/var/www/certbot:ro
+      # Where certbot stores certs (nginx will read these)
+      - letsencrypt:/etc/letsencrypt:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -152,6 +156,21 @@ services:
       timeout: 3s
       retries: 3
       start_period: 40s
+  certbot:
+    image: certbot/certbot:latest
+    container_name: certbot
+    volumes:
+      - certbot_www:/var/www/certbot
+      - letsencrypt:/etc/letsencrypt
+    # Renewal loop (runs forever, renews twice/day)
+    entrypoint: >
+      /bin/sh -c "
+      trap exit TERM;
+      while :; do
+        certbot renew --webroot -w /var/www/certbot --quiet;
+        sleep 12h;
+      done"
+    restart: unless-stopped
   redis:
     image: redis:alpine
     container_name: kinlore-redis
@@ -183,4 +202,8 @@ volumes:
   seaweedfs_filer:
     driver: local
   redis_data:
+    driver: local
+  certbot_www:
+    driver: local
+  letsencrypt:
     driver: local
