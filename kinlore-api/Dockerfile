@@ -91,4 +91,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 
 # Start via entrypoint
 #ENTRYPOINT ["/entrypoint.sh"]
-CMD ["apache2-foreground"]
+#CMD ["apache2-foreground"]
