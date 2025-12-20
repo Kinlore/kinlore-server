@@ -142,6 +142,7 @@ services:
       - certbot_www:/var/www/certbot:ro
       # Where certbot stores certs (nginx will read these)
       - letsencrypt:/etc/letsencrypt:ro
+      - ./kinlore-api/docker/zz-uploads.ini:/usr/local/etc/php/conf.d/zz-uploads.ini:ro
     depends_on:
       postgres:
         condition: service_healthy
