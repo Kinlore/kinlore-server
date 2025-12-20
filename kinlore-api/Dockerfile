@@ -33,7 +33,8 @@ RUN docker-php-ext-install \
     bcmath \
     gd \
     zip \
-    opcache
+    opcache \
+    intl
 
 # Enable OPcache for performance
 RUN echo "opcache.enable=1" >> /usr/local/etc/php/conf.d/opcache.ini \
