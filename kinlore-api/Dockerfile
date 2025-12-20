@@ -89,6 +89,8 @@ EXPOSE 80 443
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD curl -f http://localhost/api/health || exit 1
 
-# Start via entrypoint
-#ENTRYPOINT ["/entrypoint.sh"]
-#CMD ["apache2-foreground"]
+# Custom entrypoint for Laravel initialization, delegates to docker-php-entrypoint
+ENTRYPOINT ["/entrypoint.sh"]
+
+# Default command (passed to entrypoint, which delegates to docker-php-entrypoint)
+CMD ["apache2-foreground"]

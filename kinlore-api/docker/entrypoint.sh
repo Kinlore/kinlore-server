@@ -60,6 +60,7 @@ if [ "$APP_ENV" = "local" ]; then
   php artisan view:clear
 fi
 
-# Start Apache in foreground
-echo "✅ Starting Apache..."
-exec apache2-foreground
+echo "✅ Initialization complete, starting Apache..."
+
+# Delegate to the official docker-php-entrypoint, passing through all arguments (CMD)
+exec docker-php-entrypoint "$@"
