@@ -832,6 +832,129 @@
                         }
                     },
                     "response": []
+                },
+                {
+                    "name": "Like Moment",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/moments/{{moment_id}}/like",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "moments",
+                                "{{moment_id}}",
+                                "like"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Unlike Moment",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/moments/{{moment_id}}/like",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "moments",
+                                "{{moment_id}}",
+                                "like"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Add Comment",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "if (pm.response.code === 201) {",
+                                    "    var jsonData = pm.response.json();",
+                                    "    pm.collectionVariables.set('interaction_id', jsonData.data.id);",
+                                    "    console.log('Interaction ID saved:', jsonData.data.id);",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"content\": \"This is a beautiful moment!\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/moments/{{moment_id}}/comments",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "moments",
+                                "{{moment_id}}",
+                                "comments"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Delete Comment",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/interactions/{{interaction_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "interactions",
+                                "{{interaction_id}}"
+                            ]
+                        }
+                    },
+                    "response": []
                 }
             ]
         },

@@ -61,6 +61,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/moments/{moment}/file/{type}', [PhotoController::class, 'serveFile'])
         ->where('type', 'original|medium|thumbnail');
     Route::delete('/moments/{moment}', [PhotoController::class, 'destroy']);
+    
+    // Moment Interactions
+    Route::post('/moments/{moment}/like', [\App\Http\Controllers\Api\MomentInteractionController::class, 'like']);
+    Route::delete('/moments/{moment}/like', [\App\Http\Controllers\Api\MomentInteractionController::class, 'unlike']);
+    Route::post('/moments/{moment}/comments', [\App\Http\Controllers\Api\MomentInteractionController::class, 'comment']);
+    Route::delete('/interactions/{interaction}', [\App\Http\Controllers\Api\MomentInteractionController::class, 'deleteComment']);
 
     // Sync routes (WatermelonDB)
     Route::post('/sync/pull', [SyncController::class, 'pull']);
