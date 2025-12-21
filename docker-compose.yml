@@ -108,7 +108,7 @@ services:
 
       # SeaweedFS S3 Configuration
       FILESYSTEM_DISK: ${FILESYSTEM_DISK:-seaweedfs}
-      SEAWEEDFS_ENDPOINT: ${http://kinlore-seaweedfs-filer:8333
+      SEAWEEDFS_ENDPOINT: ${SEAWEEDFS_ENDPOINT:-http://kinlore-seaweedfs-filer:8333}
       SEAWEEDFS_KEY: ${SEAWEEDFS_KEY:-admin}
       SEAWEEDFS_SECRET: ${SEAWEEDFS_SECRET:-admin}
       SEAWEEDFS_BUCKET: ${SEAWEEDFS_BUCKET:-kinlore}
