@@ -54,7 +54,7 @@ return [
             'secret' => env('SEAWEEDFS_SECRET', 'admin'),
             'region' => env('SEAWEEDFS_REGION', 'us-east-1'),
             'bucket' => env('SEAWEEDFS_BUCKET', 'kinlore'),
-            'endpoint' => env('SEAWEEDFS_ENDPOINT', 'http://seaweedfs-filer:8333'),
+            'endpoint' => env('SEAWEEDFS_ENDPOINT', 'http://kinlore-seaweedfs-filer:8333'),
             'use_path_style_endpoint' => env('SEAWEEDFS_USE_PATH_STYLE_ENDPOINT', true),
             'throw' => false,
             
