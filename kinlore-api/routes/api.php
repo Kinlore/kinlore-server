@@ -65,6 +65,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Moment Interactions
     Route::post('/moments/{moment}/like', [\App\Http\Controllers\Api\MomentInteractionController::class, 'like']);
     Route::delete('/moments/{moment}/like', [\App\Http\Controllers\Api\MomentInteractionController::class, 'unlike']);
+    Route::get('/moments/{moment}/comments', [\App\Http\Controllers\Api\MomentInteractionController::class, 'index']);
     Route::post('/moments/{moment}/comments', [\App\Http\Controllers\Api\MomentInteractionController::class, 'comment']);
     Route::delete('/interactions/{interaction}', [\App\Http\Controllers\Api\MomentInteractionController::class, 'deleteComment']);
 

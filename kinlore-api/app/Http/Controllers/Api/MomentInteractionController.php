@@ -89,4 +89,20 @@ class MomentInteractionController extends Controller
 
         return response()->json(['message' => 'Comment deleted'], 200);
     }
+
+    /**
+     * Get comments for a moment.
+     */
+    public function index(Moment $moment)
+    {
+        $comments = $moment->comments()
+            ->with('user:id,name,email')
+            ->orderBy('created_at', 'asc')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $comments,
+        ]);
+    }
 }

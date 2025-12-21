@@ -32,6 +32,17 @@ class PhotoController extends Controller
             $query->orderBy($sortBy, $sortDirection);
         }
 
+        $query->withCount([
+            'likes',
+            'comments'
+        ]);
+        
+        // Eager load is_liked for current user
+        // We use withExists with a constraint
+        $query->withExists(['likes as is_liked' => function ($query) {
+            $query->where('user_id', auth()->id());
+        }]);
+
         $moments = $query->paginate($perPage);
 
         $moments->getCollection()->transform(function ($moment) {
@@ -324,6 +335,9 @@ class PhotoController extends Controller
             'tags' => $moment->tags,
             'created_at' => $moment->created_at->toIso8601String(),
             'updated_at' => $moment->updated_at->toIso8601String(),
+            'is_liked' => $moment->is_liked ?? false,
+            'likes_count' => $moment->likes_count ?? 0,
+            'comments_count' => $moment->comments_count ?? 0,
         ];
     }
 
