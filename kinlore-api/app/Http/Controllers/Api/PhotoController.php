@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Intervention\Image\Laravel\Facades\Image;
+use Illuminate\Support\Facades\Log;
 
 class PhotoController extends Controller
 {
@@ -54,6 +55,7 @@ class PhotoController extends Controller
      */
     public function store(Request $request, Kid $kid)
     {
+        Log::info('Photo upload request received');
         $this->authorize('view', $kid);
 
         $validated = $request->validate([
@@ -64,6 +66,8 @@ class PhotoController extends Controller
             'tags' => 'nullable|array',
             'tags.*' => 'string|max:50',
         ]);
+
+        Log::info('Photo upload request validated');
 
         try {
             $photo = $request->file('photo');
@@ -80,19 +84,31 @@ class PhotoController extends Controller
                 'private'
             );
 
+            Log::info('Original photo uploaded');
+
             $mediumImage = Image::read($photo->getRealPath())
                 ->scale(width: 1200)
                 ->toJpeg(quality: 85);
 
+            Log::info('Medium photo processed');
+
             Storage::disk('seaweedfs')->put($mediumPath, (string) $mediumImage, 'private');
+
+            Log::info('Medium photo uploaded');
 
             $thumbnailImage = Image::read($photo->getRealPath())
                 ->cover(300, 300)
                 ->toJpeg(quality: 80);
 
+            Log::debug('Thumbnail photo processed');
+
             Storage::disk('seaweedfs')->put($thumbnailPath, (string) $thumbnailImage, 'private');
 
+            Log::debug('Thumbnail photo uploaded');
+
             $exifData = $this->extractExifData($photo);
+
+            Log::debug('Exif data extracted');
 
             $moment = Moment::create([
                 'id' => $uuid,
@@ -117,6 +133,8 @@ class PhotoController extends Controller
                 'camera_model' => $exifData['model'] ?? null,
                 'tags' => $validated['tags'] ?? null,
             ]);
+
+            Log::debug('Moment created');
 
             return response()->json([
                 'success' => true,
