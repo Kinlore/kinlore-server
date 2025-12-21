@@ -63,6 +63,10 @@ RUN mkdir -p /var/log/supervisor
 RUN ln -sf /dev/stdout /var/log/nginx/access.log \
     && ln -sf /dev/stderr /var/log/nginx/error.log
 
+RUN mkdir -p /tmp/client_body
+RUN chown -R nginx:nginx /tmp/client_body 2>/dev/null || true
+RUN chmod 700 /tmp/client_body
+
 # Copy PHP configuration for uploads
 COPY ./docker/zz-uploads.ini /usr/local/etc/php/conf.d/zz-uploads.ini
 
