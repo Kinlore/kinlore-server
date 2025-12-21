@@ -66,9 +66,6 @@ RUN ln -sf /dev/stdout /var/log/nginx/access.log \
 # Copy PHP configuration for uploads
 COPY ./docker/zz-uploads.ini /usr/local/etc/php/conf.d/zz-uploads.ini
 
-# Copy PHP-FPM configuration for Docker logging
-COPY ./docker/zz-docker-logging.conf /usr/local/etc/php-fpm.d/zz-docker-logging.conf
-
 # Copy entrypoint script
 COPY ./docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
