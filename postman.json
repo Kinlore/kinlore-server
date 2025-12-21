@@ -231,9 +231,18 @@
                                 "auth",
                                 "me"
                             ]
-                        }
+                        },
+                        "description": "Returns current authenticated user info including storage usage. storage_bytes_used is the sum of all uploaded file sizes, storage_bytes_available is the actual free disk space."
                     },
-                    "response": []
+                    "response": [
+                        {
+                            "name": "Success",
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": 1,\n    \"name\": \"Test User\",\n    \"email\": \"test@kinlore.local\",\n    \"email_verified_at\": null,\n    \"created_at\": \"2024-12-21T10:00:00+00:00\",\n    \"kids_count\": 2,\n    \"moments_count\": 150,\n    \"storage_used\": \"1.25 GB\",\n    \"storage_bytes_used\": 1342177280,\n    \"storage_bytes_available\": 107374182400\n  }\n}"
+                        }
+                    ]
                 },
                 {
                     "name": "Logout",
@@ -621,6 +630,42 @@
                                     "value": "device-123-456",
                                     "type": "text",
                                     "disabled": true
+                                },
+                                {
+                                    "key": "exif_date",
+                                    "value": "2024-12-21T10:30:00.000Z",
+                                    "type": "text",
+                                    "description": "ISO 8601 timestamp from EXIF DateTimeOriginal"
+                                },
+                                {
+                                    "key": "latitude",
+                                    "value": "48.8566",
+                                    "type": "text",
+                                    "description": "Decimal latitude (-90 to 90)"
+                                },
+                                {
+                                    "key": "longitude",
+                                    "value": "2.3522",
+                                    "type": "text",
+                                    "description": "Decimal longitude (-180 to 180)"
+                                },
+                                {
+                                    "key": "camera_make",
+                                    "value": "Apple",
+                                    "type": "text",
+                                    "description": "Camera manufacturer from EXIF"
+                                },
+                                {
+                                    "key": "camera_model",
+                                    "value": "iPhone 15 Pro",
+                                    "type": "text",
+                                    "description": "Camera model from EXIF"
+                                },
+                                {
+                                    "key": "orientation",
+                                    "value": "1",
+                                    "type": "text",
+                                    "description": "EXIF orientation (1-8)"
                                 },
                                 {
                                     "key": "tags[]",

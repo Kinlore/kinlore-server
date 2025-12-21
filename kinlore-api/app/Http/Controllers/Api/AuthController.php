@@ -121,6 +121,9 @@ class AuthController extends Controller
     {
         $user = $request->user();
 
+        $storageBytesUsed = $user->getStorageUsed();
+        $storageBytesAvailable = (int) disk_free_space(storage_path());
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -132,6 +135,8 @@ class AuthController extends Controller
                 'kids_count' => $user->kids()->count(),
                 'moments_count' => $user->getTotalMomentsCount(),
                 'storage_used' => $user->getStorageUsedFormatted(),
+                'storage_bytes_used' => $storageBytesUsed,
+                'storage_bytes_available' => $storageBytesAvailable,
             ],
         ]);
     }
