@@ -59,8 +59,15 @@ COPY ./docker/supervisord.conf /etc/supervisord.conf
 
 RUN mkdir -p /var/log/supervisor
 
+# Redirect Nginx logs to stdout/stderr for docker logs
+RUN ln -sf /dev/stdout /var/log/nginx/access.log \
+    && ln -sf /dev/stderr /var/log/nginx/error.log
+
 # Copy PHP configuration for uploads
 COPY ./docker/zz-uploads.ini /usr/local/etc/php/conf.d/zz-uploads.ini
+
+# Copy PHP-FPM configuration for Docker logging
+COPY ./docker/zz-docker-logging.conf /usr/local/etc/php-fpm.d/zz-docker-logging.conf
 
 # Copy entrypoint script
 COPY ./docker/entrypoint.sh /entrypoint.sh
