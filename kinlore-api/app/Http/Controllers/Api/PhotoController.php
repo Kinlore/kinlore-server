@@ -68,6 +68,7 @@ class PhotoController extends Controller
             'longitude' => 'nullable|numeric|between:-180,180',
             'camera_make' => 'nullable|string|max:255',
             'camera_model' => 'nullable|string|max:255',
+            'orientation' => 'nullable|integer|between:1,8',
             'tags' => 'nullable|array',
             'tags.*' => 'string|max:50',
         ]);
@@ -131,6 +132,7 @@ class PhotoController extends Controller
                 'longitude' => $validated['longitude'] ?? null,
                 'camera_make' => $validated['camera_make'] ?? null,
                 'camera_model' => $validated['camera_model'] ?? null,
+                'orientation' => $validated['orientation'] ?? null,
                 'tags' => $validated['tags'] ?? null,
             ]);
 
