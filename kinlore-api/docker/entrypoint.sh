@@ -60,7 +60,7 @@ if [ "$APP_ENV" = "local" ]; then
   php artisan view:clear
 fi
 
-echo "✅ Initialization complete, starting Apache..."
+echo "✅ Initialization complete, starting Nginx + PHP-FPM..."
 
-# Delegate to the official docker-php-entrypoint, passing through all arguments (CMD)
-exec docker-php-entrypoint "$@"
+# Start Supervisor (manages both Nginx and PHP-FPM)
+exec /usr/bin/supervisord -c /etc/supervisord.conf

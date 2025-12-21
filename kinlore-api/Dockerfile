@@ -1,21 +1,23 @@
-# Use PHP with Apache (production-ready)
-FROM php:8.4-apache
+# Use PHP-FPM with Nginx (production-ready)
+FROM php:8.4-fpm-alpine
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y \
+RUN apk add --no-cache \
+    nginx \
+    supervisor \
     git \
     curl \
     libpng-dev \
-    libjpeg-dev \
+    libjpeg-turbo-dev \
     libwebp-dev \
-    libfreetype6-dev \
+    freetype-dev \
     libzip-dev \
-    libpq-dev \
-    libonig-dev \
-    libicu-dev \
+    postgresql-dev \
+    oniguruma-dev \
+    icu-dev \
     zip \
     unzip \
-    && rm -rf /var/lib/apt/lists/*
+    bash
 
 # Install PHP extensions
 RUN docker-php-ext-configure gd \
@@ -42,23 +44,20 @@ RUN echo "opcache.enable=1" >> /usr/local/etc/php/conf.d/opcache.ini \
     && echo "opcache.max_accelerated_files=10000" >> /usr/local/etc/php/conf.d/opcache.ini \
     && echo "opcache.revalidate_freq=2" >> /usr/local/etc/php/conf.d/opcache.ini
 
-# Enable Apache modules
-RUN a2enmod rewrite headers ssl
-
-# Configure Apache to listen on port 443 for SSL
-RUN echo "Listen 443" >> /etc/apache2/ports.conf
-
 # Install Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 # Set working directory
 WORKDIR /var/www/html
 
-# Copy Apache virtual host configuration
-COPY ./docker/kinlore-api.conf /etc/apache2/sites-available/kinlore-api.conf
+# Copy Nginx configuration
+COPY ./docker/nginx.conf /etc/nginx/nginx.conf
+COPY ./docker/kinlore-api.conf /etc/nginx/http.d/default.conf
 
-# Enable the site and disable default
-RUN a2dissite 000-default.conf && a2ensite kinlore-api.conf
+# Copy Supervisor configuration
+COPY ./docker/supervisord.conf /etc/supervisord.conf
+
+RUN mkdir -p /var/log/supervisor
 
 # Copy PHP configuration for uploads
 COPY ./docker/zz-uploads.ini /usr/local/etc/php/conf.d/zz-uploads.ini
@@ -82,6 +81,9 @@ RUN php artisan config:cache && \
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache && \
     chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
+# Create required directories for nginx/certbot
+RUN mkdir -p /var/www/certbot
+
 # Expose HTTP and HTTPS ports
 EXPOSE 80 443
 
@@ -89,8 +91,5 @@ EXPOSE 80 443
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD curl -f http://localhost/api/health || exit 1
 
-# Custom entrypoint for Laravel initialization, delegates to docker-php-entrypoint
+# Start via entrypoint (runs supervisor which manages nginx + php-fpm)
 ENTRYPOINT ["/entrypoint.sh"]
-
-# Default command (passed to entrypoint, which delegates to docker-php-entrypoint)
-CMD ["apache2-foreground"]
