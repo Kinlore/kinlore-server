@@ -93,6 +93,26 @@ class Moment extends Model
         return $this->hasOneThrough(User::class, Kid::class, 'id', 'id', 'kid_id', 'user_id');
     }
 
+    public function interactions()
+    {
+        return $this->hasMany(MomentInteraction::class);
+    }
+
+    public function likes()
+    {
+        return $this->interactions()->where('type', 'like');
+    }
+
+    public function comments()
+    {
+        return $this->interactions()->where('type', 'comment');
+    }
+
+    public function isLikedBy(User $user)
+    {
+        return $this->likes()->where('user_id', $user->id)->exists();
+    }
+
     /**
      * Computed Attributes
      */

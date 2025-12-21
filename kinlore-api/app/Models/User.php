@@ -60,6 +60,11 @@ class User extends Authenticatable
         return $this->hasManyThrough(Moment::class, Kid::class);
     }
 
+    public function interactions()
+    {
+        return $this->hasMany(MomentInteraction::class);
+    }
+
     /**
      * Helper Methods
      */
