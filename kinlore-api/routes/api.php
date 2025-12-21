@@ -57,6 +57,9 @@ Route::middleware('auth:sanctum')->group(function () {
     });
     
     // Moment management
+    Route::get('/moments/{moment}', [PhotoController::class, 'show']);
+    Route::get('/moments/{moment}/file/{type}', [PhotoController::class, 'serveFile'])
+        ->where('type', 'original|medium|thumbnail');
     Route::delete('/moments/{moment}', [PhotoController::class, 'destroy']);
 
     // Sync routes (WatermelonDB)

@@ -185,6 +185,83 @@ class PhotoController extends Controller
     }
 
     /**
+     * Display the specified moment.
+     */
+    public function show(Moment $moment)
+    {
+        $this->authorize('view', $moment->kid);
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->formatMoment($moment),
+        ]);
+    }
+
+    /**
+     * Serve a file from SeaweedFS through authenticated proxy.
+     */
+    public function serveFile(Moment $moment, string $type)
+    {
+        $this->authorize('view', $moment->kid);
+
+        // Map type to path field
+        $pathMap = [
+            'original' => 'photo_url',
+            'medium' => 'medium_url',
+            'thumbnail' => 'thumbnail_url',
+        ];
+
+        if (!isset($pathMap[$type])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid file type. Use: original, medium, or thumbnail',
+            ], 400);
+        }
+
+        $path = $moment->getRawOriginal($pathMap[$type]);
+
+        if (empty($path)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'File not found',
+            ], 404);
+        }
+
+        try {
+            $disk = Storage::disk('seaweedfs');
+
+            if (!$disk->exists($path)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'File not found in storage',
+                ], 404);
+            }
+
+            $fileContent = $disk->get($path);
+            $mimeType = $moment->mime_type ?? 'image/jpeg';
+            $fileSize = $disk->size($path);
+
+            return response($fileContent, 200)
+                ->header('Content-Type', $mimeType)
+                ->header('Content-Length', $fileSize)
+                ->header('Cache-Control', 'private, max-age=31536000')
+                ->header('Content-Disposition', 'inline');
+
+        } catch (\Exception $e) {
+            Log::error('Failed to serve file: ' . $e->getMessage(), [
+                'moment_id' => $moment->id,
+                'type' => $type,
+                'path' => $path,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to retrieve file',
+            ], 500);
+        }
+    }
+
+    /**
      * Get list of uploaded identifiers for duplicate detection.
      */
     public function uploadedIdentifiers(Request $request, Kid $kid)
@@ -317,9 +394,9 @@ class PhotoController extends Controller
             'kid_id' => $moment->kid_id,
             'title' => $moment->title,
             'description' => $moment->description,
-            'photo_url' => $this->getSignedUrl($moment->getRawOriginal('photo_url')),
-            'medium_url' => $this->getSignedUrl($moment->getRawOriginal('medium_url')),
-            'thumbnail_url' => $this->getSignedUrl($moment->getRawOriginal('thumbnail_url')),
+            'photo_url' => $moment->getRawOriginal('photo_url'),
+            'medium_url' => $moment->getRawOriginal('medium_url'),
+            'thumbnail_url' => $moment->getRawOriginal('thumbnail_url'),
             'file_size' => $moment->file_size,
             'file_size_formatted' => $moment->file_size_formatted,
             'mime_type' => $moment->mime_type,

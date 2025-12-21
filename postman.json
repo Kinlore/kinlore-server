@@ -677,6 +677,94 @@
                     "response": []
                 },
                 {
+                    "name": "Get Moment",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/moments/{{moment_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "moments",
+                                "{{moment_id}}"
+                            ]
+                        },
+                        "description": "Get a single moment by ID. Returns file paths (not signed URLs) for use with the file proxy endpoints."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Serve File - Thumbnail",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/moments/{{moment_id}}/file/thumbnail",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "moments",
+                                "{{moment_id}}",
+                                "file",
+                                "thumbnail"
+                            ]
+                        },
+                        "description": "Stream thumbnail image through authenticated proxy. Returns binary image data with proper Content-Type headers."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Serve File - Medium",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/moments/{{moment_id}}/file/medium",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "moments",
+                                "{{moment_id}}",
+                                "file",
+                                "medium"
+                            ]
+                        },
+                        "description": "Stream medium-sized image through authenticated proxy. Returns binary image data with proper Content-Type headers."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Serve File - Original",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/moments/{{moment_id}}/file/original",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "moments",
+                                "{{moment_id}}",
+                                "file",
+                                "original"
+                            ]
+                        },
+                        "description": "Stream original full-resolution image through authenticated proxy. Returns binary image data with proper Content-Type headers."
+                    },
+                    "response": []
+                },
+                {
                     "name": "Delete Moment",
                     "request": {
                         "method": "DELETE",
