@@ -63,6 +63,11 @@ class PhotoController extends Controller
             'title' => 'nullable|string|max:255',
             'description' => 'nullable|string|max:1000',
             'device_asset_id' => 'nullable|string|max:255',
+            'exif_date' => 'nullable|date',
+            'latitude' => 'nullable|numeric|between:-90,90',
+            'longitude' => 'nullable|numeric|between:-180,180',
+            'camera_make' => 'nullable|string|max:255',
+            'camera_model' => 'nullable|string|max:255',
             'tags' => 'nullable|array',
             'tags.*' => 'string|max:50',
         ]);
@@ -106,10 +111,6 @@ class PhotoController extends Controller
 
             Log::debug('Thumbnail photo uploaded');
 
-            $exifData = $this->extractExifData($photo);
-
-            Log::debug('Exif data extracted');
-
             $moment = Moment::create([
                 'id' => $uuid,
                 'kid_id' => $kid->id,
@@ -125,12 +126,11 @@ class PhotoController extends Controller
                 'device_fingerprint' => $this->generateFingerprint($photo),
                 'uploaded_from_device' => $request->header('User-Agent'),
                 'uploaded_from_ip' => $request->ip(),
-                'exif_date' => $exifData['date'] ?? null,
-                'latitude' => $exifData['latitude'] ?? null,
-                'longitude' => $exifData['longitude'] ?? null,
-                'orientation' => $exifData['orientation'] ?? null,
-                'camera_make' => $exifData['make'] ?? null,
-                'camera_model' => $exifData['model'] ?? null,
+                'exif_date' => isset($validated['exif_date']) ? \Carbon\Carbon::parse($validated['exif_date']) : null,
+                'latitude' => $validated['latitude'] ?? null,
+                'longitude' => $validated['longitude'] ?? null,
+                'camera_make' => $validated['camera_make'] ?? null,
+                'camera_model' => $validated['camera_model'] ?? null,
                 'tags' => $validated['tags'] ?? null,
             ]);
 
@@ -287,94 +287,6 @@ class PhotoController extends Controller
         ]);
     }
 
-    /**
-     * Extract EXIF data from photo.
-     */
-    private function extractExifData($photo)
-    {
-        try {
-            $exif = @exif_read_data($photo->getRealPath());
-
-            if (!$exif) {
-                return [];
-            }
-
-            $data = [];
-
-            // Extract date
-            if (isset($exif['DateTimeOriginal'])) {
-                try {
-                    $data['date'] = \Carbon\Carbon::createFromFormat(
-                        'Y:m:d H:i:s',
-                        $exif['DateTimeOriginal']
-                    );
-                } catch (\Exception $e) {
-                    \Log::warning('Failed to parse EXIF date: ' . $e->getMessage());
-                }
-            }
-
-            // Extract GPS coordinates
-            if (isset($exif['GPSLatitude']) && isset($exif['GPSLongitude'])) {
-                $data['latitude'] = $this->getGps(
-                    $exif['GPSLatitude'],
-                    $exif['GPSLatitudeRef'] ?? 'N'
-                );
-                $data['longitude'] = $this->getGps(
-                    $exif['GPSLongitude'],
-                    $exif['GPSLongitudeRef'] ?? 'E'
-                );
-            }
-
-            // Extract orientation
-            $data['orientation'] = $exif['Orientation'] ?? null;
-
-            // Extract camera info
-            $data['make'] = isset($exif['Make']) ? trim($exif['Make']) : null;
-            $data['model'] = isset($exif['Model']) ? trim($exif['Model']) : null;
-
-            return $data;
-
-        } catch (\Exception $e) {
-            \Log::warning('EXIF extraction failed: ' . $e->getMessage());
-            return [];
-        }
-    }
-
-    /**
-     * Convert GPS coordinates to decimal.
-     */
-    private function getGps($coordinate, $hemisphere)
-    {
-        if (!is_array($coordinate) || count($coordinate) < 2) {
-            return null;
-        }
-
-        $degrees = $this->gps2Num($coordinate[0]);
-        $minutes = $this->gps2Num($coordinate[1]);
-        $seconds = isset($coordinate[2]) ? $this->gps2Num($coordinate[2]) : 0;
-
-        $flip = ($hemisphere === 'W' || $hemisphere === 'S') ? -1 : 1;
-
-        return round($flip * ($degrees + $minutes / 60 + $seconds / 3600), 8);
-    }
-
-    /**
-     * Convert GPS fraction to number.
-     */
-    private function gps2Num($coordPart)
-    {
-        $parts = explode('/', (string) $coordPart);
-
-        if (count($parts) <= 0) {
-            return 0;
-        }
-
-        if (count($parts) == 1) {
-            return (float) $parts[0];
-        }
-
-        return (float) $parts[0] / (float) $parts[1];
-    }
 
     /**
      * Generate fingerprint for duplicate detection.
