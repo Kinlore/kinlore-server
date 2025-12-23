@@ -742,7 +742,7 @@
                                 "{{moment_id}}"
                             ]
                         },
-                        "description": "Get a single moment by ID. Returns file paths (not signed URLs) for use with the file proxy endpoints."
+                        "description": "Get a single moment by ID. Returns file paths (not signed URLs) for use with the file proxy endpoints.\n\nResponse includes:\n- `is_liked`: boolean, true if current user liked the moment\n- `likes_count`: integer, total number of likes\n- `comments_count`: integer, total number of comments"
                     },
                     "response": []
                 },
@@ -763,7 +763,7 @@
                                 "thumbnail"
                             ]
                         },
-                        "description": "Stream thumbnail image through authenticated proxy. Returns binary image data with proper Content-Type headers."
+                        "description": "Stream thumbnail image through authenticated proxy. Checks for existence in SeaweedFS. Always returns Content-Type: image/jpeg as thumbnails are converted to JPEG."
                     },
                     "response": []
                 },
@@ -784,7 +784,7 @@
                                 "medium"
                             ]
                         },
-                        "description": "Stream medium-sized image through authenticated proxy. Returns binary image data with proper Content-Type headers."
+                        "description": "Stream medium-sized image through authenticated proxy. Checks for existence in SeaweedFS. Always returns Content-Type: image/jpeg as medium files are converted to JPEG."
                     },
                     "response": []
                 },

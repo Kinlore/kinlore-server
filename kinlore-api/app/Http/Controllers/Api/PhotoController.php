@@ -251,7 +251,14 @@ class PhotoController extends Controller
             }
 
             $fileContent = $disk->get($path);
-            $mimeType = $moment->mime_type ?? 'image/jpeg';
+            
+            // Set correct MIME type
+            if ($type === 'thumbnail' || $type === 'medium') {
+                $mimeType = 'image/jpeg';
+            } else {
+                $mimeType = $moment->mime_type ?? 'image/jpeg';
+            }
+            
             $fileSize = $disk->size($path);
 
             return response($fileContent, 200)
