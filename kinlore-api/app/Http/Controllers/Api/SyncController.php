@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Kid;
 use App\Models\Moment;
+use App\Models\Milestone;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 
@@ -102,6 +103,39 @@ class SyncController extends Controller
             }
         }
 
+        // Get milestones (system data - always send all on first sync, check updates after)
+        $milestonesQuery = Milestone::query();
+        
+        if ($lastPulledAt) {
+            $milestonesQuery->where('updated_at', '>', $lastPulledAt);
+        }
+
+        $milestones = $milestonesQuery->orderBy('stage_key')->orderBy('sort_order')->get();
+
+        // Separate created, updated for milestones (no deletes for system data typically)
+        $milestonesCreated = [];
+        $milestonesUpdated = [];
+
+        foreach ($milestones as $milestone) {
+            $milestoneData = [
+                'id' => $milestone->id,
+                'title' => $milestone->title,
+                'description' => $milestone->description,
+                'stage_key' => $milestone->stage_key,
+                'stage_label' => $milestone->stage_label,
+                'sort_order' => $milestone->sort_order,
+                'icon_url' => $milestone->icon_url,
+                'created_at' => $milestone->created_at ? $milestone->created_at->timestamp * 1000 : null,
+                'updated_at' => $milestone->updated_at ? $milestone->updated_at->timestamp * 1000 : null,
+            ];
+
+            if (!$lastPulledAt || $milestone->created_at > $lastPulledAt) {
+                $milestonesCreated[] = $milestoneData;
+            } else {
+                $milestonesUpdated[] = $milestoneData;
+            }
+        }
+
         return response()->json([
             'changes' => [
                 'kids' => [
@@ -113,6 +147,11 @@ class SyncController extends Controller
                     'created' => $momentsCreated,
                     'updated' => $momentsUpdated,
                     'deleted' => $momentsDeleted,
+                ],
+                'milestones' => [
+                    'created' => $milestonesCreated,
+                    'updated' => $milestonesUpdated,
+                    'deleted' => [],
                 ],
             ],
             'timestamp' => now()->timestamp * 1000,

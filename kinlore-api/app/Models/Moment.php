@@ -33,8 +33,13 @@ class Moment extends Model
      */
     protected $fillable = [
         'kid_id',
+        'video_id',
+        'moment_type',
+        'milestone_id',
+        'custom_milestone_id',
         'title',
         'description',
+        'story_text',
         'photo_url',
         'thumbnail_url',
         'medium_url',
@@ -66,6 +71,7 @@ class Moment extends Model
         'orientation' => 'integer',
         'tags' => 'array',
         'synced_at' => 'integer',
+        'moment_type' => 'string',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',
@@ -111,6 +117,37 @@ class Moment extends Model
     public function isLikedBy(User $user)
     {
         return $this->likes()->where('user_id', $user->id)->exists();
+    }
+
+    public function video()
+    {
+        return $this->belongsTo(Video::class);
+    }
+
+    public function milestone()
+    {
+        return $this->belongsTo(Milestone::class);
+    }
+
+    public function customMilestone()
+    {
+        return $this->belongsTo(CustomMilestone::class);
+    }
+
+    /**
+     * Check if moment is a video type
+     */
+    public function isVideo(): bool
+    {
+        return $this->moment_type === 'video';
+    }
+
+    /**
+     * Get the milestone (either system or custom)
+     */
+    public function getAssociatedMilestone()
+    {
+        return $this->milestone ?? $this->customMilestone;
     }
 
     /**
@@ -292,11 +329,16 @@ class Moment extends Model
      */
     public function toArray()
     {
-        return [
+        $data = [
             'id' => $this->id,
             'kid_id' => $this->kid_id,
+            'video_id' => $this->video_id,
+            'moment_type' => $this->moment_type ?? 'photo',
+            'milestone_id' => $this->milestone_id,
+            'custom_milestone_id' => $this->custom_milestone_id,
             'title' => $this->title,
             'description' => $this->description,
+            'story_text' => $this->story_text,
             'photo_url' => $this->photo_url,
             'medium_url' => $this->medium_url,
             'thumbnail_url' => $this->thumbnail_url,
@@ -313,5 +355,21 @@ class Moment extends Model
             'created_at' => $this->created_at->toIso8601String(),
             'updated_at' => $this->updated_at->toIso8601String(),
         ];
+
+        // Include video details if loaded and exists
+        if ($this->relationLoaded('video') && $this->video) {
+            $data['video'] = $this->video->toStatusArray();
+        }
+
+        // Include milestone details if loaded
+        if ($this->relationLoaded('milestone') && $this->milestone) {
+            $data['milestone'] = $this->milestone->toArray();
+        }
+
+        if ($this->relationLoaded('customMilestone') && $this->customMilestone) {
+            $data['custom_milestone'] = $this->customMilestone->toArray();
+        }
+
+        return $data;
     }
 }

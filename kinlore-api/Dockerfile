@@ -17,7 +17,8 @@ RUN apk add --no-cache \
     icu-dev \
     zip \
     unzip \
-    bash
+    bash \
+    ffmpeg
 
 # Install PHP extensions
 RUN docker-php-ext-configure gd \

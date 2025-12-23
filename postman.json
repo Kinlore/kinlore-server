@@ -41,6 +41,16 @@
             "key": "token_id",
             "value": "",
             "type": "string"
+        },
+        {
+            "key": "video_id",
+            "value": "",
+            "type": "string"
+        },
+        {
+            "key": "custom_milestone_id",
+            "value": "",
+            "type": "string"
         }
     ],
     "item": [
@@ -1106,6 +1116,489 @@
                             "path": [
                                 "sync",
                                 "push"
+                            ]
+                        }
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Videos",
+            "item": [
+                {
+                    "name": "Upload Video",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "if (pm.response.code === 201) {",
+                                    "    var jsonData = pm.response.json();",
+                                    "    pm.collectionVariables.set('video_id', jsonData.data.id);",
+                                    "    console.log('Video ID saved:', jsonData.data.id);",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "formdata",
+                            "formdata": [
+                                {
+                                    "key": "video",
+                                    "type": "file",
+                                    "src": "/path/to/video.mp4",
+                                    "description": "Select a video file (mp4, mov, avi, mkv, webm)"
+                                },
+                                {
+                                    "key": "original_filename",
+                                    "value": "my-video.mp4",
+                                    "type": "text",
+                                    "description": "Optional original filename"
+                                }
+                            ]
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/videos/upload",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "videos",
+                                "upload"
+                            ]
+                        },
+                        "description": "Upload a video for processing. Returns video ID and initiates background HLS transcoding."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "List Videos",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/videos?status=completed&per_page=20",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "videos"
+                            ],
+                            "query": [
+                                {
+                                    "key": "status",
+                                    "value": "completed",
+                                    "description": "Filter by status: uploading, processing, completed, failed"
+                                },
+                                {
+                                    "key": "per_page",
+                                    "value": "20"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Video",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/videos/{{video_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "videos",
+                                "{{video_id}}"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Video Status",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/videos/{{video_id}}/status",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "videos",
+                                "{{video_id}}",
+                                "status"
+                            ]
+                        },
+                        "description": "Poll for video processing status. Returns: uploading, processing, completed, or failed."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Delete Video",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/videos/{{video_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "videos",
+                                "{{video_id}}"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Serve HLS Playlist",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/videos/{{video_id}}/hls/playlist.m3u8",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "videos",
+                                "{{video_id}}",
+                                "hls",
+                                "playlist.m3u8"
+                            ]
+                        },
+                        "description": "Stream HLS playlist through authenticated proxy. Use this URL in video players."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Serve Video Thumbnail",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/videos/{{video_id}}/thumbnail",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "videos",
+                                "{{video_id}}",
+                                "thumbnail"
+                            ]
+                        },
+                        "description": "Get video thumbnail image."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Milestones",
+            "item": [
+                {
+                    "name": "List Milestones (Grouped)",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/milestones",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "milestones"
+                            ]
+                        },
+                        "description": "Returns all milestones grouped by stage (infancy, toddler, etc.)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "List Milestones (Flat)",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/milestones?flat=true",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "milestones"
+                            ],
+                            "query": [
+                                {
+                                    "key": "flat",
+                                    "value": "true"
+                                }
+                            ]
+                        },
+                        "description": "Returns all milestones as a flat list."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Milestones by Stage",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/milestones/stage/infancy_0_12m",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "milestones",
+                                "stage",
+                                "infancy_0_12m"
+                            ]
+                        },
+                        "description": "Get milestones for a specific stage. Available stages: infancy_0_12m, toddler_1_3y, early_childhood_3_6y, middle_childhood_6_12y, adolescence_12_18y, young_adulthood_18_25y, partnership_marriage"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Milestone by ID",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/milestones/first_smile",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "milestones",
+                                "first_smile"
+                            ]
+                        },
+                        "description": "Get a specific milestone by its string ID (e.g., first_smile, first_steps)"
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Custom Milestones",
+            "item": [
+                {
+                    "name": "List Custom Milestones",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/milestones/custom",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "milestones",
+                                "custom"
+                            ]
+                        },
+                        "description": "List user's custom milestones"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Create Custom Milestone",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "if (pm.response.code === 201) {",
+                                    "    var jsonData = pm.response.json();",
+                                    "    pm.collectionVariables.set('custom_milestone_id', jsonData.data.id);",
+                                    "    console.log('Custom Milestone ID saved:', jsonData.data.id);",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"First Bike Ride\",\n  \"description\": \"Learning to ride a bike without training wheels\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/milestones/custom",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "milestones",
+                                "custom"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Custom Milestone",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/milestones/custom/{{custom_milestone_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "milestones",
+                                "custom",
+                                "{{custom_milestone_id}}"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Custom Milestone",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"First Bike Ride Without Help\",\n  \"description\": \"Successfully riding a bike independently\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/milestones/custom/{{custom_milestone_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "milestones",
+                                "custom",
+                                "{{custom_milestone_id}}"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Delete Custom Milestone",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/milestones/custom/{{custom_milestone_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "milestones",
+                                "custom",
+                                "{{custom_milestone_id}}"
                             ]
                         }
                     },
