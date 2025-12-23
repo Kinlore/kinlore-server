@@ -104,16 +104,20 @@ class PhotoController extends Controller
             Log::info('Original photo uploaded');
 
             $mediumImage = Image::read($photo->getRealPath())
-                ->scale(width: 1200)
+                ->orient()  // Auto-correct EXIF orientation
+                ->scaleDown(width: 1200)  // Scale down only, don't upscale
                 ->toJpeg(quality: 85);
 
-            Log::info('Medium photo processed');
+            Log::info('Medium photo processed', [
+                'medium_size' => strlen((string) $mediumImage),
+            ]);
 
             Storage::disk('seaweedfs')->put($mediumPath, (string) $mediumImage, 'private');
 
-            Log::info('Medium photo uploaded');
+            Log::info('Medium photo uploaded', ['path' => $mediumPath]);
 
             $thumbnailImage = Image::read($photo->getRealPath())
+                ->orient()  // Auto-correct EXIF orientation
                 ->cover(300, 300)
                 ->toJpeg(quality: 80);
 
@@ -243,7 +247,18 @@ class PhotoController extends Controller
         try {
             $disk = Storage::disk('seaweedfs');
 
+            Log::debug('Attempting to serve file', [
+                'moment_id' => $moment->id,
+                'type' => $type,
+                'path' => $path,
+            ]);
+
             if (!$disk->exists($path)) {
+                Log::warning('File not found in storage', [
+                    'moment_id' => $moment->id,
+                    'type' => $type,
+                    'path' => $path,
+                ]);
                 return response()->json([
                     'success' => false,
                     'message' => 'File not found in storage',
