@@ -60,6 +60,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/moments/{moment}', [PhotoController::class, 'show']);
     Route::get('/moments/{moment}/file/{type}', [PhotoController::class, 'serveFile'])
         ->where('type', 'original|medium|thumbnail');
+    Route::get('/moments/{moment}/file-status', [PhotoController::class, 'checkFileStatus']);
     Route::delete('/moments/{moment}', [PhotoController::class, 'destroy']);
     
     // Moment Interactions

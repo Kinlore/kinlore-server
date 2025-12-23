@@ -810,6 +810,32 @@
                     "response": []
                 },
                 {
+                    "name": "Check File Status (Diagnostic)",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/moments/{{moment_id}}/file-status",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "moments",
+                                "{{moment_id}}",
+                                "file-status"
+                            ]
+                        },
+                        "description": "Diagnostic endpoint to check if all image files (original, medium, thumbnail) exist in SeaweedFS and their sizes. Use this to verify files are being saved correctly."
+                    },
+                    "response": []
+                },
+                {
                     "name": "Delete Moment",
                     "request": {
                         "method": "DELETE",

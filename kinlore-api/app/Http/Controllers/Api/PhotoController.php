@@ -215,6 +215,43 @@ class PhotoController extends Controller
     }
 
     /**
+     * Diagnostic endpoint to check file storage status.
+     */
+    public function checkFileStatus(Moment $moment)
+    {
+        $this->authorize('view', $moment->kid);
+
+        $disk = Storage::disk('seaweedfs');
+        
+        $originalPath = $moment->getRawOriginal('photo_url');
+        $mediumPath = $moment->getRawOriginal('medium_url');
+        $thumbnailPath = $moment->getRawOriginal('thumbnail_url');
+
+        $checkFile = function($path) use ($disk) {
+            if (empty($path)) {
+                return ['path' => null, 'exists' => false, 'size' => null];
+            }
+            
+            $exists = $disk->exists($path);
+            return [
+                'path' => $path,
+                'exists' => $exists,
+                'size' => $exists ? $disk->size($path) : null,
+            ];
+        };
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'moment_id' => $moment->id,
+                'original' => $checkFile($originalPath),
+                'medium' => $checkFile($mediumPath),
+                'thumbnail' => $checkFile($thumbnailPath),
+            ],
+        ]);
+    }
+
+    /**
      * Serve a file from SeaweedFS through authenticated proxy.
      */
     public function serveFile(Moment $moment, string $type)
