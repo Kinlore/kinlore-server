@@ -155,8 +155,14 @@ Route::middleware('auth:sanctum')->group(function () {
         return $request->user();
     });
 
-    // Kids routes
-    Route::apiResource('kids', KidController::class);
+    // Kids routes (legacy names to avoid conflict with v1 routes)
+    Route::apiResource('kids', KidController::class)->names([
+        'index' => 'legacy.kids.index',
+        'store' => 'legacy.kids.store',
+        'show' => 'legacy.kids.show',
+        'update' => 'legacy.kids.update',
+        'destroy' => 'legacy.kids.destroy',
+    ]);
 
     // Moments routes (scoped to kid)
     Route::prefix('kids/{kid}')->group(function () {
