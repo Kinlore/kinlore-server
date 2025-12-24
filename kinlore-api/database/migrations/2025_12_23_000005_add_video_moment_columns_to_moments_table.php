@@ -21,7 +21,8 @@ return new class extends Migration
                   ->after('video_id');
             
             // Milestone associations (both nullable, only one should be set)
-            $table->uuid('milestone_id')->nullable()->after('moment_type');
+            // Note: milestone_id uses string to match the milestones table's string primary key
+            $table->string('milestone_id')->nullable()->after('moment_type');
             $table->uuid('custom_milestone_id')->nullable()->after('milestone_id');
             
             // Story/narrative text
