@@ -6,15 +6,19 @@ use App\Http\Controllers\Api\KidController;
 use App\Http\Controllers\Api\PhotoController;
 use App\Http\Controllers\Api\SyncController;
 use App\Http\Controllers\Api\VideoController;
-use App\Http\Controllers\Api\MilestoneController;
-use App\Http\Controllers\Api\CustomMilestoneController;
+use App\Http\Controllers\Api\MediaController;
+use App\Http\Controllers\Api\StoryController;
+use App\Http\Controllers\Api\PredefinedMilestoneController;
+use App\Http\Controllers\Api\UserMilestoneController;
+use App\Http\Controllers\Api\MomentInteractionController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/user', function (Request $request) {
-    return $request->user();
-})->middleware('auth:sanctum');
-
+/*
+|--------------------------------------------------------------------------
+| Health Check Routes (Public)
+|--------------------------------------------------------------------------
+*/
 Route::get('/health', function () {
     return response()->json([
         'status' => 'ok',
@@ -23,9 +27,15 @@ Route::get('/health', function () {
     ]);
 });
 
-Route::get('/health/detailed', [HealthController::class, 'detailed'])->name('health.detailed')->middleware('auth:sanctum');
+Route::get('/health/detailed', [HealthController::class, 'detailed'])
+    ->name('health.detailed')
+    ->middleware('auth:sanctum');
 
-// Authentication routes (public)
+/*
+|--------------------------------------------------------------------------
+| Authentication Routes (Public)
+|--------------------------------------------------------------------------
+*/
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
     Route::post('/login', [AuthController::class, 'login']);
@@ -41,8 +51,104 @@ Route::prefix('auth')->group(function () {
     });
 });
 
+/*
+|--------------------------------------------------------------------------
+| API v1 Routes (Protected)
+|--------------------------------------------------------------------------
+*/
+Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
+    
+    // Get current user
+    Route::get('/user', function (Request $request) {
+        return $request->user();
+    });
 
-// Protected routes
+    /*
+    |--------------------------------------------------------------------------
+    | Media Routes (Unified Photo/Video)
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('media')->group(function () {
+        Route::post('/upload', [MediaController::class, 'store']);
+        Route::get('/', [MediaController::class, 'index']);
+        Route::get('/{media}', [MediaController::class, 'show']);
+        Route::patch('/{media}', [MediaController::class, 'update']);
+        Route::delete('/{media}', [MediaController::class, 'destroy']);
+        Route::get('/{media}/file/{type}', [MediaController::class, 'serveFile'])
+            ->where('type', 'original|medium|thumbnail|hls');
+    });
+    
+    // Uploaded identifiers per kid (for duplicate detection)
+    Route::get('/kids/{kid}/media/uploaded-identifiers', [MediaController::class, 'uploadedIdentifiers']);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Kids Routes
+    |--------------------------------------------------------------------------
+    */
+    Route::apiResource('kids', KidController::class);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Moments Routes
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('kids/{kid}')->group(function () {
+        Route::get('/moments', [PhotoController::class, 'index']);
+        Route::post('/moments', [PhotoController::class, 'store']);
+        Route::get('/moments/uploaded-identifiers', [PhotoController::class, 'uploadedIdentifiers']);
+    });
+    
+    Route::get('/moments/{moment}', [PhotoController::class, 'show']);
+    Route::get('/moments/{moment}/file/{type}', [PhotoController::class, 'serveFile'])
+        ->where('type', 'original|medium|thumbnail');
+    Route::get('/moments/{moment}/file-status', [PhotoController::class, 'checkFileStatus']);
+    Route::delete('/moments/{moment}', [PhotoController::class, 'destroy']);
+    
+    // Moment Interactions
+    Route::post('/moments/{moment}/like', [MomentInteractionController::class, 'like']);
+    Route::delete('/moments/{moment}/like', [MomentInteractionController::class, 'unlike']);
+    Route::get('/moments/{moment}/comments', [MomentInteractionController::class, 'index']);
+    Route::post('/moments/{moment}/comments', [MomentInteractionController::class, 'comment']);
+    Route::delete('/interactions/{interaction}', [MomentInteractionController::class, 'deleteComment']);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Stories Routes
+    |--------------------------------------------------------------------------
+    */
+    Route::apiResource('stories', StoryController::class);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Milestones Routes
+    |--------------------------------------------------------------------------
+    */
+    // Predefined milestones (read-only, system-defined)
+    Route::prefix('milestones/predefined')->group(function () {
+        Route::get('/', [PredefinedMilestoneController::class, 'index']);
+        Route::get('/{id}', [PredefinedMilestoneController::class, 'show']);
+    });
+    
+    // User milestones (user's milestone achievements)
+    Route::apiResource('milestones', UserMilestoneController::class)
+        ->parameters(['milestones' => 'userMilestone']);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Sync Routes (WatermelonDB)
+    |--------------------------------------------------------------------------
+    */
+    Route::post('/sync/pull', [SyncController::class, 'pull']);
+    Route::post('/sync/push', [SyncController::class, 'push']);
+});
+
+/*
+|--------------------------------------------------------------------------
+| Legacy Routes (Without v1 prefix - for backward compatibility)
+| These routes maintain compatibility with existing clients
+|--------------------------------------------------------------------------
+*/
 Route::middleware('auth:sanctum')->group(function () {
     // Get current user
     Route::get('/user', function (Request $request) {
@@ -67,13 +173,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/moments/{moment}', [PhotoController::class, 'destroy']);
     
     // Moment Interactions
-    Route::post('/moments/{moment}/like', [\App\Http\Controllers\Api\MomentInteractionController::class, 'like']);
-    Route::delete('/moments/{moment}/like', [\App\Http\Controllers\Api\MomentInteractionController::class, 'unlike']);
-    Route::get('/moments/{moment}/comments', [\App\Http\Controllers\Api\MomentInteractionController::class, 'index']);
-    Route::post('/moments/{moment}/comments', [\App\Http\Controllers\Api\MomentInteractionController::class, 'comment']);
-    Route::delete('/interactions/{interaction}', [\App\Http\Controllers\Api\MomentInteractionController::class, 'deleteComment']);
+    Route::post('/moments/{moment}/like', [MomentInteractionController::class, 'like']);
+    Route::delete('/moments/{moment}/like', [MomentInteractionController::class, 'unlike']);
+    Route::get('/moments/{moment}/comments', [MomentInteractionController::class, 'index']);
+    Route::post('/moments/{moment}/comments', [MomentInteractionController::class, 'comment']);
+    Route::delete('/interactions/{interaction}', [MomentInteractionController::class, 'deleteComment']);
 
-    // Video routes
+    // Video routes (legacy)
     Route::post('/videos/upload', [VideoController::class, 'upload']);
     Route::get('/videos', [VideoController::class, 'index']);
     Route::get('/videos/{video}', [VideoController::class, 'show']);
@@ -82,20 +188,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/videos/{video}/hls/{filename}', [VideoController::class, 'serveHLS'])
         ->where('filename', '.*');
     Route::get('/videos/{video}/thumbnail', [VideoController::class, 'serveThumbnail']);
-
-    // Milestone routes (predefined/system milestones)
-    Route::get('/milestones', [MilestoneController::class, 'index']);
-    Route::get('/milestones/stage/{stageKey}', [MilestoneController::class, 'byStage']);
-
-    // Custom milestone routes (user-created) - must come before /{identifier}
-    Route::get('/milestones/custom', [CustomMilestoneController::class, 'index']);
-    Route::post('/milestones/custom', [CustomMilestoneController::class, 'store']);
-    Route::get('/milestones/custom/{customMilestone}', [CustomMilestoneController::class, 'show']);
-    Route::put('/milestones/custom/{customMilestone}', [CustomMilestoneController::class, 'update']);
-    Route::delete('/milestones/custom/{customMilestone}', [CustomMilestoneController::class, 'destroy']);
-
-    // Get specific milestone by ID (after custom routes to avoid conflicts)
-    Route::get('/milestones/{identifier}', [MilestoneController::class, 'show']);
 
     // Sync routes (WatermelonDB)
     Route::post('/sync/pull', [SyncController::class, 'pull']);

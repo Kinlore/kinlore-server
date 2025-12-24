@@ -1,10 +1,10 @@
 {
     "info": {
-        "name": "Kinlore API",
-        "description": "Complete API collection for Kinlore - Multi-kid photo memory app with offline-first sync",
+        "name": "Kinlore API v1",
+        "description": "Complete API collection for Kinlore - Multi-kid photo memory app with unified media, stories, and milestones",
         "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-        "_postman_id": "kinlore-api-collection",
-        "version": "1.0.0"
+        "_postman_id": "kinlore-api-v1-collection",
+        "version": "2.0.0"
     },
     "auth": {
         "type": "bearer",
@@ -33,22 +33,27 @@
             "type": "string"
         },
         {
+            "key": "media_id",
+            "value": "",
+            "type": "string"
+        },
+        {
             "key": "moment_id",
             "value": "",
             "type": "string"
         },
         {
-            "key": "token_id",
+            "key": "story_id",
             "value": "",
             "type": "string"
         },
         {
-            "key": "video_id",
+            "key": "milestone_id",
             "value": "",
             "type": "string"
         },
         {
-            "key": "custom_milestone_id",
+            "key": "predefined_milestone_id",
             "value": "",
             "type": "string"
         }
@@ -60,12 +65,14 @@
                 {
                     "name": "Health Check",
                     "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
                         "method": "GET",
                         "header": [
                             {
                                 "key": "Accept",
-                                "value": "application/json",
-                                "type": "text"
+                                "value": "application/json"
                             }
                         ],
                         "url": {
@@ -77,28 +84,16 @@
                                 "health"
                             ]
                         }
-                    },
-                    "response": []
+                    }
                 },
                 {
                     "name": "Health Check (Detailed)",
                     "request": {
-                        "auth": {
-                            "type": "bearer",
-                            "bearer": [
-                                {
-                                    "key": "token",
-                                    "value": "{{auth_token}}",
-                                    "type": "string"
-                                }
-                            ]
-                        },
                         "method": "GET",
                         "header": [
                             {
                                 "key": "Accept",
-                                "value": "application/json",
-                                "type": "text"
+                                "value": "application/json"
                             }
                         ],
                         "url": {
@@ -111,8 +106,7 @@
                                 "detailed"
                             ]
                         }
-                    },
-                    "response": []
+                    }
                 }
             ]
         },
@@ -129,7 +123,6 @@
                                     "if (pm.response.code === 201) {",
                                     "    var jsonData = pm.response.json();",
                                     "    pm.collectionVariables.set('auth_token', jsonData.data.token);",
-                                    "    console.log('Token saved:', jsonData.data.token);",
                                     "}"
                                 ],
                                 "type": "text/javascript"
@@ -144,13 +137,11 @@
                         "header": [
                             {
                                 "key": "Content-Type",
-                                "value": "application/json",
-                                "type": "text"
+                                "value": "application/json"
                             },
                             {
                                 "key": "Accept",
-                                "value": "application/json",
-                                "type": "text"
+                                "value": "application/json"
                             }
                         ],
                         "body": {
@@ -167,8 +158,7 @@
                                 "register"
                             ]
                         }
-                    },
-                    "response": []
+                    }
                 },
                 {
                     "name": "Login",
@@ -180,7 +170,6 @@
                                     "if (pm.response.code === 200) {",
                                     "    var jsonData = pm.response.json();",
                                     "    pm.collectionVariables.set('auth_token', jsonData.data.token);",
-                                    "    console.log('Token saved:', jsonData.data.token);",
                                     "}"
                                 ],
                                 "type": "text/javascript"
@@ -195,13 +184,11 @@
                         "header": [
                             {
                                 "key": "Content-Type",
-                                "value": "application/json",
-                                "type": "text"
+                                "value": "application/json"
                             },
                             {
                                 "key": "Accept",
-                                "value": "application/json",
-                                "type": "text"
+                                "value": "application/json"
                             }
                         ],
                         "body": {
@@ -218,8 +205,7 @@
                                 "login"
                             ]
                         }
-                    },
-                    "response": []
+                    }
                 },
                 {
                     "name": "Get Current User",
@@ -228,8 +214,7 @@
                         "header": [
                             {
                                 "key": "Accept",
-                                "value": "application/json",
-                                "type": "text"
+                                "value": "application/json"
                             }
                         ],
                         "url": {
@@ -241,18 +226,8 @@
                                 "auth",
                                 "me"
                             ]
-                        },
-                        "description": "Returns current authenticated user info including storage usage. storage_bytes_used is the sum of all uploaded file sizes, storage_bytes_available is the actual free disk space."
-                    },
-                    "response": [
-                        {
-                            "name": "Success",
-                            "status": "OK",
-                            "code": 200,
-                            "_postman_previewlanguage": "json",
-                            "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": 1,\n    \"name\": \"Test User\",\n    \"email\": \"test@kinlore.local\",\n    \"email_verified_at\": null,\n    \"created_at\": \"2024-12-21T10:00:00+00:00\",\n    \"kids_count\": 2,\n    \"moments_count\": 150,\n    \"storage_used\": \"1.25 GB\",\n    \"storage_bytes_used\": 1342177280,\n    \"storage_bytes_available\": 107374182400\n  }\n}"
                         }
-                    ]
+                    }
                 },
                 {
                     "name": "Logout",
@@ -261,8 +236,7 @@
                         "header": [
                             {
                                 "key": "Accept",
-                                "value": "application/json",
-                                "type": "text"
+                                "value": "application/json"
                             }
                         ],
                         "url": {
@@ -275,32 +249,7 @@
                                 "logout"
                             ]
                         }
-                    },
-                    "response": []
-                },
-                {
-                    "name": "Logout All Devices",
-                    "request": {
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Accept",
-                                "value": "application/json",
-                                "type": "text"
-                            }
-                        ],
-                        "url": {
-                            "raw": "{{base_url}}/auth/logout-all",
-                            "host": [
-                                "{{base_url}}"
-                            ],
-                            "path": [
-                                "auth",
-                                "logout-all"
-                            ]
-                        }
-                    },
-                    "response": []
+                    }
                 },
                 {
                     "name": "Refresh Token",
@@ -312,7 +261,6 @@
                                     "if (pm.response.code === 200) {",
                                     "    var jsonData = pm.response.json();",
                                     "    pm.collectionVariables.set('auth_token', jsonData.data.token);",
-                                    "    console.log('Token refreshed:', jsonData.data.token);",
                                     "}"
                                 ],
                                 "type": "text/javascript"
@@ -324,8 +272,7 @@
                         "header": [
                             {
                                 "key": "Accept",
-                                "value": "application/json",
-                                "type": "text"
+                                "value": "application/json"
                             }
                         ],
                         "url": {
@@ -338,57 +285,7 @@
                                 "refresh"
                             ]
                         }
-                    },
-                    "response": []
-                },
-                {
-                    "name": "Get Active Sessions",
-                    "request": {
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Accept",
-                                "value": "application/json",
-                                "type": "text"
-                            }
-                        ],
-                        "url": {
-                            "raw": "{{base_url}}/auth/sessions",
-                            "host": [
-                                "{{base_url}}"
-                            ],
-                            "path": [
-                                "auth",
-                                "sessions"
-                            ]
-                        }
-                    },
-                    "response": []
-                },
-                {
-                    "name": "Revoke Session",
-                    "request": {
-                        "method": "DELETE",
-                        "header": [
-                            {
-                                "key": "Accept",
-                                "value": "application/json",
-                                "type": "text"
-                            }
-                        ],
-                        "url": {
-                            "raw": "{{base_url}}/auth/sessions/{{token_id}}",
-                            "host": [
-                                "{{base_url}}"
-                            ],
-                            "path": [
-                                "auth",
-                                "sessions",
-                                "{{token_id}}"
-                            ]
-                        }
-                    },
-                    "response": []
+                    }
                 }
             ]
         },
@@ -402,21 +299,20 @@
                         "header": [
                             {
                                 "key": "Accept",
-                                "value": "application/json",
-                                "type": "text"
+                                "value": "application/json"
                             }
                         ],
                         "url": {
-                            "raw": "{{base_url}}/kids",
+                            "raw": "{{base_url}}/v1/kids",
                             "host": [
                                 "{{base_url}}"
                             ],
                             "path": [
+                                "v1",
                                 "kids"
                             ]
                         }
-                    },
-                    "response": []
+                    }
                 },
                 {
                     "name": "Create Kid",
@@ -428,7 +324,6 @@
                                     "if (pm.response.code === 201) {",
                                     "    var jsonData = pm.response.json();",
                                     "    pm.collectionVariables.set('kid_id', jsonData.data.id);",
-                                    "    console.log('Kid ID saved:', jsonData.data.id);",
                                     "}"
                                 ],
                                 "type": "text/javascript"
@@ -440,13 +335,11 @@
                         "header": [
                             {
                                 "key": "Content-Type",
-                                "value": "application/json",
-                                "type": "text"
+                                "value": "application/json"
                             },
                             {
                                 "key": "Accept",
-                                "value": "application/json",
-                                "type": "text"
+                                "value": "application/json"
                             }
                         ],
                         "body": {
@@ -454,40 +347,39 @@
                             "raw": "{\n  \"name\": \"Emma\",\n  \"date_of_birth\": \"2019-03-15\",\n  \"avatar_color\": \"#FF6B6B\"\n}"
                         },
                         "url": {
-                            "raw": "{{base_url}}/kids",
+                            "raw": "{{base_url}}/v1/kids",
                             "host": [
                                 "{{base_url}}"
                             ],
                             "path": [
+                                "v1",
                                 "kids"
                             ]
                         }
-                    },
-                    "response": []
+                    }
                 },
                 {
-                    "name": "Get Kid Details",
+                    "name": "Get Kid",
                     "request": {
                         "method": "GET",
                         "header": [
                             {
                                 "key": "Accept",
-                                "value": "application/json",
-                                "type": "text"
+                                "value": "application/json"
                             }
                         ],
                         "url": {
-                            "raw": "{{base_url}}/kids/{{kid_id}}",
+                            "raw": "{{base_url}}/v1/kids/{{kid_id}}",
                             "host": [
                                 "{{base_url}}"
                             ],
                             "path": [
+                                "v1",
                                 "kids",
                                 "{{kid_id}}"
                             ]
                         }
-                    },
-                    "response": []
+                    }
                 },
                 {
                     "name": "Update Kid",
@@ -496,13 +388,11 @@
                         "header": [
                             {
                                 "key": "Content-Type",
-                                "value": "application/json",
-                                "type": "text"
+                                "value": "application/json"
                             },
                             {
                                 "key": "Accept",
-                                "value": "application/json",
-                                "type": "text"
+                                "value": "application/json"
                             }
                         ],
                         "body": {
@@ -510,17 +400,17 @@
                             "raw": "{\n  \"name\": \"Emma Rose\",\n  \"avatar_color\": \"#4ECDC4\"\n}"
                         },
                         "url": {
-                            "raw": "{{base_url}}/kids/{{kid_id}}",
+                            "raw": "{{base_url}}/v1/kids/{{kid_id}}",
                             "host": [
                                 "{{base_url}}"
                             ],
                             "path": [
+                                "v1",
                                 "kids",
                                 "{{kid_id}}"
                             ]
                         }
-                    },
-                    "response": []
+                    }
                 },
                 {
                     "name": "Delete Kid",
@@ -529,27 +419,322 @@
                         "header": [
                             {
                                 "key": "Accept",
-                                "value": "application/json",
-                                "type": "text"
+                                "value": "application/json"
                             }
                         ],
                         "url": {
-                            "raw": "{{base_url}}/kids/{{kid_id}}",
+                            "raw": "{{base_url}}/v1/kids/{{kid_id}}",
                             "host": [
                                 "{{base_url}}"
                             ],
                             "path": [
+                                "v1",
                                 "kids",
                                 "{{kid_id}}"
                             ]
                         }
-                    },
-                    "response": []
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Media (Unified)",
+            "description": "Unified media upload for photos and videos. Auto-detects type from MIME.",
+            "item": [
+                {
+                    "name": "Upload Media (Photo/Video)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "if (pm.response.code === 201) {",
+                                    "    var jsonData = pm.response.json();",
+                                    "    pm.collectionVariables.set('media_id', jsonData.data.id);",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "formdata",
+                            "formdata": [
+                                {
+                                    "key": "file",
+                                    "type": "file",
+                                    "src": "/path/to/photo.jpg",
+                                    "description": "Photo (JPEG, PNG, HEIC) or Video (MP4, MOV, WebM)"
+                                },
+                                {
+                                    "key": "kid_id",
+                                    "value": "{{kid_id}}",
+                                    "type": "text"
+                                },
+                                {
+                                    "key": "title",
+                                    "value": "First Day of School",
+                                    "type": "text",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "device_asset_id",
+                                    "value": "device-123-456",
+                                    "type": "text",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "exif_date",
+                                    "value": "2024-12-21T10:30:00.000Z",
+                                    "type": "text",
+                                    "description": "ISO 8601 (for photos)"
+                                },
+                                {
+                                    "key": "latitude",
+                                    "value": "48.8566",
+                                    "type": "text",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "longitude",
+                                    "value": "2.3522",
+                                    "type": "text",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "camera_make",
+                                    "value": "Apple",
+                                    "type": "text",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "camera_model",
+                                    "value": "iPhone 15 Pro",
+                                    "type": "text",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "orientation",
+                                    "value": "1",
+                                    "type": "text",
+                                    "disabled": true
+                                }
+                            ]
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/v1/media/upload",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "v1",
+                                "media",
+                                "upload"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "List Media",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/v1/media?kid_id={{kid_id}}&type=photo&per_page=20",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "v1",
+                                "media"
+                            ],
+                            "query": [
+                                {
+                                    "key": "kid_id",
+                                    "value": "{{kid_id}}"
+                                },
+                                {
+                                    "key": "type",
+                                    "value": "photo",
+                                    "description": "photo or video"
+                                },
+                                {
+                                    "key": "per_page",
+                                    "value": "20"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Get Media",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/v1/media/{{media_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "v1",
+                                "media",
+                                "{{media_id}}"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Delete Media",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/v1/media/{{media_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "v1",
+                                "media",
+                                "{{media_id}}"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Serve File - Thumbnail",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/v1/media/{{media_id}}/file/thumbnail",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "v1",
+                                "media",
+                                "{{media_id}}",
+                                "file",
+                                "thumbnail"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Serve File - Medium",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/v1/media/{{media_id}}/file/medium",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "v1",
+                                "media",
+                                "{{media_id}}",
+                                "file",
+                                "medium"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Serve File - Original",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/v1/media/{{media_id}}/file/original",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "v1",
+                                "media",
+                                "{{media_id}}",
+                                "file",
+                                "original"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Serve File - HLS (Video)",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/v1/media/{{media_id}}/file/hls",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "v1",
+                                "media",
+                                "{{media_id}}",
+                                "file",
+                                "hls"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Get Uploaded Identifiers",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/v1/kids/{{kid_id}}/media/uploaded-identifiers",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "v1",
+                                "kids",
+                                "{{kid_id}}",
+                                "media",
+                                "uploaded-identifiers"
+                            ]
+                        }
+                    }
                 }
             ]
         },
         {
             "name": "Moments",
+            "description": "Legacy moment endpoints for backward compatibility",
             "item": [
                 {
                     "name": "List Moments",
@@ -558,16 +743,16 @@
                         "header": [
                             {
                                 "key": "Accept",
-                                "value": "application/json",
-                                "type": "text"
+                                "value": "application/json"
                             }
                         ],
                         "url": {
-                            "raw": "{{base_url}}/kids/{{kid_id}}/moments?per_page=20&sort_by=exif_date&sort_direction=desc",
+                            "raw": "{{base_url}}/v1/kids/{{kid_id}}/moments?per_page=20&sort_by=exif_date",
                             "host": [
                                 "{{base_url}}"
                             ],
                             "path": [
+                                "v1",
                                 "kids",
                                 "{{kid_id}}",
                                 "moments"
@@ -580,18 +765,13 @@
                                 {
                                     "key": "sort_by",
                                     "value": "exif_date"
-                                },
-                                {
-                                    "key": "sort_direction",
-                                    "value": "desc"
                                 }
                             ]
                         }
-                    },
-                    "response": []
+                    }
                 },
                 {
-                    "name": "Upload Photo",
+                    "name": "Upload Photo (Legacy)",
                     "event": [
                         {
                             "listen": "test",
@@ -600,7 +780,6 @@
                                     "if (pm.response.code === 201) {",
                                     "    var jsonData = pm.response.json();",
                                     "    pm.collectionVariables.set('moment_id', jsonData.data.id);",
-                                    "    console.log('Moment ID saved:', jsonData.data.id);",
                                     "}"
                                 ],
                                 "type": "text/javascript"
@@ -612,8 +791,7 @@
                         "header": [
                             {
                                 "key": "Accept",
-                                "value": "application/json",
-                                "type": "text"
+                                "value": "application/json"
                             }
                         ],
                         "body": {
@@ -622,114 +800,34 @@
                                 {
                                     "key": "photo",
                                     "type": "file",
-                                    "src": "/path/to/photo.jpg",
-                                    "description": "Select a photo file"
+                                    "src": "/path/to/photo.jpg"
                                 },
                                 {
                                     "key": "title",
                                     "value": "First Day of School",
-                                    "type": "text"
-                                },
-                                {
-                                    "key": "description",
-                                    "value": "Emma's first day at kindergarten!",
-                                    "type": "text"
-                                },
-                                {
-                                    "key": "device_asset_id",
-                                    "value": "device-123-456",
                                     "type": "text",
                                     "disabled": true
                                 },
                                 {
                                     "key": "exif_date",
                                     "value": "2024-12-21T10:30:00.000Z",
-                                    "type": "text",
-                                    "description": "ISO 8601 timestamp from EXIF DateTimeOriginal"
-                                },
-                                {
-                                    "key": "latitude",
-                                    "value": "48.8566",
-                                    "type": "text",
-                                    "description": "Decimal latitude (-90 to 90)"
-                                },
-                                {
-                                    "key": "longitude",
-                                    "value": "2.3522",
-                                    "type": "text",
-                                    "description": "Decimal longitude (-180 to 180)"
-                                },
-                                {
-                                    "key": "camera_make",
-                                    "value": "Apple",
-                                    "type": "text",
-                                    "description": "Camera manufacturer from EXIF"
-                                },
-                                {
-                                    "key": "camera_model",
-                                    "value": "iPhone 15 Pro",
-                                    "type": "text",
-                                    "description": "Camera model from EXIF"
-                                },
-                                {
-                                    "key": "orientation",
-                                    "value": "1",
-                                    "type": "text",
-                                    "description": "EXIF orientation (1-8)"
-                                },
-                                {
-                                    "key": "tags[]",
-                                    "value": "school",
-                                    "type": "text",
-                                    "disabled": true
-                                },
-                                {
-                                    "key": "tags[]",
-                                    "value": "milestone",
-                                    "type": "text",
-                                    "disabled": true
+                                    "type": "text"
                                 }
                             ]
                         },
                         "url": {
-                            "raw": "{{base_url}}/kids/{{kid_id}}/moments",
+                            "raw": "{{base_url}}/v1/kids/{{kid_id}}/moments",
                             "host": [
                                 "{{base_url}}"
                             ],
                             "path": [
+                                "v1",
                                 "kids",
                                 "{{kid_id}}",
                                 "moments"
                             ]
                         }
-                    },
-                    "response": []
-                },
-                {
-                    "name": "Get Uploaded Identifiers",
-                    "request": {
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Accept",
-                                "value": "application/json",
-                                "type": "text"
-                            }
-                        ],
-                        "url": {
-                            "raw": "{{base_url}}/kids/{{kid_id}}/moments/uploaded-identifiers",
-                            "host": [
-                                "{{base_url}}"
-                            ],
-                            "path": [
-                                "kids",
-                                "{{kid_id}}",
-                                "moments",
-                                "uploaded-identifiers"
-                            ]
-                        }
-                    },
-                    "response": []
+                    }
                 },
                 {
                     "name": "Get Moment",
@@ -738,112 +836,21 @@
                         "header": [
                             {
                                 "key": "Accept",
-                                "value": "application/json",
-                                "type": "text"
+                                "value": "application/json"
                             }
                         ],
                         "url": {
-                            "raw": "{{base_url}}/moments/{{moment_id}}",
+                            "raw": "{{base_url}}/v1/moments/{{moment_id}}",
                             "host": [
                                 "{{base_url}}"
                             ],
                             "path": [
+                                "v1",
                                 "moments",
                                 "{{moment_id}}"
                             ]
-                        },
-                        "description": "Get a single moment by ID. Returns file paths (not signed URLs) for use with the file proxy endpoints.\n\nResponse includes:\n- `is_liked`: boolean, true if current user liked the moment\n- `likes_count`: integer, total number of likes\n- `comments_count`: integer, total number of comments"
-                    },
-                    "response": []
-                },
-                {
-                    "name": "Serve File - Thumbnail",
-                    "request": {
-                        "method": "GET",
-                        "header": [],
-                        "url": {
-                            "raw": "{{base_url}}/moments/{{moment_id}}/file/thumbnail",
-                            "host": [
-                                "{{base_url}}"
-                            ],
-                            "path": [
-                                "moments",
-                                "{{moment_id}}",
-                                "file",
-                                "thumbnail"
-                            ]
-                        },
-                        "description": "Stream thumbnail image through authenticated proxy. Checks for existence in SeaweedFS. Always returns Content-Type: image/jpeg as thumbnails are converted to JPEG."
-                    },
-                    "response": []
-                },
-                {
-                    "name": "Serve File - Medium",
-                    "request": {
-                        "method": "GET",
-                        "header": [],
-                        "url": {
-                            "raw": "{{base_url}}/moments/{{moment_id}}/file/medium",
-                            "host": [
-                                "{{base_url}}"
-                            ],
-                            "path": [
-                                "moments",
-                                "{{moment_id}}",
-                                "file",
-                                "medium"
-                            ]
-                        },
-                        "description": "Stream medium-sized image through authenticated proxy. Checks for existence in SeaweedFS. Always returns Content-Type: image/jpeg as medium files are converted to JPEG."
-                    },
-                    "response": []
-                },
-                {
-                    "name": "Serve File - Original",
-                    "request": {
-                        "method": "GET",
-                        "header": [],
-                        "url": {
-                            "raw": "{{base_url}}/moments/{{moment_id}}/file/original",
-                            "host": [
-                                "{{base_url}}"
-                            ],
-                            "path": [
-                                "moments",
-                                "{{moment_id}}",
-                                "file",
-                                "original"
-                            ]
-                        },
-                        "description": "Stream original full-resolution image through authenticated proxy. Returns binary image data with proper Content-Type headers."
-                    },
-                    "response": []
-                },
-                {
-                    "name": "Check File Status (Diagnostic)",
-                    "request": {
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Accept",
-                                "value": "application/json",
-                                "type": "text"
-                            }
-                        ],
-                        "url": {
-                            "raw": "{{base_url}}/moments/{{moment_id}}/file-status",
-                            "host": [
-                                "{{base_url}}"
-                            ],
-                            "path": [
-                                "moments",
-                                "{{moment_id}}",
-                                "file-status"
-                            ]
-                        },
-                        "description": "Diagnostic endpoint to check if all image files (original, medium, thumbnail) exist in SeaweedFS and their sizes. Use this to verify files are being saved correctly."
-                    },
-                    "response": []
+                        }
+                    }
                 },
                 {
                     "name": "Delete Moment",
@@ -852,22 +859,21 @@
                         "header": [
                             {
                                 "key": "Accept",
-                                "value": "application/json",
-                                "type": "text"
+                                "value": "application/json"
                             }
                         ],
                         "url": {
-                            "raw": "{{base_url}}/moments/{{moment_id}}",
+                            "raw": "{{base_url}}/v1/moments/{{moment_id}}",
                             "host": [
                                 "{{base_url}}"
                             ],
                             "path": [
+                                "v1",
                                 "moments",
                                 "{{moment_id}}"
                             ]
                         }
-                    },
-                    "response": []
+                    }
                 },
                 {
                     "name": "Like Moment",
@@ -876,23 +882,22 @@
                         "header": [
                             {
                                 "key": "Accept",
-                                "value": "application/json",
-                                "type": "text"
+                                "value": "application/json"
                             }
                         ],
                         "url": {
-                            "raw": "{{base_url}}/moments/{{moment_id}}/like",
+                            "raw": "{{base_url}}/v1/moments/{{moment_id}}/like",
                             "host": [
                                 "{{base_url}}"
                             ],
                             "path": [
+                                "v1",
                                 "moments",
                                 "{{moment_id}}",
                                 "like"
                             ]
                         }
-                    },
-                    "response": []
+                    }
                 },
                 {
                     "name": "Unlike Moment",
@@ -901,51 +906,119 @@
                         "header": [
                             {
                                 "key": "Accept",
-                                "value": "application/json",
-                                "type": "text"
+                                "value": "application/json"
                             }
                         ],
                         "url": {
-                            "raw": "{{base_url}}/moments/{{moment_id}}/like",
+                            "raw": "{{base_url}}/v1/moments/{{moment_id}}/like",
                             "host": [
                                 "{{base_url}}"
                             ],
                             "path": [
+                                "v1",
                                 "moments",
                                 "{{moment_id}}",
                                 "like"
                             ]
                         }
-                    },
-                    "response": []
+                    }
                 },
                 {
-                    "name": "Get Comments",
+                    "name": "List Comments",
                     "request": {
                         "method": "GET",
                         "header": [
                             {
                                 "key": "Accept",
-                                "value": "application/json",
-                                "type": "text"
+                                "value": "application/json"
                             }
                         ],
                         "url": {
-                            "raw": "{{base_url}}/moments/{{moment_id}}/comments",
+                            "raw": "{{base_url}}/v1/moments/{{moment_id}}/comments",
                             "host": [
                                 "{{base_url}}"
                             ],
                             "path": [
+                                "v1",
                                 "moments",
                                 "{{moment_id}}",
                                 "comments"
                             ]
                         }
-                    },
-                    "response": []
+                    }
                 },
                 {
                     "name": "Add Comment",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"content\": \"What a wonderful moment!\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/v1/moments/{{moment_id}}/comments",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "v1",
+                                "moments",
+                                "{{moment_id}}",
+                                "comments"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Stories",
+            "description": "Text narratives with optional icon images",
+            "item": [
+                {
+                    "name": "List Stories",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/v1/stories?kid_id={{kid_id}}&per_page=20",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "v1",
+                                "stories"
+                            ],
+                            "query": [
+                                {
+                                    "key": "kid_id",
+                                    "value": "{{kid_id}}"
+                                },
+                                {
+                                    "key": "per_page",
+                                    "value": "20"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Create Story",
                     "event": [
                         {
                             "listen": "test",
@@ -953,8 +1026,7 @@
                                 "exec": [
                                     "if (pm.response.code === 201) {",
                                     "    var jsonData = pm.response.json();",
-                                    "    pm.collectionVariables.set('interaction_id', jsonData.data.id);",
-                                    "    console.log('Interaction ID saved:', jsonData.data.id);",
+                                    "    pm.collectionVariables.set('story_id', jsonData.data.id);",
                                     "}"
                                 ],
                                 "type": "text/javascript"
@@ -966,127 +1038,500 @@
                         "header": [
                             {
                                 "key": "Content-Type",
-                                "value": "application/json",
-                                "type": "text"
+                                "value": "application/json"
                             },
                             {
                                 "key": "Accept",
-                                "value": "application/json",
-                                "type": "text"
+                                "value": "application/json"
                             }
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"content\": \"This is a beautiful moment!\"\n}"
+                            "raw": "{\n  \"kid_id\": \"{{kid_id}}\",\n  \"title\": \"Emma's First Word\",\n  \"text\": \"Today Emma said her first word - 'mama'! She was sitting in her high chair during breakfast when she looked up and clearly said it. We couldn't believe our ears!\",\n  \"icon_image_id\": null\n}"
                         },
                         "url": {
-                            "raw": "{{base_url}}/moments/{{moment_id}}/comments",
+                            "raw": "{{base_url}}/v1/stories",
                             "host": [
                                 "{{base_url}}"
                             ],
                             "path": [
-                                "moments",
-                                "{{moment_id}}",
-                                "comments"
+                                "v1",
+                                "stories"
                             ]
                         }
-                    },
-                    "response": []
+                    }
                 },
                 {
-                    "name": "Delete Comment",
+                    "name": "Get Story",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/v1/stories/{{story_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "v1",
+                                "stories",
+                                "{{story_id}}"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Update Story",
+                    "request": {
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"title\": \"Emma's First Word - Updated\",\n  \"text\": \"Updated story content...\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/v1/stories/{{story_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "v1",
+                                "stories",
+                                "{{story_id}}"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Delete Story",
                     "request": {
                         "method": "DELETE",
                         "header": [
                             {
                                 "key": "Accept",
-                                "value": "application/json",
-                                "type": "text"
+                                "value": "application/json"
                             }
                         ],
                         "url": {
-                            "raw": "{{base_url}}/interactions/{{interaction_id}}",
+                            "raw": "{{base_url}}/v1/stories/{{story_id}}",
                             "host": [
                                 "{{base_url}}"
                             ],
                             "path": [
-                                "interactions",
-                                "{{interaction_id}}"
+                                "v1",
+                                "stories",
+                                "{{story_id}}"
                             ]
                         }
-                    },
-                    "response": []
+                    }
                 }
             ]
         },
         {
-            "name": "Sync (WatermelonDB)",
+            "name": "Predefined Milestones",
+            "description": "Read-only system-defined child development milestones",
             "item": [
                 {
-                    "name": "Pull Changes (Initial Sync)",
+                    "name": "List Predefined Milestones",
                     "request": {
-                        "method": "POST",
+                        "method": "GET",
                         "header": [
                             {
-                                "key": "Content-Type",
-                                "value": "application/json",
-                                "type": "text"
-                            },
-                            {
                                 "key": "Accept",
-                                "value": "application/json",
-                                "type": "text"
+                                "value": "application/json"
                             }
                         ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n  \"lastPulledAt\": null,\n  \"schemaVersion\": 1,\n  \"migration\": null\n}"
-                        },
                         "url": {
-                            "raw": "{{base_url}}/sync/pull",
+                            "raw": "{{base_url}}/v1/milestones/predefined",
                             "host": [
                                 "{{base_url}}"
                             ],
                             "path": [
-                                "sync",
-                                "pull"
+                                "v1",
+                                "milestones",
+                                "predefined"
                             ]
                         }
-                    },
-                    "response": []
+                    }
                 },
                 {
-                    "name": "Pull Changes (Incremental)",
+                    "name": "List Grouped by Stage",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/v1/milestones/predefined?group_by=stage",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "v1",
+                                "milestones",
+                                "predefined"
+                            ],
+                            "query": [
+                                {
+                                    "key": "group_by",
+                                    "value": "stage"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "List Grouped by Category",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/v1/milestones/predefined?group_by=category",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "v1",
+                                "milestones",
+                                "predefined"
+                            ],
+                            "query": [
+                                {
+                                    "key": "group_by",
+                                    "value": "category"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Filter by Category",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/v1/milestones/predefined?category=physical",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "v1",
+                                "milestones",
+                                "predefined"
+                            ],
+                            "query": [
+                                {
+                                    "key": "category",
+                                    "value": "physical",
+                                    "description": "physical, cognitive, social, language, emotional, behavioral"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Get Predefined Milestone",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "if (pm.response.code === 200) {",
+                                    "    var jsonData = pm.response.json();",
+                                    "    pm.collectionVariables.set('predefined_milestone_id', jsonData.data.id);",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/v1/milestones/predefined/first_smile",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "v1",
+                                "milestones",
+                                "predefined",
+                                "first_smile"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "User Milestones",
+            "description": "Track user's milestone achievements for their kids",
+            "item": [
+                {
+                    "name": "List User Milestones",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/v1/milestones?kid_id={{kid_id}}&per_page=20",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "v1",
+                                "milestones"
+                            ],
+                            "query": [
+                                {
+                                    "key": "kid_id",
+                                    "value": "{{kid_id}}"
+                                },
+                                {
+                                    "key": "per_page",
+                                    "value": "20"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Create Milestone (Predefined)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "if (pm.response.code === 201) {",
+                                    "    var jsonData = pm.response.json();",
+                                    "    pm.collectionVariables.set('milestone_id', jsonData.data.id);",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
                     "request": {
                         "method": "POST",
                         "header": [
                             {
                                 "key": "Content-Type",
-                                "value": "application/json",
-                                "type": "text"
+                                "value": "application/json"
                             },
                             {
                                 "key": "Accept",
-                                "value": "application/json",
-                                "type": "text"
+                                "value": "application/json"
                             }
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"lastPulledAt\": 1703001234567,\n  \"schemaVersion\": 1,\n  \"migration\": null\n}"
+                            "raw": "{\n  \"kid_id\": \"{{kid_id}}\",\n  \"predefined_milestone_id\": \"first_smile\",\n  \"milestone_date\": \"2024-01-15\",\n  \"notes\": \"She smiled at daddy for the first time!\"\n}"
                         },
                         "url": {
-                            "raw": "{{base_url}}/sync/pull",
+                            "raw": "{{base_url}}/v1/milestones",
                             "host": [
                                 "{{base_url}}"
                             ],
                             "path": [
+                                "v1",
+                                "milestones"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Create Milestone (Custom)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "if (pm.response.code === 201) {",
+                                    "    var jsonData = pm.response.json();",
+                                    "    pm.collectionVariables.set('milestone_id', jsonData.data.id);",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"kid_id\": \"{{kid_id}}\",\n  \"custom_title\": \"First Piano Recital\",\n  \"custom_description\": \"Performed at the school concert\",\n  \"milestone_date\": \"2024-06-15\",\n  \"notes\": \"She played Für Elise!\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/v1/milestones",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "v1",
+                                "milestones"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Get User Milestone",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/v1/milestones/{{milestone_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "v1",
+                                "milestones",
+                                "{{milestone_id}}"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Update User Milestone",
+                    "request": {
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"notes\": \"Updated notes about this milestone\",\n  \"milestone_date\": \"2024-01-16\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/v1/milestones/{{milestone_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "v1",
+                                "milestones",
+                                "{{milestone_id}}"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Delete User Milestone",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/v1/milestones/{{milestone_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "v1",
+                                "milestones",
+                                "{{milestone_id}}"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Sync",
+            "description": "WatermelonDB sync endpoints",
+            "item": [
+                {
+                    "name": "Pull Changes",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"last_synced_at\": 0,\n  \"schema_version\": 1,\n  \"tables\": [\"kids\", \"moments\"]\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/v1/sync/pull",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "v1",
                                 "sync",
                                 "pull"
                             ]
                         }
-                    },
-                    "response": []
+                    }
                 },
                 {
                     "name": "Push Changes",
@@ -1095,536 +1540,31 @@
                         "header": [
                             {
                                 "key": "Content-Type",
-                                "value": "application/json",
-                                "type": "text"
+                                "value": "application/json"
                             },
                             {
                                 "key": "Accept",
-                                "value": "application/json",
-                                "type": "text"
+                                "value": "application/json"
                             }
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"changes\": {\n    \"kids\": {\n      \"created\": [\n        {\n          \"id\": \"uuid-here\",\n          \"name\": \"Oliver\",\n          \"date_of_birth\": 1609459200000,\n          \"avatar_color\": \"#45B7D1\"\n        }\n      ],\n      \"updated\": [],\n      \"deleted\": []\n    },\n    \"moments\": {\n      \"created\": [],\n      \"updated\": [],\n      \"deleted\": []\n    }\n  },\n  \"lastPulledAt\": 1703001234567\n}"
+                            "raw": "{\n  \"changes\": {\n    \"kids\": {\n      \"created\": [],\n      \"updated\": [],\n      \"deleted\": []\n    },\n    \"moments\": {\n      \"created\": [],\n      \"updated\": [],\n      \"deleted\": []\n    }\n  }\n}"
                         },
                         "url": {
-                            "raw": "{{base_url}}/sync/push",
+                            "raw": "{{base_url}}/v1/sync/push",
                             "host": [
                                 "{{base_url}}"
                             ],
                             "path": [
+                                "v1",
                                 "sync",
                                 "push"
                             ]
                         }
-                    },
-                    "response": []
+                    }
                 }
             ]
-        },
-        {
-            "name": "Videos",
-            "item": [
-                {
-                    "name": "Upload Video",
-                    "event": [
-                        {
-                            "listen": "test",
-                            "script": {
-                                "exec": [
-                                    "if (pm.response.code === 201) {",
-                                    "    var jsonData = pm.response.json();",
-                                    "    pm.collectionVariables.set('video_id', jsonData.data.id);",
-                                    "    console.log('Video ID saved:', jsonData.data.id);",
-                                    "}"
-                                ],
-                                "type": "text/javascript"
-                            }
-                        }
-                    ],
-                    "request": {
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Accept",
-                                "value": "application/json",
-                                "type": "text"
-                            }
-                        ],
-                        "body": {
-                            "mode": "formdata",
-                            "formdata": [
-                                {
-                                    "key": "video",
-                                    "type": "file",
-                                    "src": "/path/to/video.mp4",
-                                    "description": "Select a video file (mp4, mov, avi, mkv, webm)"
-                                },
-                                {
-                                    "key": "original_filename",
-                                    "value": "my-video.mp4",
-                                    "type": "text",
-                                    "description": "Optional original filename"
-                                }
-                            ]
-                        },
-                        "url": {
-                            "raw": "{{base_url}}/videos/upload",
-                            "host": [
-                                "{{base_url}}"
-                            ],
-                            "path": [
-                                "videos",
-                                "upload"
-                            ]
-                        },
-                        "description": "Upload a video for processing. Returns video ID and initiates background HLS transcoding."
-                    },
-                    "response": []
-                },
-                {
-                    "name": "List Videos",
-                    "request": {
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Accept",
-                                "value": "application/json",
-                                "type": "text"
-                            }
-                        ],
-                        "url": {
-                            "raw": "{{base_url}}/videos?status=completed&per_page=20",
-                            "host": [
-                                "{{base_url}}"
-                            ],
-                            "path": [
-                                "videos"
-                            ],
-                            "query": [
-                                {
-                                    "key": "status",
-                                    "value": "completed",
-                                    "description": "Filter by status: uploading, processing, completed, failed"
-                                },
-                                {
-                                    "key": "per_page",
-                                    "value": "20"
-                                }
-                            ]
-                        }
-                    },
-                    "response": []
-                },
-                {
-                    "name": "Get Video",
-                    "request": {
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Accept",
-                                "value": "application/json",
-                                "type": "text"
-                            }
-                        ],
-                        "url": {
-                            "raw": "{{base_url}}/videos/{{video_id}}",
-                            "host": [
-                                "{{base_url}}"
-                            ],
-                            "path": [
-                                "videos",
-                                "{{video_id}}"
-                            ]
-                        }
-                    },
-                    "response": []
-                },
-                {
-                    "name": "Get Video Status",
-                    "request": {
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Accept",
-                                "value": "application/json",
-                                "type": "text"
-                            }
-                        ],
-                        "url": {
-                            "raw": "{{base_url}}/videos/{{video_id}}/status",
-                            "host": [
-                                "{{base_url}}"
-                            ],
-                            "path": [
-                                "videos",
-                                "{{video_id}}",
-                                "status"
-                            ]
-                        },
-                        "description": "Poll for video processing status. Returns: uploading, processing, completed, or failed."
-                    },
-                    "response": []
-                },
-                {
-                    "name": "Delete Video",
-                    "request": {
-                        "method": "DELETE",
-                        "header": [
-                            {
-                                "key": "Accept",
-                                "value": "application/json",
-                                "type": "text"
-                            }
-                        ],
-                        "url": {
-                            "raw": "{{base_url}}/videos/{{video_id}}",
-                            "host": [
-                                "{{base_url}}"
-                            ],
-                            "path": [
-                                "videos",
-                                "{{video_id}}"
-                            ]
-                        }
-                    },
-                    "response": []
-                },
-                {
-                    "name": "Serve HLS Playlist",
-                    "request": {
-                        "method": "GET",
-                        "header": [],
-                        "url": {
-                            "raw": "{{base_url}}/videos/{{video_id}}/hls/playlist.m3u8",
-                            "host": [
-                                "{{base_url}}"
-                            ],
-                            "path": [
-                                "videos",
-                                "{{video_id}}",
-                                "hls",
-                                "playlist.m3u8"
-                            ]
-                        },
-                        "description": "Stream HLS playlist through authenticated proxy. Use this URL in video players."
-                    },
-                    "response": []
-                },
-                {
-                    "name": "Serve Video Thumbnail",
-                    "request": {
-                        "method": "GET",
-                        "header": [],
-                        "url": {
-                            "raw": "{{base_url}}/videos/{{video_id}}/thumbnail",
-                            "host": [
-                                "{{base_url}}"
-                            ],
-                            "path": [
-                                "videos",
-                                "{{video_id}}",
-                                "thumbnail"
-                            ]
-                        },
-                        "description": "Get video thumbnail image."
-                    },
-                    "response": []
-                }
-            ]
-        },
-        {
-            "name": "Milestones",
-            "item": [
-                {
-                    "name": "List Milestones (Grouped)",
-                    "request": {
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Accept",
-                                "value": "application/json",
-                                "type": "text"
-                            }
-                        ],
-                        "url": {
-                            "raw": "{{base_url}}/milestones",
-                            "host": [
-                                "{{base_url}}"
-                            ],
-                            "path": [
-                                "milestones"
-                            ]
-                        },
-                        "description": "Returns all milestones grouped by stage (infancy, toddler, etc.)"
-                    },
-                    "response": []
-                },
-                {
-                    "name": "List Milestones (Flat)",
-                    "request": {
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Accept",
-                                "value": "application/json",
-                                "type": "text"
-                            }
-                        ],
-                        "url": {
-                            "raw": "{{base_url}}/milestones?flat=true",
-                            "host": [
-                                "{{base_url}}"
-                            ],
-                            "path": [
-                                "milestones"
-                            ],
-                            "query": [
-                                {
-                                    "key": "flat",
-                                    "value": "true"
-                                }
-                            ]
-                        },
-                        "description": "Returns all milestones as a flat list."
-                    },
-                    "response": []
-                },
-                {
-                    "name": "Get Milestones by Stage",
-                    "request": {
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Accept",
-                                "value": "application/json",
-                                "type": "text"
-                            }
-                        ],
-                        "url": {
-                            "raw": "{{base_url}}/milestones/stage/infancy_0_12m",
-                            "host": [
-                                "{{base_url}}"
-                            ],
-                            "path": [
-                                "milestones",
-                                "stage",
-                                "infancy_0_12m"
-                            ]
-                        },
-                        "description": "Get milestones for a specific stage. Available stages: infancy_0_12m, toddler_1_3y, early_childhood_3_6y, middle_childhood_6_12y, adolescence_12_18y, young_adulthood_18_25y, partnership_marriage"
-                    },
-                    "response": []
-                },
-                {
-                    "name": "Get Milestone by ID",
-                    "request": {
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Accept",
-                                "value": "application/json",
-                                "type": "text"
-                            }
-                        ],
-                        "url": {
-                            "raw": "{{base_url}}/milestones/first_smile",
-                            "host": [
-                                "{{base_url}}"
-                            ],
-                            "path": [
-                                "milestones",
-                                "first_smile"
-                            ]
-                        },
-                        "description": "Get a specific milestone by its string ID (e.g., first_smile, first_steps)"
-                    },
-                    "response": []
-                }
-            ]
-        },
-        {
-            "name": "Custom Milestones",
-            "item": [
-                {
-                    "name": "List Custom Milestones",
-                    "request": {
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Accept",
-                                "value": "application/json",
-                                "type": "text"
-                            }
-                        ],
-                        "url": {
-                            "raw": "{{base_url}}/milestones/custom",
-                            "host": [
-                                "{{base_url}}"
-                            ],
-                            "path": [
-                                "milestones",
-                                "custom"
-                            ]
-                        },
-                        "description": "List user's custom milestones"
-                    },
-                    "response": []
-                },
-                {
-                    "name": "Create Custom Milestone",
-                    "event": [
-                        {
-                            "listen": "test",
-                            "script": {
-                                "exec": [
-                                    "if (pm.response.code === 201) {",
-                                    "    var jsonData = pm.response.json();",
-                                    "    pm.collectionVariables.set('custom_milestone_id', jsonData.data.id);",
-                                    "    console.log('Custom Milestone ID saved:', jsonData.data.id);",
-                                    "}"
-                                ],
-                                "type": "text/javascript"
-                            }
-                        }
-                    ],
-                    "request": {
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json",
-                                "type": "text"
-                            },
-                            {
-                                "key": "Accept",
-                                "value": "application/json",
-                                "type": "text"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n  \"name\": \"First Bike Ride\",\n  \"description\": \"Learning to ride a bike without training wheels\"\n}"
-                        },
-                        "url": {
-                            "raw": "{{base_url}}/milestones/custom",
-                            "host": [
-                                "{{base_url}}"
-                            ],
-                            "path": [
-                                "milestones",
-                                "custom"
-                            ]
-                        }
-                    },
-                    "response": []
-                },
-                {
-                    "name": "Get Custom Milestone",
-                    "request": {
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Accept",
-                                "value": "application/json",
-                                "type": "text"
-                            }
-                        ],
-                        "url": {
-                            "raw": "{{base_url}}/milestones/custom/{{custom_milestone_id}}",
-                            "host": [
-                                "{{base_url}}"
-                            ],
-                            "path": [
-                                "milestones",
-                                "custom",
-                                "{{custom_milestone_id}}"
-                            ]
-                        }
-                    },
-                    "response": []
-                },
-                {
-                    "name": "Update Custom Milestone",
-                    "request": {
-                        "method": "PUT",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json",
-                                "type": "text"
-                            },
-                            {
-                                "key": "Accept",
-                                "value": "application/json",
-                                "type": "text"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n  \"name\": \"First Bike Ride Without Help\",\n  \"description\": \"Successfully riding a bike independently\"\n}"
-                        },
-                        "url": {
-                            "raw": "{{base_url}}/milestones/custom/{{custom_milestone_id}}",
-                            "host": [
-                                "{{base_url}}"
-                            ],
-                            "path": [
-                                "milestones",
-                                "custom",
-                                "{{custom_milestone_id}}"
-                            ]
-                        }
-                    },
-                    "response": []
-                },
-                {
-                    "name": "Delete Custom Milestone",
-                    "request": {
-                        "method": "DELETE",
-                        "header": [
-                            {
-                                "key": "Accept",
-                                "value": "application/json",
-                                "type": "text"
-                            }
-                        ],
-                        "url": {
-                            "raw": "{{base_url}}/milestones/custom/{{custom_milestone_id}}",
-                            "host": [
-                                "{{base_url}}"
-                            ],
-                            "path": [
-                                "milestones",
-                                "custom",
-                                "{{custom_milestone_id}}"
-                            ]
-                        }
-                    },
-                    "response": []
-                }
-            ]
-        }
-    ],
-    "event": [
-        {
-            "listen": "prerequest",
-            "script": {
-                "type": "text/javascript",
-                "exec": [
-                    ""
-                ]
-            }
-        },
-        {
-            "listen": "test",
-            "script": {
-                "type": "text/javascript",
-                "exec": [
-                    ""
-                ]
-            }
         }
     ]
 }

@@ -34,6 +34,7 @@ class Moment extends Model
     protected $fillable = [
         'kid_id',
         'video_id',
+        'media_id',
         'moment_type',
         'milestone_id',
         'custom_milestone_id',
@@ -122,6 +123,11 @@ class Moment extends Model
     public function video()
     {
         return $this->belongsTo(Video::class);
+    }
+
+    public function media()
+    {
+        return $this->belongsTo(Media::class);
     }
 
     public function milestone()
