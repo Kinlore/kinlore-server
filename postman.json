@@ -226,8 +226,43 @@
                                 "auth",
                                 "me"
                             ]
+                        },
+                        "description": "Get authenticated user info including storage usage statistics"
+                    },
+                    "response": [
+                        {
+                            "name": "Success",
+                            "originalRequest": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/auth/me",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "auth",
+                                        "me"
+                                    ]
+                                }
+                            },
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": 1,\n    \"name\": \"Test User\",\n    \"email\": \"test@kinlore.local\",\n    \"email_verified_at\": null,\n    \"created_at\": \"2024-12-24T07:30:00+00:00\",\n    \"kids_count\": 2,\n    \"moments_count\": 125,\n    \"storage_used\": \"1.5 GB\",\n    \"storage_bytes_used\": 1610612736,\n    \"storage_bytes_available\": 107374182400\n  }\n}"
                         }
-                    }
+                    ]
                 },
                 {
                     "name": "Logout",
