@@ -4,17 +4,20 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
+use App\Services\AuthService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\ValidationException;
+use Illuminate\Http\JsonResponse;
 
 class AuthController extends Controller
 {
+    public function __construct(
+        private AuthService $authService
+    ) {}
+
     /**
-     * Register a new user
+     * Register a new user.
      */
-    public function register(Request $request)
+    public function register(Request $request): JsonResponse
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -22,77 +25,43 @@ class AuthController extends Controller
             'password' => 'required|string|min:8|confirmed',
         ]);
 
-        $user = User::create([
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'password' => Hash::make($validated['password']),
-        ]);
-
-        // Create token with abilities (optional)
-        $token = $user->createToken('mobile-app', ['*'])->plainTextToken;
+        $result = $this->authService->register($validated);
 
         return response()->json([
             'success' => true,
             'message' => 'User registered successfully',
-            'data' => [
-                'user' => [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'email' => $user->email,
-                    'created_at' => $user->created_at->toIso8601String(),
-                ],
-                'token' => $token,
-                'token_type' => 'Bearer',
-            ],
+            'data' => $result,
         ], 201);
     }
 
     /**
-     * Login user and create token
+     * Login user and create token.
      */
-    public function login(Request $request)
+    public function login(Request $request): JsonResponse
     {
         $request->validate([
             'email' => 'required|email',
             'password' => 'required',
         ]);
 
-        $user = User::where('email', $request->email)->first();
-
-        if (!$user || !Hash::check($request->password, $user->password)) {
-            throw ValidationException::withMessages([
-                'email' => ['The provided credentials are incorrect.'],
-            ]);
-        }
-
-        // Revoke all previous tokens (optional - only one device at a time)
-        // $user->tokens()->delete();
-
-        // Create new token
-        $token = $user->createToken('mobile-app')->plainTextToken;
+        $result = $this->authService->login(
+            $request->email,
+            $request->password
+        );
 
         return response()->json([
             'success' => true,
             'message' => 'Login successful',
-            'data' => [
-                'user' => [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'email' => $user->email,
-                ],
-                'token' => $token,
-                'token_type' => 'Bearer',
-            ],
+            'data' => $result,
         ]);
     }
 
     /**
-     * Logout user (revoke current token)
+     * Logout user (revoke current token).
      */
-    public function logout(Request $request)
+    public function logout(Request $request): JsonResponse
     {
-        // Revoke current token
-        $request->user()->currentAccessToken()->delete();
+        $this->authService->logout($request->user());
 
         return response()->json([
             'success' => true,
@@ -101,12 +70,11 @@ class AuthController extends Controller
     }
 
     /**
-     * Logout from all devices (revoke all tokens)
+     * Logout from all devices (revoke all tokens).
      */
-    public function logoutAll(Request $request)
+    public function logoutAll(Request $request): JsonResponse
     {
-        // Revoke all tokens
-        $request->user()->tokens()->delete();
+        $this->authService->logoutAll($request->user());
 
         return response()->json([
             'success' => true,
@@ -115,44 +83,24 @@ class AuthController extends Controller
     }
 
     /**
-     * Get authenticated user info
+     * Get authenticated user info.
      */
-    public function me(Request $request)
+    public function me(Request $request): JsonResponse
     {
-        $user = $request->user();
-
-        $storageBytesUsed = $user->getStorageUsed();
-        $storageBytesAvailable = (int) disk_free_space(storage_path());
+        $userData = $this->authService->getUserInfo($request->user());
 
         return response()->json([
             'success' => true,
-            'data' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'email_verified_at' => $user->email_verified_at,
-                'created_at' => $user->created_at->toIso8601String(),
-                'kids_count' => $user->kids()->count(),
-                'moments_count' => $user->getTotalMomentsCount(),
-                'storage_used' => $user->getStorageUsedFormatted(),
-                'storage_bytes_used' => $storageBytesUsed,
-                'storage_bytes_available' => $storageBytesAvailable,
-            ],
+            'data' => $userData,
         ]);
     }
 
     /**
-     * Refresh token (revoke old, create new)
+     * Refresh token (revoke old, create new).
      */
-    public function refresh(Request $request)
+    public function refresh(Request $request): JsonResponse
     {
-        $user = $request->user();
-
-        // Revoke current token
-        $request->user()->currentAccessToken()->delete();
-
-        // Create new token
-        $token = $user->createToken('mobile-app')->plainTextToken;
+        $token = $this->authService->refresh($request->user());
 
         return response()->json([
             'success' => true,
@@ -165,22 +113,11 @@ class AuthController extends Controller
     }
 
     /**
-     * Get all active sessions (tokens)
+     * Get all active sessions (tokens).
      */
-    public function sessions(Request $request)
+    public function sessions(Request $request): JsonResponse
     {
-        $tokens = $request->user()->tokens;
-
-        $sessions = $tokens->map(function ($token) {
-            return [
-                'id' => $token->id,
-                'name' => $token->name,
-                'abilities' => $token->abilities,
-                'last_used_at' => $token->last_used_at?->toIso8601String(),
-                'created_at' => $token->created_at->toIso8601String(),
-                'is_current' => $token->id === request()->user()->currentAccessToken()->id,
-            ];
-        });
+        $sessions = $this->authService->getSessions($request->user());
 
         return response()->json([
             'success' => true,
@@ -189,11 +126,11 @@ class AuthController extends Controller
     }
 
     /**
-     * Revoke specific token/session
+     * Revoke specific token/session.
      */
-    public function revokeSession(Request $request, $tokenId)
+    public function revokeSession(Request $request, $tokenId): JsonResponse
     {
-        $deleted = $request->user()->tokens()->where('id', $tokenId)->delete();
+        $deleted = $this->authService->revokeSession($request->user(), $tokenId);
 
         if (!$deleted) {
             return response()->json([

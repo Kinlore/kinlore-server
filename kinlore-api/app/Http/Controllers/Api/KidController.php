@@ -4,36 +4,24 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Kid;
+use App\Services\KidService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class KidController extends Controller
 {
+    public function __construct(
+        private KidService $kidService
+    ) {}
+
     /**
      * Display a listing of the user's kids.
      */
-    public function index(Request $request)
+    public function index(Request $request): JsonResponse
     {
-        // Policy automatically checked via middleware
         $this->authorize('viewAny', Kid::class);
 
-        $kids = $request->user()
-            ->kids()
-            ->withCount('moments')
-            ->orderBy('created_at', 'asc')
-            ->get()
-            ->map(function ($kid) {
-                return [
-                    'id' => $kid->id,
-                    'name' => $kid->name,
-                    'date_of_birth' => $kid->date_of_birth->format('Y-m-d'),
-                    'avatar_color' => $kid->avatar_color,
-                    'age' => $kid->age,
-                    'age_detailed' => $kid->age_detailed,
-                    'moments_count' => $kid->moments_count,
-                    'created_at' => $kid->created_at->toIso8601String(),
-                    'updated_at' => $kid->updated_at->toIso8601String(),
-                ];
-            });
+        $kids = $this->kidService->getKidsForUser($request->user());
 
         return response()->json([
             'success' => true,
@@ -44,7 +32,7 @@ class KidController extends Controller
     /**
      * Store a newly created kid.
      */
-    public function store(Request $request)
+    public function store(Request $request): JsonResponse
     {
         $this->authorize('create', Kid::class);
 
@@ -54,61 +42,34 @@ class KidController extends Controller
             'avatar_color' => 'nullable|string|regex:/^#[0-9A-F]{6}$/i',
         ]);
 
-        $kid = $request->user()->kids()->create([
-            'name' => $validated['name'],
-            'date_of_birth' => $validated['date_of_birth'],
-            'avatar_color' => $validated['avatar_color'] ?? Kid::randomAvatarColor(),
-        ]);
+        $kid = $this->kidService->createKid($request->user(), $validated);
 
         return response()->json([
             'success' => true,
             'message' => 'Kid created successfully',
-            'data' => [
-                'id' => $kid->id,
-                'name' => $kid->name,
-                'date_of_birth' => $kid->date_of_birth->format('Y-m-d'),
-                'avatar_color' => $kid->avatar_color,
-                'age' => $kid->age,
-                'age_detailed' => $kid->age_detailed,
-                'moments_count' => 0,
-                'created_at' => $kid->created_at->toIso8601String(),
-                'updated_at' => $kid->updated_at->toIso8601String(),
-            ],
+            'data' => $this->kidService->formatKid($kid),
         ], 201);
     }
 
     /**
      * Display the specified kid.
      */
-    public function show(Kid $kid)
+    public function show(Kid $kid): JsonResponse
     {
         $this->authorize('view', $kid);
 
-        $kid->loadCount('moments');
+        $kidDetails = $this->kidService->getKidDetails($kid);
 
         return response()->json([
             'success' => true,
-            'data' => [
-                'id' => $kid->id,
-                'name' => $kid->name,
-                'date_of_birth' => $kid->date_of_birth->format('Y-m-d'),
-                'avatar_color' => $kid->avatar_color,
-                'age' => $kid->age,
-                'age_detailed' => $kid->age_detailed,
-                'age_in_months' => $kid->age_in_months,
-                'moments_count' => $kid->moments_count,
-                'first_moment' => $kid->getFirstMoment()?->display_date?->toIso8601String(),
-                'latest_moment' => $kid->getLatestMoment()?->display_date?->toIso8601String(),
-                'created_at' => $kid->created_at->toIso8601String(),
-                'updated_at' => $kid->updated_at->toIso8601String(),
-            ],
+            'data' => $kidDetails,
         ]);
     }
 
     /**
      * Update the specified kid.
      */
-    public function update(Request $request, Kid $kid)
+    public function update(Request $request, Kid $kid): JsonResponse
     {
         $this->authorize('update', $kid);
 
@@ -118,33 +79,23 @@ class KidController extends Controller
             'avatar_color' => 'sometimes|string|regex:/^#[0-9A-F]{6}$/i',
         ]);
 
-        $kid->update($validated);
+        $kid = $this->kidService->updateKid($kid, $validated);
 
         return response()->json([
             'success' => true,
             'message' => 'Kid updated successfully',
-            'data' => [
-                'id' => $kid->id,
-                'name' => $kid->name,
-                'date_of_birth' => $kid->date_of_birth->format('Y-m-d'),
-                'avatar_color' => $kid->avatar_color,
-                'age' => $kid->age,
-                'age_detailed' => $kid->age_detailed,
-                'moments_count' => $kid->getMomentsCount(),
-                'created_at' => $kid->created_at->toIso8601String(),
-                'updated_at' => $kid->updated_at->toIso8601String(),
-            ],
+            'data' => $this->kidService->formatKid($kid),
         ]);
     }
 
     /**
      * Remove the specified kid.
      */
-    public function destroy(Kid $kid)
+    public function destroy(Kid $kid): JsonResponse
     {
         $this->authorize('delete', $kid);
 
-        $kid->delete();
+        $this->kidService->deleteKid($kid);
 
         return response()->json([
             'success' => true,

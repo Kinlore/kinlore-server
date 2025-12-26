@@ -4,7 +4,7 @@
         "description": "Complete API collection for Kinlore - Multi-kid photo memory app with unified media, stories, and milestones",
         "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
         "_postman_id": "kinlore-api-v1-collection",
-        "version": "2.0.0"
+        "version": "2.1.0"
     },
     "auth": {
         "type": "bearer",
@@ -56,6 +56,11 @@
             "key": "predefined_milestone_id",
             "value": "",
             "type": "string"
+        },
+        {
+            "key": "interaction_id",
+            "value": "",
+            "type": "string"
         }
     ],
     "item": [
@@ -84,7 +89,16 @@
                                 "health"
                             ]
                         }
-                    }
+                    },
+                    "response": [
+                        {
+                            "name": "Success",
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"status\": \"ok\",\n  \"timestamp\": \"2024-12-26T08:30:00+00:00\",\n  \"service\": \"kinlore-api\"\n}"
+                        }
+                    ]
                 },
                 {
                     "name": "Health Check (Detailed)",
@@ -106,7 +120,16 @@
                                 "detailed"
                             ]
                         }
-                    }
+                    },
+                    "response": [
+                        {
+                            "name": "Success",
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"status\": \"ok\",\n  \"database\": \"connected\",\n  \"storage\": \"connected\",\n  \"queue\": \"running\"\n}"
+                        }
+                    ]
                 }
             ]
         },
@@ -158,7 +181,23 @@
                                 "register"
                             ]
                         }
-                    }
+                    },
+                    "response": [
+                        {
+                            "name": "Success",
+                            "status": "Created",
+                            "code": 201,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"success\": true,\n  \"message\": \"User registered successfully\",\n  \"data\": {\n    \"user\": {\n      \"id\": 1,\n      \"name\": \"Test User\",\n      \"email\": \"test@kinlore.local\",\n      \"created_at\": \"2024-12-26T08:30:00+00:00\"\n    },\n    \"token\": \"1|abc123...\",\n    \"token_type\": \"Bearer\"\n  }\n}"
+                        },
+                        {
+                            "name": "Validation Error",
+                            "status": "Unprocessable Entity",
+                            "code": 422,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"message\": \"The email has already been taken.\",\n  \"errors\": {\n    \"email\": [\"The email has already been taken.\"]\n  }\n}"
+                        }
+                    ]
                 },
                 {
                     "name": "Login",
@@ -205,7 +244,23 @@
                                 "login"
                             ]
                         }
-                    }
+                    },
+                    "response": [
+                        {
+                            "name": "Success",
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"success\": true,\n  \"message\": \"Login successful\",\n  \"data\": {\n    \"user\": {\n      \"id\": 1,\n      \"name\": \"Test User\",\n      \"email\": \"test@kinlore.local\"\n    },\n    \"token\": \"2|xyz789...\",\n    \"token_type\": \"Bearer\"\n  }\n}"
+                        },
+                        {
+                            "name": "Invalid Credentials",
+                            "status": "Unprocessable Entity",
+                            "code": 422,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"message\": \"The provided credentials are incorrect.\",\n  \"errors\": {\n    \"email\": [\"The provided credentials are incorrect.\"]\n  }\n}"
+                        }
+                    ]
                 },
                 {
                     "name": "Get Current User",
@@ -226,41 +281,22 @@
                                 "auth",
                                 "me"
                             ]
-                        },
-                        "description": "Get authenticated user info including storage usage statistics"
+                        }
                     },
                     "response": [
                         {
                             "name": "Success",
-                            "originalRequest": {
-                                "method": "GET",
-                                "header": [
-                                    {
-                                        "key": "Accept",
-                                        "value": "application/json"
-                                    }
-                                ],
-                                "url": {
-                                    "raw": "{{base_url}}/auth/me",
-                                    "host": [
-                                        "{{base_url}}"
-                                    ],
-                                    "path": [
-                                        "auth",
-                                        "me"
-                                    ]
-                                }
-                            },
                             "status": "OK",
                             "code": 200,
                             "_postman_previewlanguage": "json",
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
-                            "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": 1,\n    \"name\": \"Test User\",\n    \"email\": \"test@kinlore.local\",\n    \"email_verified_at\": null,\n    \"created_at\": \"2024-12-24T07:30:00+00:00\",\n    \"kids_count\": 2,\n    \"moments_count\": 125,\n    \"storage_used\": \"1.5 GB\",\n    \"storage_bytes_used\": 1610612736,\n    \"storage_bytes_available\": 107374182400\n  }\n}"
+                            "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": 1,\n    \"name\": \"Test User\",\n    \"email\": \"test@kinlore.local\",\n    \"email_verified_at\": null,\n    \"created_at\": \"2024-12-26T08:30:00+00:00\",\n    \"kids_count\": 2,\n    \"moments_count\": 125,\n    \"storage_used\": \"1.5 GB\",\n    \"storage_bytes_used\": 1610612736,\n    \"storage_bytes_available\": 107374182400\n  }\n}"
+                        },
+                        {
+                            "name": "Unauthorized",
+                            "status": "Unauthorized",
+                            "code": 401,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"message\": \"Unauthenticated.\"\n}"
                         }
                     ]
                 },
@@ -284,7 +320,47 @@
                                 "logout"
                             ]
                         }
-                    }
+                    },
+                    "response": [
+                        {
+                            "name": "Success",
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"success\": true,\n  \"message\": \"Logged out successfully\"\n}"
+                        }
+                    ]
+                },
+                {
+                    "name": "Logout All Devices",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/auth/logout-all",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "auth",
+                                "logout-all"
+                            ]
+                        }
+                    },
+                    "response": [
+                        {
+                            "name": "Success",
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"success\": true,\n  \"message\": \"Logged out from all devices\"\n}"
+                        }
+                    ]
                 },
                 {
                     "name": "Refresh Token",
@@ -320,7 +396,86 @@
                                 "refresh"
                             ]
                         }
-                    }
+                    },
+                    "response": [
+                        {
+                            "name": "Success",
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"success\": true,\n  \"message\": \"Token refreshed\",\n  \"data\": {\n    \"token\": \"3|newtoken...\",\n    \"token_type\": \"Bearer\"\n  }\n}"
+                        }
+                    ]
+                },
+                {
+                    "name": "Get Sessions",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/auth/sessions",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "auth",
+                                "sessions"
+                            ]
+                        }
+                    },
+                    "response": [
+                        {
+                            "name": "Success",
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": 1,\n      \"name\": \"mobile-app\",\n      \"abilities\": [\"*\"],\n      \"last_used_at\": \"2024-12-26T08:30:00+00:00\",\n      \"created_at\": \"2024-12-26T07:00:00+00:00\",\n      \"is_current\": true\n    }\n  ]\n}"
+                        }
+                    ]
+                },
+                {
+                    "name": "Revoke Session",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/auth/sessions/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "auth",
+                                "sessions",
+                                "1"
+                            ]
+                        }
+                    },
+                    "response": [
+                        {
+                            "name": "Success",
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"success\": true,\n  \"message\": \"Session revoked\"\n}"
+                        },
+                        {
+                            "name": "Not Found",
+                            "status": "Not Found",
+                            "code": 404,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"success\": false,\n  \"message\": \"Token not found\"\n}"
+                        }
+                    ]
                 }
             ]
         },
@@ -347,7 +502,16 @@
                                 "kids"
                             ]
                         }
-                    }
+                    },
+                    "response": [
+                        {
+                            "name": "Success",
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"550e8400-e29b-41d4-a716-446655440000\",\n      \"name\": \"Emma\",\n      \"date_of_birth\": \"2019-03-15\",\n      \"avatar_color\": \"#FF6B6B\",\n      \"age\": \"5 years\",\n      \"age_detailed\": \"5 years, 9 months\",\n      \"moments_count\": 125,\n      \"created_at\": \"2024-01-15T10:00:00+00:00\",\n      \"updated_at\": \"2024-12-26T08:30:00+00:00\"\n    }\n  ]\n}"
+                        }
+                    ]
                 },
                 {
                     "name": "Create Kid",
@@ -391,7 +555,16 @@
                                 "kids"
                             ]
                         }
-                    }
+                    },
+                    "response": [
+                        {
+                            "name": "Success",
+                            "status": "Created",
+                            "code": 201,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"success\": true,\n  \"message\": \"Kid created successfully\",\n  \"data\": {\n    \"id\": \"550e8400-e29b-41d4-a716-446655440000\",\n    \"name\": \"Emma\",\n    \"date_of_birth\": \"2019-03-15\",\n    \"avatar_color\": \"#FF6B6B\",\n    \"age\": \"5 years\",\n    \"age_detailed\": \"5 years, 9 months\",\n    \"moments_count\": 0,\n    \"created_at\": \"2024-12-26T08:30:00+00:00\",\n    \"updated_at\": \"2024-12-26T08:30:00+00:00\"\n  }\n}"
+                        }
+                    ]
                 },
                 {
                     "name": "Get Kid",
@@ -414,7 +587,16 @@
                                 "{{kid_id}}"
                             ]
                         }
-                    }
+                    },
+                    "response": [
+                        {
+                            "name": "Success",
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"550e8400-e29b-41d4-a716-446655440000\",\n    \"name\": \"Emma\",\n    \"date_of_birth\": \"2019-03-15\",\n    \"avatar_color\": \"#FF6B6B\",\n    \"age\": \"5 years\",\n    \"age_detailed\": \"5 years, 9 months\",\n    \"age_in_months\": 69,\n    \"moments_count\": 125,\n    \"first_moment\": \"2019-03-20T10:00:00+00:00\",\n    \"latest_moment\": \"2024-12-25T15:30:00+00:00\",\n    \"created_at\": \"2024-01-15T10:00:00+00:00\",\n    \"updated_at\": \"2024-12-26T08:30:00+00:00\"\n  }\n}"
+                        }
+                    ]
                 },
                 {
                     "name": "Update Kid",
@@ -445,7 +627,16 @@
                                 "{{kid_id}}"
                             ]
                         }
-                    }
+                    },
+                    "response": [
+                        {
+                            "name": "Success",
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"success\": true,\n  \"message\": \"Kid updated successfully\",\n  \"data\": {\n    \"id\": \"550e8400-e29b-41d4-a716-446655440000\",\n    \"name\": \"Emma Rose\",\n    \"date_of_birth\": \"2019-03-15\",\n    \"avatar_color\": \"#4ECDC4\",\n    \"age\": \"5 years\",\n    \"age_detailed\": \"5 years, 9 months\",\n    \"moments_count\": 125,\n    \"created_at\": \"2024-01-15T10:00:00+00:00\",\n    \"updated_at\": \"2024-12-26T08:35:00+00:00\"\n  }\n}"
+                        }
+                    ]
                 },
                 {
                     "name": "Delete Kid",
@@ -468,16 +659,26 @@
                                 "{{kid_id}}"
                             ]
                         }
-                    }
+                    },
+                    "response": [
+                        {
+                            "name": "Success",
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"success\": true,\n  \"message\": \"Kid deleted successfully\"\n}"
+                        }
+                    ]
                 }
             ]
         },
         {
             "name": "Media (Unified)",
-            "description": "Unified media upload for photos and videos. Auto-detects type from MIME.",
+            "description": "Unified media upload for photos and videos. Auto-detects type from MIME. Creates both Media and Moment records.",
             "item": [
                 {
                     "name": "Upload Media (Photo/Video)",
+                    "description": "Upload a photo or video file. Auto-detects type from MIME. Creates both a Media record and a Moment record.",
                     "event": [
                         {
                             "listen": "test",
@@ -485,7 +686,8 @@
                                 "exec": [
                                     "if (pm.response.code === 201) {",
                                     "    var jsonData = pm.response.json();",
-                                    "    pm.collectionVariables.set('media_id', jsonData.data.id);",
+                                    "    pm.collectionVariables.set('media_id', jsonData.data.media.id);",
+                                    "    pm.collectionVariables.set('moment_id', jsonData.data.moment.id);",
                                     "}"
                                 ],
                                 "type": "text/javascript"
@@ -507,7 +709,7 @@
                                     "key": "file",
                                     "type": "file",
                                     "src": "/path/to/photo.jpg",
-                                    "description": "Photo (JPEG, PNG, HEIC) or Video (MP4, MOV, WebM)"
+                                    "description": "Photo or Video file"
                                 },
                                 {
                                     "key": "kid_id",
@@ -521,16 +723,21 @@
                                     "disabled": true
                                 },
                                 {
+                                    "key": "description",
+                                    "value": "Description text",
+                                    "type": "text",
+                                    "disabled": true
+                                },
+                                {
                                     "key": "device_asset_id",
-                                    "value": "device-123-456",
+                                    "value": "device-123",
                                     "type": "text",
                                     "disabled": true
                                 },
                                 {
                                     "key": "exif_date",
                                     "value": "2024-12-21T10:30:00.000Z",
-                                    "type": "text",
-                                    "description": "ISO 8601 (for photos)"
+                                    "type": "text"
                                 },
                                 {
                                     "key": "latitude",
@@ -575,7 +782,23 @@
                                 "upload"
                             ]
                         }
-                    }
+                    },
+                    "response": [
+                        {
+                            "name": "Photo Upload Success",
+                            "status": "Created",
+                            "code": 201,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"success\": true,\n  \"message\": \"Photo uploaded successfully\",\n  \"data\": {\n    \"media\": {\n      \"id\": \"550e8400-e29b-41d4-a716-446655440000\",\n      \"kid_id\": \"660e8400-e29b-41d4-a716-446655440001\",\n      \"user_id\": 1,\n      \"type\": \"photo\",\n      \"original_filename\": \"IMG_1234.jpg\",\n      \"file_size\": 2456789,\n      \"file_size_formatted\": \"2.34 MB\",\n      \"mime_type\": \"image/jpeg\",\n      \"status\": \"completed\",\n      \"is_ready\": true,\n      \"thumbnail_url\": \"media/660e8400.../thumbnail.jpg\",\n      \"medium_url\": \"media/660e8400.../medium.jpg\",\n      \"latitude\": 48.8566,\n      \"longitude\": 2.3522,\n      \"has_location\": true,\n      \"created_at\": \"2024-12-26T08:34:00+00:00\",\n      \"updated_at\": \"2024-12-26T08:34:00+00:00\"\n    },\n    \"moment\": {\n      \"id\": \"770e8400-e29b-41d4-a716-446655440002\",\n      \"kid_id\": \"660e8400-e29b-41d4-a716-446655440001\",\n      \"moment_type\": \"photo\",\n      \"photo_url\": \"media/660e8400.../original.jpg\",\n      \"medium_url\": \"media/660e8400.../medium.jpg\",\n      \"thumbnail_url\": \"media/660e8400.../thumbnail.jpg\",\n      \"file_size\": 2456789,\n      \"has_location\": true,\n      \"created_at\": \"2024-12-26T08:34:00+00:00\",\n      \"updated_at\": \"2024-12-26T08:34:00+00:00\"\n    }\n  }\n}"
+                        },
+                        {
+                            "name": "Video Upload Success",
+                            "status": "Created",
+                            "code": 201,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"success\": true,\n  \"message\": \"Video uploaded successfully. Processing will begin shortly.\",\n  \"data\": {\n    \"media\": {\n      \"id\": \"550e8400-e29b-41d4-a716-446655440000\",\n      \"type\": \"video\",\n      \"status\": \"processing\",\n      \"is_ready\": false\n    },\n    \"moment\": {\n      \"id\": \"770e8400-e29b-41d4-a716-446655440002\",\n      \"moment_type\": \"video\"\n    }\n  }\n}"
+                        }
+                    ]
                 },
                 {
                     "name": "List Media",
@@ -603,8 +826,7 @@
                                 },
                                 {
                                     "key": "type",
-                                    "value": "photo",
-                                    "description": "photo or video"
+                                    "value": "photo"
                                 },
                                 {
                                     "key": "per_page",
@@ -612,7 +834,16 @@
                                 }
                             ]
                         }
-                    }
+                    },
+                    "response": [
+                        {
+                            "name": "Success",
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"success\": true,\n  \"data\": [],\n  \"meta\": {\n    \"current_page\": 1,\n    \"last_page\": 1,\n    \"per_page\": 20,\n    \"total\": 0\n  }\n}"
+                        }
+                    ]
                 },
                 {
                     "name": "Get Media",
@@ -635,7 +866,16 @@
                                 "{{media_id}}"
                             ]
                         }
-                    }
+                    },
+                    "response": [
+                        {
+                            "name": "Success",
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"550e8400-e29b-41d4-a716-446655440000\",\n    \"type\": \"photo\",\n    \"status\": \"completed\",\n    \"is_ready\": true\n  }\n}"
+                        }
+                    ]
                 },
                 {
                     "name": "Delete Media",
@@ -658,7 +898,16 @@
                                 "{{media_id}}"
                             ]
                         }
-                    }
+                    },
+                    "response": [
+                        {
+                            "name": "Success",
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"success\": true,\n  \"message\": \"Media deleted successfully\"\n}"
+                        }
+                    ]
                 },
                 {
                     "name": "Serve File - Thumbnail",
@@ -678,7 +927,15 @@
                                 "thumbnail"
                             ]
                         }
-                    }
+                    },
+                    "response": [
+                        {
+                            "name": "Success",
+                            "status": "OK",
+                            "code": 200,
+                            "body": "(Binary image data)"
+                        }
+                    ]
                 },
                 {
                     "name": "Serve File - Medium",
@@ -698,7 +955,15 @@
                                 "medium"
                             ]
                         }
-                    }
+                    },
+                    "response": [
+                        {
+                            "name": "Success",
+                            "status": "OK",
+                            "code": 200,
+                            "body": "(Binary image data)"
+                        }
+                    ]
                 },
                 {
                     "name": "Serve File - Original",
@@ -718,27 +983,15 @@
                                 "original"
                             ]
                         }
-                    }
-                },
-                {
-                    "name": "Serve File - HLS (Video)",
-                    "request": {
-                        "method": "GET",
-                        "header": [],
-                        "url": {
-                            "raw": "{{base_url}}/v1/media/{{media_id}}/file/hls",
-                            "host": [
-                                "{{base_url}}"
-                            ],
-                            "path": [
-                                "v1",
-                                "media",
-                                "{{media_id}}",
-                                "file",
-                                "hls"
-                            ]
+                    },
+                    "response": [
+                        {
+                            "name": "Success",
+                            "status": "OK",
+                            "code": 200,
+                            "body": "(Binary file data)"
                         }
-                    }
+                    ]
                 },
                 {
                     "name": "Get Uploaded Identifiers",
@@ -763,13 +1016,22 @@
                                 "uploaded-identifiers"
                             ]
                         }
-                    }
+                    },
+                    "response": [
+                        {
+                            "name": "Success",
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"device_asset_id\": \"device-123-456\",\n      \"device_fingerprint\": \"abc123...\",\n      \"file_size\": 2456789,\n      \"filename\": \"IMG_1234.jpg\"\n    }\n  ]\n}"
+                        }
+                    ]
                 }
             ]
         },
         {
             "name": "Moments",
-            "description": "Legacy moment endpoints for backward compatibility",
+            "description": "Legacy moment endpoints",
             "item": [
                 {
                     "name": "List Moments",
@@ -782,7 +1044,7 @@
                             }
                         ],
                         "url": {
-                            "raw": "{{base_url}}/v1/kids/{{kid_id}}/moments?per_page=20&sort_by=exif_date",
+                            "raw": "{{base_url}}/v1/kids/{{kid_id}}/moments?per_page=20",
                             "host": [
                                 "{{base_url}}"
                             ],
@@ -796,73 +1058,19 @@
                                 {
                                     "key": "per_page",
                                     "value": "20"
-                                },
-                                {
-                                    "key": "sort_by",
-                                    "value": "exif_date"
                                 }
                             ]
                         }
-                    }
-                },
-                {
-                    "name": "Upload Photo (Legacy)",
-                    "event": [
+                    },
+                    "response": [
                         {
-                            "listen": "test",
-                            "script": {
-                                "exec": [
-                                    "if (pm.response.code === 201) {",
-                                    "    var jsonData = pm.response.json();",
-                                    "    pm.collectionVariables.set('moment_id', jsonData.data.id);",
-                                    "}"
-                                ],
-                                "type": "text/javascript"
-                            }
+                            "name": "Success",
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"success\": true,\n  \"data\": [],\n  \"meta\": {\n    \"current_page\": 1,\n    \"last_page\": 1,\n    \"per_page\": 20,\n    \"total\": 0\n  }\n}"
                         }
-                    ],
-                    "request": {
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Accept",
-                                "value": "application/json"
-                            }
-                        ],
-                        "body": {
-                            "mode": "formdata",
-                            "formdata": [
-                                {
-                                    "key": "photo",
-                                    "type": "file",
-                                    "src": "/path/to/photo.jpg"
-                                },
-                                {
-                                    "key": "title",
-                                    "value": "First Day of School",
-                                    "type": "text",
-                                    "disabled": true
-                                },
-                                {
-                                    "key": "exif_date",
-                                    "value": "2024-12-21T10:30:00.000Z",
-                                    "type": "text"
-                                }
-                            ]
-                        },
-                        "url": {
-                            "raw": "{{base_url}}/v1/kids/{{kid_id}}/moments",
-                            "host": [
-                                "{{base_url}}"
-                            ],
-                            "path": [
-                                "v1",
-                                "kids",
-                                "{{kid_id}}",
-                                "moments"
-                            ]
-                        }
-                    }
+                    ]
                 },
                 {
                     "name": "Get Moment",
@@ -885,7 +1093,16 @@
                                 "{{moment_id}}"
                             ]
                         }
-                    }
+                    },
+                    "response": [
+                        {
+                            "name": "Success",
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"770e8400-e29b-41d4-a716-446655440002\",\n    \"kid_id\": \"660e8400-e29b-41d4-a716-446655440001\",\n    \"moment_type\": \"photo\",\n    \"title\": null,\n    \"description\": null,\n    \"thumbnail_url\": \"...\",\n    \"medium_url\": \"...\",\n    \"photo_url\": \"...\",\n    \"has_location\": true,\n    \"created_at\": \"2024-12-26T08:34:00+00:00\"\n  }\n}"
+                        }
+                    ]
                 },
                 {
                     "name": "Delete Moment",
@@ -908,7 +1125,16 @@
                                 "{{moment_id}}"
                             ]
                         }
-                    }
+                    },
+                    "response": [
+                        {
+                            "name": "Success",
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"success\": true,\n  \"message\": \"Moment deleted successfully\"\n}"
+                        }
+                    ]
                 },
                 {
                     "name": "Like Moment",
@@ -932,7 +1158,23 @@
                                 "like"
                             ]
                         }
-                    }
+                    },
+                    "response": [
+                        {
+                            "name": "Success",
+                            "status": "Created",
+                            "code": 201,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"message\": \"Moment liked\"\n}"
+                        },
+                        {
+                            "name": "Already Liked",
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"message\": \"Already liked\"\n}"
+                        }
+                    ]
                 },
                 {
                     "name": "Unlike Moment",
@@ -956,7 +1198,23 @@
                                 "like"
                             ]
                         }
-                    }
+                    },
+                    "response": [
+                        {
+                            "name": "Success",
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"message\": \"Moment unliked\"\n}"
+                        },
+                        {
+                            "name": "Not Liked",
+                            "status": "Not Found",
+                            "code": 404,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"message\": \"Not liked yet\"\n}"
+                        }
+                    ]
                 },
                 {
                     "name": "List Comments",
@@ -980,10 +1238,33 @@
                                 "comments"
                             ]
                         }
-                    }
+                    },
+                    "response": [
+                        {
+                            "name": "Success",
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": 1,\n      \"user_id\": 1,\n      \"moment_id\": \"...\",\n      \"type\": \"comment\",\n      \"content\": \"What a wonderful moment!\",\n      \"created_at\": \"2024-12-26T08:40:00+00:00\",\n      \"user\": {\n        \"id\": 1,\n        \"name\": \"Test User\",\n        \"email\": \"test@kinlore.local\"\n      }\n    }\n  ]\n}"
+                        }
+                    ]
                 },
                 {
                     "name": "Add Comment",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "if (pm.response.code === 201) {",
+                                    "    var jsonData = pm.response.json();",
+                                    "    pm.collectionVariables.set('interaction_id', jsonData.data.id);",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
                     "request": {
                         "method": "POST",
                         "header": [
@@ -1012,7 +1293,48 @@
                                 "comments"
                             ]
                         }
-                    }
+                    },
+                    "response": [
+                        {
+                            "name": "Success",
+                            "status": "Created",
+                            "code": 201,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"message\": \"Comment posted\",\n  \"data\": {\n    \"id\": 1,\n    \"content\": \"What a wonderful moment!\",\n    \"type\": \"comment\",\n    \"user\": {\n      \"id\": 1,\n      \"name\": \"Test User\"\n    }\n  }\n}"
+                        }
+                    ]
+                },
+                {
+                    "name": "Delete Comment",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/v1/interactions/{{interaction_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "v1",
+                                "interactions",
+                                "{{interaction_id}}"
+                            ]
+                        }
+                    },
+                    "response": [
+                        {
+                            "name": "Success",
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"message\": \"Comment deleted\"\n}"
+                        }
+                    ]
                 }
             ]
         },
@@ -1031,7 +1353,7 @@
                             }
                         ],
                         "url": {
-                            "raw": "{{base_url}}/v1/stories?kid_id={{kid_id}}&per_page=20",
+                            "raw": "{{base_url}}/v1/stories?kid_id={{kid_id}}",
                             "host": [
                                 "{{base_url}}"
                             ],
@@ -1043,14 +1365,19 @@
                                 {
                                     "key": "kid_id",
                                     "value": "{{kid_id}}"
-                                },
-                                {
-                                    "key": "per_page",
-                                    "value": "20"
                                 }
                             ]
                         }
-                    }
+                    },
+                    "response": [
+                        {
+                            "name": "Success",
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"success\": true,\n  \"data\": [],\n  \"meta\": {\n    \"current_page\": 1,\n    \"last_page\": 1,\n    \"per_page\": 20,\n    \"total\": 0\n  }\n}"
+                        }
+                    ]
                 },
                 {
                     "name": "Create Story",
@@ -1082,7 +1409,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"kid_id\": \"{{kid_id}}\",\n  \"title\": \"Emma's First Word\",\n  \"text\": \"Today Emma said her first word - 'mama'! She was sitting in her high chair during breakfast when she looked up and clearly said it. We couldn't believe our ears!\",\n  \"icon_image_id\": null\n}"
+                            "raw": "{\n  \"kid_id\": \"{{kid_id}}\",\n  \"title\": \"Emma's First Word\",\n  \"text\": \"Today Emma said her first word - 'mama'!\"\n}"
                         },
                         "url": {
                             "raw": "{{base_url}}/v1/stories",
@@ -1094,7 +1421,16 @@
                                 "stories"
                             ]
                         }
-                    }
+                    },
+                    "response": [
+                        {
+                            "name": "Success",
+                            "status": "Created",
+                            "code": 201,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"success\": true,\n  \"message\": \"Story created successfully\",\n  \"data\": {\n    \"id\": \"880e8400-e29b-41d4-a716-446655440003\",\n    \"kid_id\": \"660e8400-e29b-41d4-a716-446655440001\",\n    \"title\": \"Emma's First Word\",\n    \"text\": \"Today Emma said her first word - 'mama'!\",\n    \"moment_id\": \"...\",\n    \"created_at\": \"2024-12-26T08:45:00+00:00\"\n  }\n}"
+                        }
+                    ]
                 },
                 {
                     "name": "Get Story",
@@ -1117,7 +1453,16 @@
                                 "{{story_id}}"
                             ]
                         }
-                    }
+                    },
+                    "response": [
+                        {
+                            "name": "Success",
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"880e8400-e29b-41d4-a716-446655440003\",\n    \"title\": \"Emma's First Word\",\n    \"text\": \"Today Emma said her first word - 'mama'!\"\n  }\n}"
+                        }
+                    ]
                 },
                 {
                     "name": "Update Story",
@@ -1148,7 +1493,16 @@
                                 "{{story_id}}"
                             ]
                         }
-                    }
+                    },
+                    "response": [
+                        {
+                            "name": "Success",
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"success\": true,\n  \"message\": \"Story updated successfully\",\n  \"data\": {\n    \"id\": \"880e8400-e29b-41d4-a716-446655440003\",\n    \"title\": \"Emma's First Word - Updated\"\n  }\n}"
+                        }
+                    ]
                 },
                 {
                     "name": "Delete Story",
@@ -1171,7 +1525,16 @@
                                 "{{story_id}}"
                             ]
                         }
-                    }
+                    },
+                    "response": [
+                        {
+                            "name": "Success",
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"success\": true,\n  \"message\": \"Story deleted successfully\"\n}"
+                        }
+                    ]
                 }
             ]
         },
@@ -1200,7 +1563,16 @@
                                 "predefined"
                             ]
                         }
-                    }
+                    },
+                    "response": [
+                        {
+                            "name": "Success",
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"first_smile\",\n      \"title\": \"First Smile\",\n      \"description\": \"Baby's first social smile\",\n      \"stage_key\": \"newborn\",\n      \"stage_label\": \"Newborn (0-3 months)\",\n      \"category\": \"social\"\n    }\n  ]\n}"
+                        }
+                    ]
                 },
                 {
                     "name": "List Grouped by Stage",
@@ -1229,83 +1601,19 @@
                                 }
                             ]
                         }
-                    }
-                },
-                {
-                    "name": "List Grouped by Category",
-                    "request": {
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Accept",
-                                "value": "application/json"
-                            }
-                        ],
-                        "url": {
-                            "raw": "{{base_url}}/v1/milestones/predefined?group_by=category",
-                            "host": [
-                                "{{base_url}}"
-                            ],
-                            "path": [
-                                "v1",
-                                "milestones",
-                                "predefined"
-                            ],
-                            "query": [
-                                {
-                                    "key": "group_by",
-                                    "value": "category"
-                                }
-                            ]
+                    },
+                    "response": [
+                        {
+                            "name": "Success",
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"success\": true,\n  \"data\": {\n    \"newborn\": [...],\n    \"infant\": [...],\n    \"toddler\": [...]\n  }\n}"
                         }
-                    }
-                },
-                {
-                    "name": "Filter by Category",
-                    "request": {
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Accept",
-                                "value": "application/json"
-                            }
-                        ],
-                        "url": {
-                            "raw": "{{base_url}}/v1/milestones/predefined?category=physical",
-                            "host": [
-                                "{{base_url}}"
-                            ],
-                            "path": [
-                                "v1",
-                                "milestones",
-                                "predefined"
-                            ],
-                            "query": [
-                                {
-                                    "key": "category",
-                                    "value": "physical",
-                                    "description": "physical, cognitive, social, language, emotional, behavioral"
-                                }
-                            ]
-                        }
-                    }
+                    ]
                 },
                 {
                     "name": "Get Predefined Milestone",
-                    "event": [
-                        {
-                            "listen": "test",
-                            "script": {
-                                "exec": [
-                                    "if (pm.response.code === 200) {",
-                                    "    var jsonData = pm.response.json();",
-                                    "    pm.collectionVariables.set('predefined_milestone_id', jsonData.data.id);",
-                                    "}"
-                                ],
-                                "type": "text/javascript"
-                            }
-                        }
-                    ],
                     "request": {
                         "method": "GET",
                         "header": [
@@ -1326,7 +1634,16 @@
                                 "first_smile"
                             ]
                         }
-                    }
+                    },
+                    "response": [
+                        {
+                            "name": "Success",
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"first_smile\",\n    \"title\": \"First Smile\",\n    \"description\": \"Baby's first social smile\",\n    \"stage_key\": \"newborn\",\n    \"category\": \"social\"\n  }\n}"
+                        }
+                    ]
                 }
             ]
         },
@@ -1345,7 +1662,7 @@
                             }
                         ],
                         "url": {
-                            "raw": "{{base_url}}/v1/milestones?kid_id={{kid_id}}&per_page=20",
+                            "raw": "{{base_url}}/v1/milestones?kid_id={{kid_id}}",
                             "host": [
                                 "{{base_url}}"
                             ],
@@ -1357,14 +1674,19 @@
                                 {
                                     "key": "kid_id",
                                     "value": "{{kid_id}}"
-                                },
-                                {
-                                    "key": "per_page",
-                                    "value": "20"
                                 }
                             ]
                         }
-                    }
+                    },
+                    "response": [
+                        {
+                            "name": "Success",
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"success\": true,\n  \"data\": [],\n  \"meta\": {\n    \"current_page\": 1,\n    \"last_page\": 1,\n    \"per_page\": 20,\n    \"total\": 0\n  }\n}"
+                        }
+                    ]
                 },
                 {
                     "name": "Create Milestone (Predefined)",
@@ -1408,24 +1730,19 @@
                                 "milestones"
                             ]
                         }
-                    }
+                    },
+                    "response": [
+                        {
+                            "name": "Success",
+                            "status": "Created",
+                            "code": 201,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"success\": true,\n  \"message\": \"Milestone created successfully\",\n  \"data\": {\n    \"id\": \"990e8400-e29b-41d4-a716-446655440004\",\n    \"kid_id\": \"...\",\n    \"predefined_milestone_id\": \"first_smile\",\n    \"milestone_date\": \"2024-01-15\",\n    \"notes\": \"She smiled at daddy for the first time!\"\n  }\n}"
+                        }
+                    ]
                 },
                 {
                     "name": "Create Milestone (Custom)",
-                    "event": [
-                        {
-                            "listen": "test",
-                            "script": {
-                                "exec": [
-                                    "if (pm.response.code === 201) {",
-                                    "    var jsonData = pm.response.json();",
-                                    "    pm.collectionVariables.set('milestone_id', jsonData.data.id);",
-                                    "}"
-                                ],
-                                "type": "text/javascript"
-                            }
-                        }
-                    ],
                     "request": {
                         "method": "POST",
                         "header": [
@@ -1452,7 +1769,16 @@
                                 "milestones"
                             ]
                         }
-                    }
+                    },
+                    "response": [
+                        {
+                            "name": "Success",
+                            "status": "Created",
+                            "code": 201,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"success\": true,\n  \"message\": \"Milestone created successfully\",\n  \"data\": {\n    \"id\": \"...\",\n    \"custom_title\": \"First Piano Recital\",\n    \"custom_description\": \"Performed at the school concert\",\n    \"milestone_date\": \"2024-06-15\"\n  }\n}"
+                        }
+                    ]
                 },
                 {
                     "name": "Get User Milestone",
@@ -1475,7 +1801,16 @@
                                 "{{milestone_id}}"
                             ]
                         }
-                    }
+                    },
+                    "response": [
+                        {
+                            "name": "Success",
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"990e8400-e29b-41d4-a716-446655440004\",\n    \"predefined_milestone\": {\n      \"id\": \"first_smile\",\n      \"title\": \"First Smile\"\n    }\n  }\n}"
+                        }
+                    ]
                 },
                 {
                     "name": "Update User Milestone",
@@ -1506,7 +1841,16 @@
                                 "{{milestone_id}}"
                             ]
                         }
-                    }
+                    },
+                    "response": [
+                        {
+                            "name": "Success",
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"success\": true,\n  \"message\": \"Milestone updated successfully\",\n  \"data\": {...}\n}"
+                        }
+                    ]
                 },
                 {
                     "name": "Delete User Milestone",
@@ -1529,7 +1873,16 @@
                                 "{{milestone_id}}"
                             ]
                         }
-                    }
+                    },
+                    "response": [
+                        {
+                            "name": "Success",
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"success\": true,\n  \"message\": \"Milestone deleted successfully\"\n}"
+                        }
+                    ]
                 }
             ]
         },
@@ -1553,7 +1906,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"last_synced_at\": 0,\n  \"schema_version\": 1,\n  \"tables\": [\"kids\", \"moments\"]\n}"
+                            "raw": "{\n  \"lastPulledAt\": 0,\n  \"schemaVersion\": 1\n}"
                         },
                         "url": {
                             "raw": "{{base_url}}/v1/sync/pull",
@@ -1566,7 +1919,16 @@
                                 "pull"
                             ]
                         }
-                    }
+                    },
+                    "response": [
+                        {
+                            "name": "Success",
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"changes\": {\n    \"kids\": {\n      \"created\": [],\n      \"updated\": [],\n      \"deleted\": []\n    },\n    \"moments\": {\n      \"created\": [],\n      \"updated\": [],\n      \"deleted\": []\n    },\n    \"milestones\": {\n      \"created\": [],\n      \"updated\": [],\n      \"deleted\": []\n    }\n  },\n  \"timestamp\": 1703582400000\n}"
+                        }
+                    ]
                 },
                 {
                     "name": "Push Changes",
@@ -1597,7 +1959,16 @@
                                 "push"
                             ]
                         }
-                    }
+                    },
+                    "response": [
+                        {
+                            "name": "Success",
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"success\": true,\n  \"message\": \"Changes synced successfully\"\n}"
+                        }
+                    ]
                 }
             ]
         }

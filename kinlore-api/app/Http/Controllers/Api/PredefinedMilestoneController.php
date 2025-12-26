@@ -3,45 +3,24 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\PredefinedMilestone;
+use App\Services\MilestoneService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class PredefinedMilestoneController extends Controller
 {
+    public function __construct(
+        private MilestoneService $milestoneService
+    ) {}
+
     /**
      * List all predefined milestones.
      */
-    public function index(Request $request)
+    public function index(Request $request): JsonResponse
     {
-        // Optional grouping
-        $groupBy = $request->input('group_by');
+        $filters = $request->only(['group_by', 'category', 'stage_key']);
         
-        if ($groupBy === 'stage') {
-            return response()->json([
-                'success' => true,
-                'data' => PredefinedMilestone::getGroupedByStage(),
-            ]);
-        }
-        
-        if ($groupBy === 'category') {
-            return response()->json([
-                'success' => true,
-                'data' => PredefinedMilestone::getGroupedByCategory(),
-            ]);
-        }
-
-        // Filter by category if provided
-        $query = PredefinedMilestone::ordered();
-        
-        if ($request->has('category')) {
-            $query->byCategory($request->input('category'));
-        }
-
-        if ($request->has('stage_key')) {
-            $query->byStage($request->input('stage_key'));
-        }
-
-        $milestones = $query->get();
+        $milestones = $this->milestoneService->getPredefinedMilestones($filters);
 
         return response()->json([
             'success' => true,
@@ -52,9 +31,9 @@ class PredefinedMilestoneController extends Controller
     /**
      * Get single predefined milestone.
      */
-    public function show(string $id)
+    public function show(string $id): JsonResponse
     {
-        $milestone = PredefinedMilestone::findOrFail($id);
+        $milestone = $this->milestoneService->getPredefinedMilestone($id);
 
         return response()->json([
             'success' => true,
