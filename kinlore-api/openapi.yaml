@@ -1280,6 +1280,43 @@ paths:
         "200":
           description: File content
 
+  /v1/kids/{kid}/media/uploaded-identifiers:
+    get:
+      tags: [Media]
+      summary: Get uploaded media identifiers for duplicate detection
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: kid
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Uploaded identifiers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        device_asset_id:
+                          type: string
+                        device_fingerprint:
+                          type: string
+                        file_size:
+                          type: integer
+                        filename:
+                          type: string
+
   # ============================================================================
   # PREDEFINED MILESTONES
   # ============================================================================

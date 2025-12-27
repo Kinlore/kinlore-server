@@ -266,8 +266,8 @@ class MomentService
             $fileContents = Storage::disk('seaweedfs')->get($storagePath);
             file_put_contents($tempInputFile, $fileContents);
 
-            // Extract video duration using FFMpeg
-            $ffmpeg = FFMpeg::fromDisk('local')->open($tempInputFile);
+            // Extract video duration using FFMpeg (use openUrl for absolute paths)
+            $ffmpeg = FFMpeg::openUrl($tempInputFile);
             $duration = $ffmpeg->getDurationInSeconds();
             
             Log::info('MomentService: Duration extracted', [
