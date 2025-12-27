@@ -266,8 +266,12 @@ class MomentService
             $fileContents = Storage::disk('seaweedfs')->get($storagePath);
             file_put_contents($tempInputFile, $fileContents);
 
-            // Extract video duration using FFMpeg (use openUrl for absolute paths)
-            $ffmpeg = FFMpeg::openUrl($tempInputFile);
+            // Copy temp file to Laravel's local storage for FFMpeg processing
+            $localStoragePath = 'tmp/video_' . $media->id . '/' . basename($storagePath);
+            Storage::disk('local')->put($localStoragePath, file_get_contents($tempInputFile));
+
+            // Extract video duration using FFMpeg from local storage
+            $ffmpeg = FFMpeg::fromDisk('local')->open($localStoragePath);
             $duration = $ffmpeg->getDurationInSeconds();
             
             Log::info('MomentService: Duration extracted', [
@@ -275,21 +279,21 @@ class MomentService
                 'duration' => $duration
             ]);
 
-            // Generate thumbnail at 50% of duration
-            $thumbnailTempPath = $tempDir . '/thumbnail.jpg';
+            // Generate thumbnail at 50% of duration using getFrameContents()
             $timestamp = max(1, $duration * 0.5);
 
-            // Use FFMpeg's native save method (not Laravel disk) for temp file
-            $frame = $ffmpeg->getFrameFromSeconds($timestamp);
-            $frame->save($thumbnailTempPath);
+            // Get frame contents directly (no disk save needed)
+            $thumbnailContent = $ffmpeg->getFrameFromSeconds($timestamp)
+                ->export()
+                ->getFrameContents();
 
-            // Upload thumbnail to storage
+            // Upload thumbnail to seaweedfs storage
             $basePath = dirname($storagePath);
             $thumbnailStoragePath = "{$basePath}/thumbnail.jpg";
-            Storage::disk('seaweedfs')->put(
-                $thumbnailStoragePath,
-                file_get_contents($thumbnailTempPath)
-            );
+            Storage::disk('seaweedfs')->put($thumbnailStoragePath, $thumbnailContent);
+            
+            // Clean up local storage temp files
+            Storage::disk('local')->deleteDirectory('tmp/video_' . $media->id);
 
             Log::info('MomentService: Thumbnail generated', [
                 'media_id' => $media->id,
