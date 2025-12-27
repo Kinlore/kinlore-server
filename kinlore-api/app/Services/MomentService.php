@@ -279,10 +279,9 @@ class MomentService
             $thumbnailTempPath = $tempDir . '/thumbnail.jpg';
             $timestamp = max(1, $duration * 0.5);
 
-            $ffmpeg->getFrameFromSeconds($timestamp)
-                ->export()
-                ->toDisk('local')
-                ->save($thumbnailTempPath);
+            // Use FFMpeg's native save method (not Laravel disk) for temp file
+            $frame = $ffmpeg->getFrameFromSeconds($timestamp);
+            $frame->save($thumbnailTempPath);
 
             // Upload thumbnail to storage
             $basePath = dirname($storagePath);

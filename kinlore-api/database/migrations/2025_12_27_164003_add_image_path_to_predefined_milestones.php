@@ -13,11 +13,13 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('predefined_milestones', function (Blueprint $table) {
-            $table->string('image_path')->nullable()->after('description');
+            if (!Schema::hasColumn('predefined_milestones', 'image_path')) {
+                $table->string('image_path')->nullable()->after('description');
+            }
         });
 
-        // Make category nullable since new milestones don't have categories
-        DB::statement("ALTER TABLE predefined_milestones MODIFY category ENUM('physical', 'cognitive', 'social', 'language', 'emotional', 'behavioral') NULL");
+        // Make category nullable - use PostgreSQL syntax
+        DB::statement("ALTER TABLE predefined_milestones ALTER COLUMN category DROP NOT NULL");
     }
 
     /**
