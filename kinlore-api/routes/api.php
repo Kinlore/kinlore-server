@@ -3,13 +3,10 @@
 use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\KidController;
-use App\Http\Controllers\Api\PhotoController;
+use App\Http\Controllers\Api\MomentController;
 use App\Http\Controllers\Api\SyncController;
-use App\Http\Controllers\Api\VideoController;
 use App\Http\Controllers\Api\MediaController;
-use App\Http\Controllers\Api\StoryController;
 use App\Http\Controllers\Api\PredefinedMilestoneController;
-use App\Http\Controllers\Api\UserMilestoneController;
 use App\Http\Controllers\Api\MomentInteractionController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -65,24 +62,6 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | Media Routes (Unified Photo/Video)
-    |--------------------------------------------------------------------------
-    */
-    Route::prefix('media')->group(function () {
-        Route::post('/upload', [MediaController::class, 'store']);
-        Route::get('/', [MediaController::class, 'index']);
-        Route::get('/{media}', [MediaController::class, 'show']);
-        Route::patch('/{media}', [MediaController::class, 'update']);
-        Route::delete('/{media}', [MediaController::class, 'destroy']);
-        Route::get('/{media}/file/{type}', [MediaController::class, 'serveFile'])
-            ->where('type', 'original|medium|thumbnail|hls');
-    });
-    
-    // Uploaded identifiers per kid (for duplicate detection)
-    Route::get('/kids/{kid}/media/uploaded-identifiers', [MediaController::class, 'uploadedIdentifiers']);
-
-    /*
-    |--------------------------------------------------------------------------
     | Kids Routes
     |--------------------------------------------------------------------------
     */
@@ -90,20 +69,16 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | Moments Routes
+    | Unified Moments Routes (Photo, Video, Story, Milestone)
     |--------------------------------------------------------------------------
     */
-    Route::prefix('kids/{kid}')->group(function () {
-        Route::get('/moments', [PhotoController::class, 'index']);
-        Route::post('/moments', [PhotoController::class, 'store']);
-        Route::get('/moments/uploaded-identifiers', [PhotoController::class, 'uploadedIdentifiers']);
-    });
+    Route::apiResource('moments', MomentController::class);
+    Route::get('/moments/{moment}/file/{type}', [MomentController::class, 'serveFile'])
+        ->where('type', 'original|medium|thumbnail|hls');
+    Route::get('/moments/{moment}/file-status', [MomentController::class, 'checkFileStatus']);
     
-    Route::get('/moments/{moment}', [PhotoController::class, 'show']);
-    Route::get('/moments/{moment}/file/{type}', [PhotoController::class, 'serveFile'])
-        ->where('type', 'original|medium|thumbnail');
-    Route::get('/moments/{moment}/file-status', [PhotoController::class, 'checkFileStatus']);
-    Route::delete('/moments/{moment}', [PhotoController::class, 'destroy']);
+    // Uploaded identifiers per kid (for duplicate detection)
+    Route::get('/kids/{kid}/moments/uploaded-identifiers', [MomentController::class, 'uploadedIdentifiers']);
     
     // Moment Interactions
     Route::post('/moments/{moment}/like', [MomentInteractionController::class, 'like']);
@@ -114,25 +89,28 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | Stories Routes
+    | Media Routes (Raw media management - kept for direct media access)
     |--------------------------------------------------------------------------
     */
-    Route::apiResource('stories', StoryController::class);
+    Route::prefix('media')->group(function () {
+        Route::get('/', [MediaController::class, 'index']);
+        Route::get('/{media}', [MediaController::class, 'show']);
+        Route::delete('/{media}', [MediaController::class, 'destroy']);
+        Route::get('/{media}/file/{type}', [MediaController::class, 'serveFile'])
+            ->where('type', 'original|medium|thumbnail|hls');
+    });
+    
+    Route::get('/kids/{kid}/media/uploaded-identifiers', [MediaController::class, 'uploadedIdentifiers']);
 
     /*
     |--------------------------------------------------------------------------
-    | Milestones Routes
+    | Predefined Milestones (Read-only)
     |--------------------------------------------------------------------------
     */
-    // Predefined milestones (read-only, system-defined)
     Route::prefix('milestones/predefined')->group(function () {
         Route::get('/', [PredefinedMilestoneController::class, 'index']);
         Route::get('/{id}', [PredefinedMilestoneController::class, 'show']);
     });
-    
-    // User milestones (user's milestone achievements)
-    Route::apiResource('milestones', UserMilestoneController::class)
-        ->parameters(['milestones' => 'userMilestone']);
 
     /*
     |--------------------------------------------------------------------------
@@ -145,17 +123,13 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
 
 /*
 |--------------------------------------------------------------------------
-| Legacy Routes (Without v1 prefix - for backward compatibility)
-| These routes maintain compatibility with existing clients
+| Legacy Routes (Backward compatibility - will be deprecated)
 |--------------------------------------------------------------------------
 */
 Route::middleware('auth:sanctum')->group(function () {
-    // Get current user
-    Route::get('/user', function (Request $request) {
-        return $request->user();
-    });
+    Route::get('/user', fn(Request $request) => $request->user());
 
-    // Kids routes (legacy names to avoid conflict with v1 routes)
+    // Legacy Kids
     Route::apiResource('kids', KidController::class)->names([
         'index' => 'legacy.kids.index',
         'store' => 'legacy.kids.store',
@@ -164,19 +138,18 @@ Route::middleware('auth:sanctum')->group(function () {
         'destroy' => 'legacy.kids.destroy',
     ]);
 
-    // Moments routes (scoped to kid)
+    // Legacy Moments (scoped to kid)
     Route::prefix('kids/{kid}')->group(function () {
-        Route::get('/moments', [PhotoController::class, 'index']);
-        Route::post('/moments', [PhotoController::class, 'store']);
-        Route::get('/moments/uploaded-identifiers', [PhotoController::class, 'uploadedIdentifiers']);
+        Route::get('/moments', [MomentController::class, 'index']);
+        Route::post('/moments', [MomentController::class, 'store']);
+        Route::get('/moments/uploaded-identifiers', [MomentController::class, 'uploadedIdentifiers']);
     });
     
-    // Moment management
-    Route::get('/moments/{moment}', [PhotoController::class, 'show']);
-    Route::get('/moments/{moment}/file/{type}', [PhotoController::class, 'serveFile'])
+    Route::get('/moments/{moment}', [MomentController::class, 'show']);
+    Route::get('/moments/{moment}/file/{type}', [MomentController::class, 'serveFile'])
         ->where('type', 'original|medium|thumbnail');
-    Route::get('/moments/{moment}/file-status', [PhotoController::class, 'checkFileStatus']);
-    Route::delete('/moments/{moment}', [PhotoController::class, 'destroy']);
+    Route::get('/moments/{moment}/file-status', [MomentController::class, 'checkFileStatus']);
+    Route::delete('/moments/{moment}', [MomentController::class, 'destroy']);
     
     // Moment Interactions
     Route::post('/moments/{moment}/like', [MomentInteractionController::class, 'like']);
@@ -185,17 +158,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/moments/{moment}/comments', [MomentInteractionController::class, 'comment']);
     Route::delete('/interactions/{interaction}', [MomentInteractionController::class, 'deleteComment']);
 
-    // Video routes (legacy)
-    Route::post('/videos/upload', [VideoController::class, 'upload']);
-    Route::get('/videos', [VideoController::class, 'index']);
-    Route::get('/videos/{video}', [VideoController::class, 'show']);
-    Route::get('/videos/{video}/status', [VideoController::class, 'status']);
-    Route::delete('/videos/{video}', [VideoController::class, 'destroy']);
-    Route::get('/videos/{video}/hls/{filename}', [VideoController::class, 'serveHLS'])
-        ->where('filename', '.*');
-    Route::get('/videos/{video}/thumbnail', [VideoController::class, 'serveThumbnail']);
-
-    // Sync routes (WatermelonDB)
+    // Sync routes
     Route::post('/sync/pull', [SyncController::class, 'pull']);
     Route::post('/sync/push', [SyncController::class, 'push']);
 });

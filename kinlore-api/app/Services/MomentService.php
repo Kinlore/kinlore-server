@@ -2,19 +2,334 @@
 
 namespace App\Services;
 
+use App\Jobs\ProcessVideoJob;
 use App\Models\Kid;
+use App\Models\Media;
 use App\Models\Moment;
+use App\Models\PredefinedMilestone;
+use App\Models\Story;
+use App\Models\User;
+use App\Models\UserMilestone;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
+use Intervention\Image\Laravel\Facades\Image;
 
 /**
- * Service for handling moment operations.
+ * Unified service for handling all moment types (photo, video, story, milestone).
  */
 class MomentService
 {
+    private const PHOTO_MIMES = [
+        'image/jpeg', 'image/jpg', 'image/png', 'image/heic', 'image/heif',
+    ];
+
+    private const VIDEO_MIMES = [
+        'video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska', 'video/webm',
+    ];
+
     public function __construct(
         private FileStorageService $storage
     ) {}
+
+    /**
+     * Create a moment of any type (unified entry point).
+     *
+     * @param User $user
+     * @param Kid $kid
+     * @param array $data Request data
+     * @param UploadedFile|null $file Uploaded file for photo/video
+     * @return array{moment: Moment, media?: Media, story?: Story, milestone?: UserMilestone}
+     */
+    public function create(User $user, Kid $kid, array $data, ?UploadedFile $file = null): array
+    {
+        // Determine moment type
+        $momentType = $data['moment_type'] ?? $this->detectMomentType($file);
+
+        Log::info('Creating moment', [
+            'type' => $momentType,
+            'kid_id' => $kid->id,
+            'has_file' => !is_null($file),
+        ]);
+
+        return match($momentType) {
+            'photo', 'video' => $this->createMediaMoment($user, $kid, $file, $data, $momentType),
+            'story' => $this->createStoryMoment($kid, $data),
+            'milestone' => $this->createMilestoneMoment($user, $kid, $data),
+            default => throw new \InvalidArgumentException("Invalid moment_type: {$momentType}"),
+        };
+    }
+
+    /**
+     * Detect moment type from uploaded file.
+     */
+    private function detectMomentType(?UploadedFile $file): string
+    {
+        if (!$file) {
+            throw new \InvalidArgumentException('moment_type is required when no file is uploaded');
+        }
+
+        $mimeType = $file->getMimeType();
+
+        if (in_array($mimeType, self::PHOTO_MIMES)) {
+            return 'photo';
+        }
+
+        if (in_array($mimeType, self::VIDEO_MIMES)) {
+            return 'video';
+        }
+
+        throw new \InvalidArgumentException(
+            'Unsupported file type. Please upload an image (JPEG, PNG, HEIC) or video (MP4, MOV, WebM).'
+        );
+    }
+
+    /**
+     * Create a photo or video moment.
+     *
+     * @return array{moment: Moment, media: Media}
+     */
+    private function createMediaMoment(User $user, Kid $kid, UploadedFile $file, array $data, string $type): array
+    {
+        $mimeType = $file->getMimeType();
+        $mediaId = Str::uuid()->toString();
+        $extension = $file->getClientOriginalExtension();
+        $basePath = "media/{$kid->id}/{$mediaId}";
+        $originalPath = "{$basePath}/original.{$extension}";
+
+        // Store original file
+        $this->storage->storeFile($originalPath, $file);
+        Log::info('Original file uploaded', ['path' => $originalPath]);
+
+        // Build EXIF data for photos
+        $exifData = $type === 'photo' ? $this->buildExifData($data) : null;
+
+        // Create media record
+        $media = Media::create([
+            'id' => $mediaId,
+            'kid_id' => $kid->id,
+            'user_id' => $user->id,
+            'type' => $type,
+            'original_filename' => $file->getClientOriginalName(),
+            'file_path' => $originalPath,
+            'mime_type' => $mimeType,
+            'file_size' => $file->getSize(),
+            'exif_data' => $exifData,
+            'status' => Media::STATUS_PROCESSING,
+            'device_asset_id' => $data['device_asset_id'] ?? null,
+            'device_fingerprint' => $this->generateFingerprint($file),
+            'processing_started_at' => now(),
+        ]);
+
+        // Process based on type
+        if ($type === 'photo') {
+            $this->processPhoto($media, $file, $basePath);
+        } else {
+            $this->processVideo($media);
+        }
+
+        // Create associated moment
+        $media->refresh();
+        $moment = Moment::create([
+            'kid_id' => $kid->id,
+            'media_id' => $media->id,
+            'moment_type' => $type,
+            'title' => $data['title'] ?? null,
+            'description' => $data['description'] ?? null,
+            'photo_url' => $media->getRawFilePath(),
+            'thumbnail_url' => $media->getRawThumbnailUrl(),
+            'medium_url' => $media->getRawMediumUrl(),
+            'file_size' => $media->file_size,
+            'mime_type' => $media->mime_type,
+            'original_filename' => $media->original_filename,
+            'device_asset_id' => $media->device_asset_id,
+            'device_fingerprint' => $media->device_fingerprint,
+            'exif_date' => $media->exif_date,
+            'latitude' => $media->latitude,
+            'longitude' => $media->longitude,
+            'orientation' => $media->orientation,
+            'camera_make' => $media->camera_make,
+            'camera_model' => $media->camera_model,
+            'synced_at' => now()->timestamp * 1000,
+        ]);
+
+        return ['moment' => $moment, 'media' => $media];
+    }
+
+    /**
+     * Create a story moment.
+     *
+     * @return array{moment: Moment, story: Story}
+     */
+    private function createStoryMoment(Kid $kid, array $data): array
+    {
+        return DB::transaction(function () use ($kid, $data) {
+            // Create moment first
+            $moment = Moment::create([
+                'id' => Str::uuid()->toString(),
+                'kid_id' => $kid->id,
+                'moment_type' => 'story',
+                'title' => $data['title'],
+                'story_text' => $data['text'],
+            ]);
+
+            // Create story linked to moment
+            $story = Story::create([
+                'id' => Str::uuid()->toString(),
+                'moment_id' => $moment->id,
+                'kid_id' => $kid->id,
+                'title' => $data['title'],
+                'text' => $data['text'],
+                'icon_image_id' => $data['icon_image_id'] ?? null,
+            ]);
+
+            Log::info('Story moment created', [
+                'story_id' => $story->id,
+                'moment_id' => $moment->id,
+            ]);
+
+            return ['moment' => $moment, 'story' => $story];
+        });
+    }
+
+    /**
+     * Create a milestone moment.
+     *
+     * @return array{moment: Moment, milestone: UserMilestone}
+     */
+    private function createMilestoneMoment(User $user, Kid $kid, array $data): array
+    {
+        return DB::transaction(function () use ($user, $kid, $data) {
+            // Create moment
+            $moment = Moment::create([
+                'id' => Str::uuid()->toString(),
+                'kid_id' => $kid->id,
+                'moment_type' => 'milestone',
+                'title' => $data['custom_title'] ?? null,
+            ]);
+
+            // Create user milestone
+            $milestone = UserMilestone::create([
+                'id' => Str::uuid()->toString(),
+                'kid_id' => $kid->id,
+                'user_id' => $user->id,
+                'predefined_milestone_id' => $data['predefined_milestone_id'] ?? null,
+                'custom_title' => $data['custom_title'] ?? null,
+                'custom_description' => $data['custom_description'] ?? null,
+                'milestone_date' => $data['milestone_date'],
+                'notes' => $data['notes'] ?? null,
+                'icon_image_id' => $data['icon_image_id'] ?? null,
+                'moment_id' => $moment->id,
+            ]);
+
+            Log::info('Milestone moment created', [
+                'milestone_id' => $milestone->id,
+                'moment_id' => $moment->id,
+            ]);
+
+            return ['moment' => $moment, 'milestone' => $milestone];
+        });
+    }
+
+    /**
+     * Process photo: generate thumbnail and medium sizes.
+     */
+    private function processPhoto(Media $media, UploadedFile $file, string $basePath): void
+    {
+        try {
+            $thumbnailPath = "{$basePath}/thumbnail.jpg";
+            $mediumPath = "{$basePath}/medium.jpg";
+
+            // Generate medium (1200px width)
+            $mediumImage = Image::read($file->getRealPath())
+                ->orient()
+                ->scaleDown(width: 1200)
+                ->toJpeg(quality: 85);
+
+            $this->storage->store($mediumPath, (string) $mediumImage);
+
+            // Generate thumbnail (300x300 cover)
+            $thumbnailImage = Image::read($file->getRealPath())
+                ->orient()
+                ->cover(300, 300)
+                ->toJpeg(quality: 80);
+
+            $this->storage->store($thumbnailPath, (string) $thumbnailImage);
+
+            // Update media record
+            $media->markAsCompleted([
+                'thumbnail_url' => $thumbnailPath,
+                'medium_url' => $mediumPath,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Photo processing failed: ' . $e->getMessage());
+            $media->markAsFailed($e->getMessage());
+            throw $e;
+        }
+    }
+
+    /**
+     * Process video: dispatch to queue job.
+     */
+    private function processVideo(Media $media): void
+    {
+        ProcessVideoJob::dispatch($media->id);
+    }
+
+    /**
+     * Build EXIF data array from metadata.
+     */
+    private function buildExifData(array $data): array
+    {
+        return array_filter([
+            'exif_date' => $data['exif_date'] ?? null,
+            'latitude' => $data['latitude'] ?? null,
+            'longitude' => $data['longitude'] ?? null,
+            'camera_make' => $data['camera_make'] ?? null,
+            'camera_model' => $data['camera_model'] ?? null,
+            'orientation' => $data['orientation'] ?? null,
+        ], fn($v) => !is_null($v));
+    }
+
+    /**
+     * Generate fingerprint for duplicate detection.
+     */
+    private function generateFingerprint(UploadedFile $file): string
+    {
+        return md5_file($file->getRealPath());
+    }
+
+    // ========================================================================
+    // READ OPERATIONS
+    // ========================================================================
+
+    /**
+     * Get moments for a user with optional filters.
+     */
+    public function getMomentsForUser(User $user, array $filters = []): LengthAwarePaginator
+    {
+        $query = Moment::whereHas('kid', fn($q) => $q->where('user_id', $user->id))
+            ->with(['media', 'story', 'userMilestone', 'userMilestone.predefinedMilestone'])
+            ->orderBy('created_at', $filters['sort_direction'] ?? 'desc');
+
+        if (!empty($filters['kid_id'])) {
+            $query->where('kid_id', $filters['kid_id']);
+        }
+
+        if (!empty($filters['moment_type'])) {
+            $query->where('moment_type', $filters['moment_type']);
+        }
+
+        if (!empty($filters['start_date']) && !empty($filters['end_date'])) {
+            $query->inDateRange($filters['start_date'], $filters['end_date']);
+        }
+
+        return $query->paginate($filters['per_page'] ?? 20);
+    }
 
     /**
      * Get moments for a kid with optional filters.
@@ -22,51 +337,101 @@ class MomentService
     public function getMomentsForKid(Kid $kid, array $filters = []): LengthAwarePaginator
     {
         $query = $kid->moments()
-            ->with(['video', 'milestone', 'customMilestone'])
-            ->orderByDate($filters['sort_direction'] ?? 'desc');
+            ->with(['media', 'story', 'userMilestone', 'userMilestone.predefinedMilestone'])
+            ->orderBy('created_at', $filters['sort_direction'] ?? 'desc');
 
-        // Filter by date range
+        if (!empty($filters['moment_type'])) {
+            $query->where('moment_type', $filters['moment_type']);
+        }
+
         if (!empty($filters['start_date']) && !empty($filters['end_date'])) {
             $query->inDateRange($filters['start_date'], $filters['end_date']);
         }
 
-        // Filter by device
         if (!empty($filters['device_asset_id'])) {
             $query->byDevice($filters['device_asset_id']);
-        }
-
-        // Filter by moment type
-        if (!empty($filters['moment_type'])) {
-            $query->where('moment_type', $filters['moment_type']);
         }
 
         return $query->paginate($filters['per_page'] ?? 20);
     }
 
     /**
-     * Get a single moment formatted for API.
+     * Get a single moment with all relations.
      */
     public function getMoment(Moment $moment): array
     {
-        $moment->load(['video', 'milestone', 'customMilestone']);
+        $moment->load(['media', 'story', 'userMilestone', 'userMilestone.predefinedMilestone']);
         
         return $moment->toArray();
     }
 
     /**
-     * Delete a moment with its files.
+     * Update a moment.
+     */
+    public function updateMoment(Moment $moment, array $data): Moment
+    {
+        DB::transaction(function () use ($moment, $data) {
+            $moment->update(array_filter([
+                'title' => $data['title'] ?? null,
+                'description' => $data['description'] ?? null,
+            ], fn($v) => !is_null($v)));
+
+            // Update related story if exists
+            if ($moment->story && isset($data['text'])) {
+                $moment->story->update([
+                    'title' => $data['title'] ?? $moment->story->title,
+                    'text' => $data['text'],
+                ]);
+            }
+
+            // Update related milestone if exists
+            if ($moment->userMilestone) {
+                $moment->userMilestone->update(array_filter([
+                    'custom_title' => $data['custom_title'] ?? null,
+                    'custom_description' => $data['custom_description'] ?? null,
+                    'milestone_date' => $data['milestone_date'] ?? null,
+                    'notes' => $data['notes'] ?? null,
+                ], fn($v) => !is_null($v)));
+            }
+        });
+
+        return $moment->fresh(['media', 'story', 'userMilestone']);
+    }
+
+    /**
+     * Delete a moment with all related data.
      */
     public function deleteMoment(Moment $moment): void
     {
-        try {
-            $moment->deleteWithFiles();
-        } catch (\Exception $e) {
-            Log::error('Failed to delete moment', [
-                'moment_id' => $moment->id,
-                'error' => $e->getMessage(),
+        DB::transaction(function () use ($moment) {
+            // Delete related story
+            if ($moment->story) {
+                $moment->story->delete();
+            }
+
+            // Delete related milestone
+            if ($moment->userMilestone) {
+                $moment->userMilestone->delete();
+            }
+
+            // Delete related media files
+            if ($moment->media) {
+                $moment->media->deleteWithFiles();
+            }
+
+            // Delete files if moment has direct file references
+            $paths = array_filter([
+                $moment->getRawOriginal('photo_url'),
+                $moment->getRawOriginal('medium_url'),
+                $moment->getRawOriginal('thumbnail_url'),
             ]);
-            throw $e;
-        }
+
+            if (!empty($paths)) {
+                $this->storage->delete($paths);
+            }
+
+            $moment->delete();
+        });
     }
 
     /**
@@ -86,18 +451,13 @@ class MomentService
 
         $path = $pathMap[$type];
 
-        if (empty($path)) {
+        if (empty($path) || !$this->storage->exists($path)) {
             throw new \RuntimeException('File not found');
-        }
-
-        if (!$this->storage->exists($path)) {
-            throw new \RuntimeException('File not found in storage');
         }
 
         $content = $this->storage->get($path);
         $size = $this->storage->size($path);
 
-        // Determine MIME type
         $mimeType = ($type === 'thumbnail' || $type === 'medium')
             ? 'image/jpeg'
             : ($moment->mime_type ?? 'application/octet-stream');
@@ -120,23 +480,12 @@ class MomentService
 
         return [
             'moment_id' => $moment->id,
-            'paths' => [
-                'photo_url' => $photoUrl,
-                'medium_url' => $mediumUrl,
-                'thumbnail_url' => $thumbnailUrl,
-            ],
+            'moment_type' => $moment->moment_type,
+            'paths' => compact('photoUrl', 'mediumUrl', 'thumbnailUrl'),
             'exists' => [
                 'photo' => $photoUrl ? $this->storage->exists($photoUrl) : false,
                 'medium' => $mediumUrl ? $this->storage->exists($mediumUrl) : false,
                 'thumbnail' => $thumbnailUrl ? $this->storage->exists($thumbnailUrl) : false,
-            ],
-            'sizes' => [
-                'photo' => $photoUrl && $this->storage->exists($photoUrl) 
-                    ? $this->storage->size($photoUrl) : 0,
-                'medium' => $mediumUrl && $this->storage->exists($mediumUrl) 
-                    ? $this->storage->size($mediumUrl) : 0,
-                'thumbnail' => $thumbnailUrl && $this->storage->exists($thumbnailUrl) 
-                    ? $this->storage->size($thumbnailUrl) : 0,
             ],
         ];
     }
@@ -144,48 +493,46 @@ class MomentService
     /**
      * Get uploaded identifiers for duplicate detection.
      */
-    public function getUploadedIdentifiers(Kid $kid): array
+    public function getUploadedIdentifiers(Kid $kid): Collection
     {
         return $kid->moments()
-            ->where(function ($query) {
-                $query->whereNotNull('device_asset_id')
-                      ->orWhereNotNull('device_fingerprint');
-            })
+            ->whereIn('moment_type', ['photo', 'video'])
+            ->where(fn($q) => $q->whereNotNull('device_asset_id')->orWhereNotNull('device_fingerprint'))
             ->get(['device_asset_id', 'device_fingerprint', 'file_size', 'original_filename'])
-            ->map(fn ($moment) => [
-                'device_asset_id' => $moment->device_asset_id,
-                'device_fingerprint' => $moment->device_fingerprint,
-                'file_size' => $moment->file_size,
-                'filename' => $moment->original_filename,
-            ])
-            ->toArray();
+            ->map(fn($m) => [
+                'device_asset_id' => $m->device_asset_id,
+                'device_fingerprint' => $m->device_fingerprint,
+                'file_size' => $m->file_size,
+                'filename' => $m->original_filename,
+            ]);
+    }
+
+    // ========================================================================
+    // VALIDATION HELPERS
+    // ========================================================================
+
+    /**
+     * Validate icon image belongs to user.
+     */
+    public function validateIconImage(User $user, ?string $iconImageId): bool
+    {
+        if (empty($iconImageId)) {
+            return true;
+        }
+
+        $media = Media::find($iconImageId);
+        return $media && $media->user_id === $user->id;
     }
 
     /**
-     * Format moment for API response (legacy support).
+     * Validate predefined milestone exists.
      */
-    public function formatMomentForApi(Moment $moment): array
+    public function validatePredefinedMilestone(?string $id): bool
     {
-        return [
-            'id' => $moment->id,
-            'kid_id' => $moment->kid_id,
-            'moment_type' => $moment->moment_type ?? 'photo',
-            'title' => $moment->title,
-            'description' => $moment->description,
-            'photo_url' => $moment->photo_url,
-            'medium_url' => $moment->medium_url,
-            'thumbnail_url' => $moment->thumbnail_url,
-            'file_size' => $moment->file_size,
-            'file_size_formatted' => $moment->file_size_formatted,
-            'mime_type' => $moment->mime_type,
-            'has_location' => $moment->has_location,
-            'latitude' => $moment->latitude,
-            'longitude' => $moment->longitude,
-            'exif_date' => $moment->exif_date?->toIso8601String(),
-            'camera_make' => $moment->camera_make,
-            'camera_model' => $moment->camera_model,
-            'created_at' => $moment->created_at->toIso8601String(),
-            'updated_at' => $moment->updated_at->toIso8601String(),
-        ];
+        if (empty($id)) {
+            return true;
+        }
+
+        return PredefinedMilestone::where('id', $id)->exists();
     }
 }

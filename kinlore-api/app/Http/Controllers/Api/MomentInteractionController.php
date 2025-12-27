@@ -23,10 +23,10 @@ class MomentInteractionController extends Controller
         $interaction = $this->interactionService->like($request->user(), $moment);
 
         if ($interaction === null) {
-            return response()->json(['message' => 'Already liked'], 200);
+            return response()->json(['success' => true, 'message' => 'Already liked'], 200);
         }
 
-        return response()->json(['message' => 'Moment liked'], 201);
+        return response()->json(['success' => true, 'message' => 'Moment liked'], 201);
     }
 
     /**
@@ -37,10 +37,10 @@ class MomentInteractionController extends Controller
         $deleted = $this->interactionService->unlike($request->user(), $moment);
 
         if ($deleted) {
-            return response()->json(['message' => 'Moment unliked'], 200);
+            return response()->json(['success' => true, 'message' => 'Moment unliked'], 200);
         }
 
-        return response()->json(['message' => 'Not liked yet'], 404);
+        return response()->json(['success' => false, 'message' => 'Not liked yet'], 404);
     }
 
     /**
@@ -59,6 +59,7 @@ class MomentInteractionController extends Controller
         );
 
         return response()->json([
+            'success' => true,
             'message' => 'Comment posted',
             'data' => $interaction,
         ], 201);
@@ -72,11 +73,11 @@ class MomentInteractionController extends Controller
         try {
             $this->interactionService->deleteComment($request->user(), $interaction);
             
-            return response()->json(['message' => 'Comment deleted'], 200);
+            return response()->json(['success' => true, 'message' => 'Comment deleted'], 200);
         } catch (\InvalidArgumentException $e) {
-            return response()->json(['message' => $e->getMessage()], 400);
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 400);
         } catch (\RuntimeException $e) {
-            return response()->json(['message' => $e->getMessage()], 403);
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 403);
         }
     }
 
