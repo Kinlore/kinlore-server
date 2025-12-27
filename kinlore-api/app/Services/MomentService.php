@@ -2,21 +2,20 @@
 
 namespace App\Services;
 
-use App\Jobs\ProcessVideoJob;
 use App\Models\Kid;
 use App\Models\Media;
 use App\Models\Moment;
 use App\Models\PredefinedMilestone;
-use App\Models\Story;
 use App\Models\User;
-use App\Models\UserMilestone;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Intervention\Image\Laravel\Facades\Image;
+use ProtoneMedia\LaravelFFMpeg\Support\FFMpeg;
 
 /**
  * Unified service for handling all moment types (photo, video, story, milestone).
@@ -162,76 +161,47 @@ class MomentService
     /**
      * Create a story moment.
      *
-     * @return array{moment: Moment, story: Story}
+     * @return array{moment: Moment}
      */
     private function createStoryMoment(Kid $kid, array $data): array
     {
-        return DB::transaction(function () use ($kid, $data) {
-            // Create moment first
-            $moment = Moment::create([
-                'id' => Str::uuid()->toString(),
-                'kid_id' => $kid->id,
-                'moment_type' => 'story',
-                'title' => $data['title'],
-                'story_text' => $data['text'],
-            ]);
+        $moment = Moment::create([
+            'id' => Str::uuid()->toString(),
+            'kid_id' => $kid->id,
+            'moment_type' => 'story',
+            'description' => $data['description'],
+            'synced_at' => now()->timestamp * 1000,
+        ]);
 
-            // Create story linked to moment
-            $story = Story::create([
-                'id' => Str::uuid()->toString(),
-                'moment_id' => $moment->id,
-                'kid_id' => $kid->id,
-                'title' => $data['title'],
-                'text' => $data['text'],
-                'icon_image_id' => $data['icon_image_id'] ?? null,
-            ]);
+        Log::info('Story moment created', [
+            'moment_id' => $moment->id,
+        ]);
 
-            Log::info('Story moment created', [
-                'story_id' => $story->id,
-                'moment_id' => $moment->id,
-            ]);
-
-            return ['moment' => $moment, 'story' => $story];
-        });
+        return ['moment' => $moment];
     }
 
     /**
      * Create a milestone moment.
      *
-     * @return array{moment: Moment, milestone: UserMilestone}
+     * @return array{moment: Moment}
      */
     private function createMilestoneMoment(User $user, Kid $kid, array $data): array
     {
-        return DB::transaction(function () use ($user, $kid, $data) {
-            // Create moment
-            $moment = Moment::create([
-                'id' => Str::uuid()->toString(),
-                'kid_id' => $kid->id,
-                'moment_type' => 'milestone',
-                'title' => $data['custom_title'] ?? null,
-            ]);
+        $moment = Moment::create([
+            'id' => Str::uuid()->toString(),
+            'kid_id' => $kid->id,
+            'moment_type' => 'milestone',
+            'milestone_id' => $data['milestone_id'],
+            'description' => $data['description'] ?? null,
+            'synced_at' => now()->timestamp * 1000,
+        ]);
 
-            // Create user milestone
-            $milestone = UserMilestone::create([
-                'id' => Str::uuid()->toString(),
-                'kid_id' => $kid->id,
-                'user_id' => $user->id,
-                'predefined_milestone_id' => $data['predefined_milestone_id'] ?? null,
-                'custom_title' => $data['custom_title'] ?? null,
-                'custom_description' => $data['custom_description'] ?? null,
-                'milestone_date' => $data['milestone_date'],
-                'notes' => $data['notes'] ?? null,
-                'icon_image_id' => $data['icon_image_id'] ?? null,
-                'moment_id' => $moment->id,
-            ]);
+        Log::info('Milestone moment created', [
+            'moment_id' => $moment->id,
+            'milestone_id' => $data['milestone_id'],
+        ]);
 
-            Log::info('Milestone moment created', [
-                'milestone_id' => $milestone->id,
-                'moment_id' => $moment->id,
-            ]);
-
-            return ['moment' => $moment, 'milestone' => $milestone];
-        });
+        return ['moment' => $moment];
     }
 
     /**
@@ -273,11 +243,114 @@ class MomentService
     }
 
     /**
-     * Process video: dispatch to queue job.
+     * Process video synchronously in foreground.
+     * Extracts duration, generates thumbnail.
      */
     private function processVideo(Media $media): void
     {
-        ProcessVideoJob::dispatch($media->id);
+        $tempDir = null;
+        
+        try {
+            Log::info('MomentService: Starting video processing', ['media_id' => $media->id]);
+
+            // Get the storage path
+            $storagePath = $media->getRawFilePath();
+            
+            // Download video to temp file for processing
+            $tempDir = sys_get_temp_dir() . '/video_processing_' . $media->id;
+            if (!file_exists($tempDir)) {
+                mkdir($tempDir, 0755, true);
+            }
+            
+            $tempInputFile = $tempDir . '/input_' . basename($storagePath);
+            $fileContents = Storage::disk('seaweedfs')->get($storagePath);
+            file_put_contents($tempInputFile, $fileContents);
+
+            // Extract video duration using FFMpeg
+            $ffmpeg = FFMpeg::fromDisk('local')->open($tempInputFile);
+            $duration = $ffmpeg->getDurationInSeconds();
+            
+            Log::info('MomentService: Duration extracted', [
+                'media_id' => $media->id,
+                'duration' => $duration
+            ]);
+
+            // Generate thumbnail at 50% of duration
+            $thumbnailTempPath = $tempDir . '/thumbnail.jpg';
+            $timestamp = max(1, $duration * 0.5);
+
+            $ffmpeg->getFrameFromSeconds($timestamp)
+                ->export()
+                ->toDisk('local')
+                ->save($thumbnailTempPath);
+
+            // Upload thumbnail to storage
+            $basePath = dirname($storagePath);
+            $thumbnailStoragePath = "{$basePath}/thumbnail.jpg";
+            Storage::disk('seaweedfs')->put(
+                $thumbnailStoragePath,
+                file_get_contents($thumbnailTempPath)
+            );
+
+            Log::info('MomentService: Thumbnail generated', [
+                'media_id' => $media->id,
+                'thumbnail_path' => $thumbnailStoragePath
+            ]);
+
+            // Update media with video metadata
+            $media->markAsCompleted([
+                'thumbnail_url' => $thumbnailStoragePath,
+                'video_metadata' => [
+                    'duration' => $duration,
+                ],
+            ]);
+
+            Log::info('MomentService: Video processing completed', [
+                'media_id' => $media->id,
+                'duration' => $duration,
+                'thumbnail_url' => $thumbnailStoragePath
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('MomentService: Video processing failed', [
+                'media_id' => $media->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            $media->markAsFailed($e->getMessage());
+            throw $e;
+        } finally {
+            // Clean up temp files
+            if ($tempDir && file_exists($tempDir)) {
+                $this->cleanupTempDir($tempDir);
+            }
+        }
+    }
+
+    /**
+     * Clean up temporary directory.
+     */
+    private function cleanupTempDir(string $dir): void
+    {
+        if (!file_exists($dir)) {
+            return;
+        }
+
+        $files = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($dir, \RecursiveDirectoryIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::CHILD_FIRST
+        );
+
+        foreach ($files as $file) {
+            if ($file->isDir()) {
+                rmdir($file->getRealPath());
+            } else {
+                unlink($file->getRealPath());
+            }
+        }
+
+        rmdir($dir);
     }
 
     /**

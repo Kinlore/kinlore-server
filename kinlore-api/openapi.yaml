@@ -96,6 +96,11 @@ components:
         description:
           type: string
           nullable: true
+          description: Required for story type, optional for milestone type
+        milestone_id:
+          type: string
+          nullable: true
+          description: Reference to predefined_milestones.id (required for milestone type)
         photo_url:
           type: string
           nullable: true
@@ -802,11 +807,15 @@ paths:
                 file:
                   type: string
                   format: binary
-                  description: Required for photo/video
+                  description: Required for photo/video types
                 title:
                   type: string
                 description:
                   type: string
+                  description: Required for story type, optional for milestone type
+                milestone_id:
+                  type: string
+                  description: Required for milestone type (references predefined_milestones.id)
                 device_asset_id:
                   type: string
                 exif_date:
@@ -828,25 +837,6 @@ paths:
                   type: integer
                   minimum: 1
                   maximum: 8
-                text:
-                  type: string
-                  description: Required for story
-                icon_image_id:
-                  type: string
-                  format: uuid
-                predefined_milestone_id:
-                  type: string
-                custom_title:
-                  type: string
-                  description: Required for custom milestone
-                custom_description:
-                  type: string
-                milestone_date:
-                  type: string
-                  format: date
-                  description: Required for milestone
-                notes:
-                  type: string
       responses:
         "201":
           description: Moment created
@@ -866,10 +856,7 @@ paths:
                         $ref: "#/components/schemas/Moment"
                       media:
                         $ref: "#/components/schemas/Media"
-                      story:
-                        $ref: "#/components/schemas/Story"
-                      milestone:
-                        $ref: "#/components/schemas/UserMilestone"
+                        description: Only included for photo/video types
         "422":
           description: Validation error
           content:

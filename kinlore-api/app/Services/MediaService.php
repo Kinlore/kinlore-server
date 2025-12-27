@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Jobs\ProcessVideoJob;
 use App\Models\Kid;
 use App\Models\Media;
 use App\Models\Moment;
@@ -11,8 +10,10 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Intervention\Image\Laravel\Facades\Image;
+use ProtoneMedia\LaravelFFMpeg\Support\FFMpeg;
 
 /**
  * Service for handling media upload and processing.
@@ -175,12 +176,114 @@ class MediaService
     }
 
     /**
-     * Process video: dispatch to queue job.
+     * Process video synchronously in foreground.
+     * Extracts duration, generates thumbnail.
      */
     public function processVideo(Media $media): void
     {
-        ProcessVideoJob::dispatch($media->id);
-        Log::info('Video processing job dispatched', ['media_id' => $media->id]);
+        $tempDir = null;
+        
+        try {
+            Log::info('MediaService: Starting video processing', ['media_id' => $media->id]);
+
+            // Get the storage path
+            $storagePath = $media->getRawFilePath();
+            
+            // Download video to temp file for processing
+            $tempDir = sys_get_temp_dir() . '/video_processing_' . $media->id;
+            if (!file_exists($tempDir)) {
+                mkdir($tempDir, 0755, true);
+            }
+            
+            $tempInputFile = $tempDir . '/input_' . basename($storagePath);
+            $fileContents = Storage::disk('seaweedfs')->get($storagePath);
+            file_put_contents($tempInputFile, $fileContents);
+
+            // Extract video duration using FFMpeg
+            $ffmpeg = FFMpeg::fromDisk('local')->open($tempInputFile);
+            $duration = $ffmpeg->getDurationInSeconds();
+            
+            Log::info('MediaService: Duration extracted', [
+                'media_id' => $media->id,
+                'duration' => $duration
+            ]);
+
+            // Generate thumbnail at 50% of duration
+            $thumbnailTempPath = $tempDir . '/thumbnail.jpg';
+            $timestamp = max(1, $duration * 0.5);
+
+            $ffmpeg->getFrameFromSeconds($timestamp)
+                ->export()
+                ->toDisk('local')
+                ->save($thumbnailTempPath);
+
+            // Upload thumbnail to storage
+            $basePath = dirname($storagePath);
+            $thumbnailStoragePath = "{$basePath}/thumbnail.jpg";
+            Storage::disk('seaweedfs')->put(
+                $thumbnailStoragePath,
+                file_get_contents($thumbnailTempPath)
+            );
+
+            Log::info('MediaService: Thumbnail generated', [
+                'media_id' => $media->id,
+                'thumbnail_path' => $thumbnailStoragePath
+            ]);
+
+            // Update media with video metadata
+            $media->markAsCompleted([
+                'thumbnail_url' => $thumbnailStoragePath,
+                'video_metadata' => [
+                    'duration' => $duration,
+                ],
+            ]);
+
+            Log::info('MediaService: Video processing completed', [
+                'media_id' => $media->id,
+                'duration' => $duration,
+                'thumbnail_url' => $thumbnailStoragePath
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('MediaService: Video processing failed', [
+                'media_id' => $media->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            $media->markAsFailed($e->getMessage());
+            throw $e;
+        } finally {
+            // Clean up temp files
+            if ($tempDir && file_exists($tempDir)) {
+                $this->cleanupTempDir($tempDir);
+            }
+        }
+    }
+
+    /**
+     * Clean up temporary directory.
+     */
+    private function cleanupTempDir(string $dir): void
+    {
+        if (!file_exists($dir)) {
+            return;
+        }
+
+        $files = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($dir, \RecursiveDirectoryIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::CHILD_FIRST
+        );
+
+        foreach ($files as $file) {
+            if ($file->isDir()) {
+                rmdir($file->getRealPath());
+            } else {
+                unlink($file->getRealPath());
+            }
+        }
+
+        rmdir($dir);
     }
 
     /**

@@ -83,44 +83,18 @@ class MomentController extends Controller
         }
 
         if ($momentType === 'story') {
-            $rules['title'] = 'required|string|max:255';
-            $rules['text'] = 'required|string|max:50000';
-            $rules['icon_image_id'] = 'nullable|uuid|exists:media,id';
+            $rules['description'] = 'required|string|max:5000';
         }
 
         if ($momentType === 'milestone') {
-            $rules['predefined_milestone_id'] = 'nullable|string|exists:predefined_milestones,id';
-            $rules['custom_title'] = 'required_without:predefined_milestone_id|nullable|string|max:255';
-            $rules['custom_description'] = 'nullable|string|max:5000';
-            $rules['milestone_date'] = 'required|date';
-            $rules['notes'] = 'nullable|string|max:5000';
-            $rules['icon_image_id'] = 'nullable|uuid|exists:media,id';
+            $rules['milestone_id'] = 'required|string|exists:predefined_milestones,id';
+            $rules['description'] = 'nullable|string|max:5000';
         }
 
         $validated = $request->validate($rules);
 
         $kid = Kid::findOrFail($validated['kid_id']);
         $this->authorize('view', $kid);
-
-        // Validate icon image ownership if provided
-        if (!empty($validated['icon_image_id'])) {
-            if (!$this->momentService->validateIconImage($request->user(), $validated['icon_image_id'])) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Invalid icon image',
-                ], 422);
-            }
-        }
-
-        // Validate predefined milestone if provided
-        if (!empty($validated['predefined_milestone_id'])) {
-            if (!$this->momentService->validatePredefinedMilestone($validated['predefined_milestone_id'])) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Invalid predefined milestone',
-                ], 422);
-            }
-        }
 
         try {
             $result = $this->momentService->create(
@@ -138,15 +112,9 @@ class MomentController extends Controller
                 ],
             ];
 
-            // Include related data based on type
+            // Include media data for photo/video types
             if (isset($result['media'])) {
                 $response['data']['media'] = $result['media']->fresh()->toArray();
-            }
-            if (isset($result['story'])) {
-                $response['data']['story'] = $result['story']->fresh()->toArray();
-            }
-            if (isset($result['milestone'])) {
-                $response['data']['milestone'] = $result['milestone']->fresh()->toArray();
             }
 
             return response()->json($response, 201);
@@ -311,7 +279,7 @@ class MomentController extends Controller
     {
         return match($type) {
             'photo' => 'Photo uploaded successfully',
-            'video' => 'Video uploaded successfully. Processing will begin shortly.',
+            'video' => 'Video uploaded and processed successfully',
             'story' => 'Story created successfully',
             'milestone' => 'Milestone created successfully',
             default => 'Moment created successfully',

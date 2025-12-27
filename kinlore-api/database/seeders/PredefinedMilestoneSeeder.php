@@ -4,329 +4,57 @@ namespace Database\Seeders;
 
 use App\Models\PredefinedMilestone;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\File;
 
 class PredefinedMilestoneSeeder extends Seeder
 {
     /**
      * Run the database seeds.
+     * 
+     * Reads milestones from milestones.json and seeds predefined_milestones table.
+     * Images are bundled with the mobile app as assets/milestones/{id}.png
      */
     public function run(): void
     {
-        $milestones = [
-            // Infancy (0-12 months)
-            [
-                'id' => 'first_smile',
-                'title' => 'First Real Smile',
-                'description' => 'Baby\'s first genuine social smile, usually occurring around 6-8 weeks.',
-                'category' => 'social',
-                'typical_age_months' => 2,
-                'stage_key' => 'infancy_0_12m',
-                'stage_label' => 'Infancy (0–12 months)',
-                'sort_order' => 1,
-            ],
-            [
-                'id' => 'first_laugh',
-                'title' => 'First Laugh',
-                'description' => 'Baby\'s first audible laugh or giggle.',
-                'category' => 'social',
-                'typical_age_months' => 4,
-                'stage_key' => 'infancy_0_12m',
-                'stage_label' => 'Infancy (0–12 months)',
-                'sort_order' => 2,
-            ],
-            [
-                'id' => 'holding_head_up',
-                'title' => 'Holding Head Up',
-                'description' => 'Baby can hold their head up steadily without support.',
-                'category' => 'physical',
-                'typical_age_months' => 3,
-                'stage_key' => 'infancy_0_12m',
-                'stage_label' => 'Infancy (0–12 months)',
-                'sort_order' => 3,
-            ],
-            [
-                'id' => 'rolling_over',
-                'title' => 'Rolling Over',
-                'description' => 'Baby can roll from tummy to back or back to tummy.',
-                'category' => 'physical',
-                'typical_age_months' => 4,
-                'stage_key' => 'infancy_0_12m',
-                'stage_label' => 'Infancy (0–12 months)',
-                'sort_order' => 4,
-            ],
-            [
-                'id' => 'sitting_up',
-                'title' => 'Sitting Up Independently',
-                'description' => 'Baby can sit without support.',
-                'category' => 'physical',
-                'typical_age_months' => 6,
-                'stage_key' => 'infancy_0_12m',
-                'stage_label' => 'Infancy (0–12 months)',
-                'sort_order' => 5,
-            ],
-            [
-                'id' => 'first_teeth',
-                'title' => 'First Teeth',
-                'description' => 'Baby\'s first tooth emerges.',
-                'category' => 'physical',
-                'typical_age_months' => 6,
-                'stage_key' => 'infancy_0_12m',
-                'stage_label' => 'Infancy (0–12 months)',
-                'sort_order' => 6,
-            ],
-            [
-                'id' => 'crawling',
-                'title' => 'Crawling',
-                'description' => 'Baby begins to crawl on hands and knees.',
-                'category' => 'physical',
-                'typical_age_months' => 8,
-                'stage_key' => 'infancy_0_12m',
-                'stage_label' => 'Infancy (0–12 months)',
-                'sort_order' => 7,
-            ],
-            [
-                'id' => 'first_words',
-                'title' => 'First Words',
-                'description' => 'Baby says their first recognizable words like "mama" or "dada".',
-                'category' => 'language',
-                'typical_age_months' => 10,
-                'stage_key' => 'infancy_0_12m',
-                'stage_label' => 'Infancy (0–12 months)',
-                'sort_order' => 8,
-            ],
-            [
-                'id' => 'standing_with_support',
-                'title' => 'Standing with Support',
-                'description' => 'Baby can pull up to stand while holding onto furniture.',
-                'category' => 'physical',
-                'typical_age_months' => 9,
-                'stage_key' => 'infancy_0_12m',
-                'stage_label' => 'Infancy (0–12 months)',
-                'sort_order' => 9,
-            ],
-            [
-                'id' => 'first_steps',
-                'title' => 'First Steps',
-                'description' => 'Baby takes their first independent steps.',
-                'category' => 'physical',
-                'typical_age_months' => 12,
-                'stage_key' => 'infancy_0_12m',
-                'stage_label' => 'Infancy (0–12 months)',
-                'sort_order' => 10,
-            ],
-            
-            // Toddler (1-3 years)
-            [
-                'id' => 'walking_confidently',
-                'title' => 'Walking Confidently',
-                'description' => 'Toddler walks with confidence and stability.',
-                'category' => 'physical',
-                'typical_age_months' => 15,
-                'stage_key' => 'toddler_1_3y',
-                'stage_label' => 'Toddler (1–3 years)',
-                'sort_order' => 1,
-            ],
-            [
-                'id' => 'running',
-                'title' => 'Running',
-                'description' => 'Toddler begins to run.',
-                'category' => 'physical',
-                'typical_age_months' => 18,
-                'stage_key' => 'toddler_1_3y',
-                'stage_label' => 'Toddler (1–3 years)',
-                'sort_order' => 2,
-            ],
-            [
-                'id' => 'two_word_sentences',
-                'title' => 'Two-Word Sentences',
-                'description' => 'Toddler combines two words to form simple sentences.',
-                'category' => 'language',
-                'typical_age_months' => 20,
-                'stage_key' => 'toddler_1_3y',
-                'stage_label' => 'Toddler (1–3 years)',
-                'sort_order' => 3,
-            ],
-            [
-                'id' => 'potty_training_starts',
-                'title' => 'Potty Training Begins',
-                'description' => 'Toddler shows interest in using the potty.',
-                'category' => 'behavioral',
-                'typical_age_months' => 24,
-                'stage_key' => 'toddler_1_3y',
-                'stage_label' => 'Toddler (1–3 years)',
-                'sort_order' => 4,
-            ],
-            [
-                'id' => 'climbing_stairs',
-                'title' => 'Climbing Stairs',
-                'description' => 'Toddler can climb stairs with help or holding onto railing.',
-                'category' => 'physical',
-                'typical_age_months' => 24,
-                'stage_key' => 'toddler_1_3y',
-                'stage_label' => 'Toddler (1–3 years)',
-                'sort_order' => 5,
-            ],
-            [
-                'id' => 'jumping',
-                'title' => 'Jumping',
-                'description' => 'Toddler can jump with both feet leaving the ground.',
-                'category' => 'physical',
-                'typical_age_months' => 30,
-                'stage_key' => 'toddler_1_3y',
-                'stage_label' => 'Toddler (1–3 years)',
-                'sort_order' => 6,
-            ],
-            [
-                'id' => 'knows_colors',
-                'title' => 'Knows Basic Colors',
-                'description' => 'Can identify and name basic colors.',
-                'category' => 'cognitive',
-                'typical_age_months' => 30,
-                'stage_key' => 'toddler_1_3y',
-                'stage_label' => 'Toddler (1–3 years)',
-                'sort_order' => 7,
-            ],
-            [
-                'id' => 'potty_trained',
-                'title' => 'Potty Trained',
-                'description' => 'Toddler is fully potty trained during the day.',
-                'category' => 'behavioral',
-                'typical_age_months' => 36,
-                'stage_key' => 'toddler_1_3y',
-                'stage_label' => 'Toddler (1–3 years)',
-                'sort_order' => 8,
-            ],
-            
-            // Preschool (3-5 years)
-            [
-                'id' => 'dressing_independently',
-                'title' => 'Dressing Independently',
-                'description' => 'Can dress and undress with minimal help.',
-                'category' => 'behavioral',
-                'typical_age_months' => 42,
-                'stage_key' => 'preschool_3_5y',
-                'stage_label' => 'Preschool (3–5 years)',
-                'sort_order' => 1,
-            ],
-            [
-                'id' => 'counting_to_ten',
-                'title' => 'Counting to Ten',
-                'description' => 'Can count objects up to ten.',
-                'category' => 'cognitive',
-                'typical_age_months' => 42,
-                'stage_key' => 'preschool_3_5y',
-                'stage_label' => 'Preschool (3–5 years)',
-                'sort_order' => 2,
-            ],
-            [
-                'id' => 'writing_name',
-                'title' => 'Writing Name',
-                'description' => 'Can write their own name.',
-                'category' => 'cognitive',
-                'typical_age_months' => 48,
-                'stage_key' => 'preschool_3_5y',
-                'stage_label' => 'Preschool (3–5 years)',
-                'sort_order' => 3,
-            ],
-            [
-                'id' => 'riding_tricycle',
-                'title' => 'Riding a Tricycle',
-                'description' => 'Can ride a tricycle or balance bike.',
-                'category' => 'physical',
-                'typical_age_months' => 42,
-                'stage_key' => 'preschool_3_5y',
-                'stage_label' => 'Preschool (3–5 years)',
-                'sort_order' => 4,
-            ],
-            [
-                'id' => 'sharing_with_others',
-                'title' => 'Sharing with Others',
-                'description' => 'Demonstrates ability to share toys and take turns.',
-                'category' => 'social',
-                'typical_age_months' => 48,
-                'stage_key' => 'preschool_3_5y',
-                'stage_label' => 'Preschool (3–5 years)',
-                'sort_order' => 5,
-            ],
-            [
-                'id' => 'first_day_school',
-                'title' => 'First Day of School',
-                'description' => 'Starts preschool or kindergarten.',
-                'category' => 'social',
-                'typical_age_months' => 48,
-                'stage_key' => 'preschool_3_5y',
-                'stage_label' => 'Preschool (3–5 years)',
-                'sort_order' => 6,
-            ],
-            [
-                'id' => 'riding_bicycle',
-                'title' => 'Riding a Bicycle',
-                'description' => 'Can ride a bicycle without training wheels.',
-                'category' => 'physical',
-                'typical_age_months' => 54,
-                'stage_key' => 'preschool_3_5y',
-                'stage_label' => 'Preschool (3–5 years)',
-                'sort_order' => 7,
-            ],
-            [
-                'id' => 'reading_simple_words',
-                'title' => 'Reading Simple Words',
-                'description' => 'Can recognize and read simple words.',
-                'category' => 'language',
-                'typical_age_months' => 60,
-                'stage_key' => 'preschool_3_5y',
-                'stage_label' => 'Preschool (3–5 years)',
-                'sort_order' => 8,
-            ],
-            
-            // School Age (5+ years)
-            [
-                'id' => 'losing_first_tooth',
-                'title' => 'Losing First Tooth',
-                'description' => 'First baby tooth falls out.',
-                'category' => 'physical',
-                'typical_age_months' => 72,
-                'stage_key' => 'school_age_5y_plus',
-                'stage_label' => 'School Age (5+ years)',
-                'sort_order' => 1,
-            ],
-            [
-                'id' => 'reading_chapter_books',
-                'title' => 'Reading Chapter Books',
-                'description' => 'Can read chapter books independently.',
-                'category' => 'language',
-                'typical_age_months' => 84,
-                'stage_key' => 'school_age_5y_plus',
-                'stage_label' => 'School Age (5+ years)',
-                'sort_order' => 2,
-            ],
-            [
-                'id' => 'telling_time',
-                'title' => 'Telling Time',
-                'description' => 'Can read analog and digital clocks.',
-                'category' => 'cognitive',
-                'typical_age_months' => 84,
-                'stage_key' => 'school_age_5y_plus',
-                'stage_label' => 'School Age (5+ years)',
-                'sort_order' => 3,
-            ],
-            [
-                'id' => 'swimming',
-                'title' => 'Swimming Independently',
-                'description' => 'Can swim without assistance.',
-                'category' => 'physical',
-                'typical_age_months' => 72,
-                'stage_key' => 'school_age_5y_plus',
-                'stage_label' => 'School Age (5+ years)',
-                'sort_order' => 4,
-            ],
-        ];
-
-        foreach ($milestones as $milestone) {
-            PredefinedMilestone::updateOrCreate(
-                ['id' => $milestone['id']],
-                $milestone
-            );
+        // Read milestones from JSON file
+        $jsonPath = database_path('seeders/milestones.json');
+        
+        if (!File::exists($jsonPath)) {
+            $this->command->error("milestones.json not found at: {$jsonPath}");
+            return;
         }
+
+        $json = File::get($jsonPath);
+        $data = json_decode($json, true);
+
+        if (!isset($data['storyMilestones'])) {
+            $this->command->error("Invalid milestones.json structure: 'storyMilestones' key not found");
+            return;
+        }
+
+        $sortOrder = 0;
+
+        foreach ($data['storyMilestones'] as $stage) {
+            $stageKey = $stage['stageKey'];
+            $stageLabel = $stage['stageLabel'];
+
+            foreach ($stage['milestones'] as $milestone) {
+                $sortOrder++;
+
+                PredefinedMilestone::updateOrCreate(
+                    ['id' => $milestone['id']],
+                    [
+                        'title' => $milestone['title'],
+                        'description' => $milestone['description'],
+                        'stage_key' => $stageKey,
+                        'stage_label' => $stageLabel,
+                        'image_path' => "assets/milestones/{$milestone['id']}.png",
+                        'sort_order' => $sortOrder,
+                    ]
+                );
+            }
+        }
+
+        $this->command->info("Seeded {$sortOrder} predefined milestones from milestones.json");
     }
 }
