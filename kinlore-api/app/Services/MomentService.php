@@ -103,8 +103,8 @@ class MomentService
         $this->storage->storeFile($originalPath, $file);
         Log::info('Original file uploaded', ['path' => $originalPath]);
 
-        // Build EXIF data for photos
-        $exifData = $type === 'photo' ? $this->buildExifData($data) : null;
+        // Build EXIF data for photos and videos
+        $exifData = $this->buildExifData($data);
 
         // Create media record
         $media = Media::create([
