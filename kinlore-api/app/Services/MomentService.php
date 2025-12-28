@@ -279,8 +279,8 @@ class MomentService
                 'duration' => $duration
             ]);
 
-            // Generate thumbnail at 50% of duration using getFrameContents()
-            $timestamp = max(1, $duration * 0.5);
+            // Generate thumbnail from the first frame
+            $timestamp = 0.1; // Use first frame
 
             // Get frame contents directly (no disk save needed)
             $thumbnailContent = $ffmpeg->getFrameFromSeconds($timestamp)
