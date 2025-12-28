@@ -176,4 +176,49 @@ class MomentTest extends TestCase
         $response->assertStatus(403);
         $this->assertDatabaseHas('moments', ['id' => $moment->id]);
     }
+
+    public function test_user_can_create_story_moment_with_exif_date(): void
+    {
+        $user = User::factory()->create();
+        $kid = Kid::factory()->create(['user_id' => $user->id]);
+        
+        Sanctum::actingAs($user);
+
+        $response = $this->postJson("/api/kids/{$kid->id}/moments", [
+            'moment_type' => 'story',
+            'description' => 'A beautiful story',
+            'exif_date' => '2025-12-28 10:00:00',
+        ]);
+
+        $response->assertStatus(201);
+        $this->assertDatabaseHas('moments', [
+            'kid_id' => $kid->id,
+            'moment_type' => 'story',
+            'description' => 'A beautiful story',
+            'exif_date' => '2025-12-28 10:00:00',
+        ]);
+    }
+
+    public function test_user_can_create_milestone_moment_with_exif_date(): void
+    {
+        $user = User::factory()->create();
+        $kid = Kid::factory()->create(['user_id' => $user->id]);
+        
+        Sanctum::actingAs($user);
+
+        $response = $this->postJson("/api/kids/{$kid->id}/moments", [
+            'moment_type' => 'milestone',
+            'milestone_id' => 'first_smile', // Assuming this exists or using a string
+            'description' => 'First smile ever',
+            'exif_date' => '2025-12-28 10:00:00',
+        ]);
+
+        $response->assertStatus(201);
+        $this->assertDatabaseHas('moments', [
+            'kid_id' => $kid->id,
+            'moment_type' => 'milestone',
+            'milestone_id' => 'first_smile',
+            'exif_date' => '2025-12-28 10:00:00',
+        ]);
+    }
 }

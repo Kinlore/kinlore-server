@@ -70,16 +70,19 @@ class MomentController extends Controller
             'description' => 'nullable|string|max:5000',
         ];
 
+        // Optional metadata metadata (exif, location, camera) 
+        // These are now accepted for all moment types (stories, milestones, etc.) if provided
+        $rules['exif_date'] = 'nullable|date';
+        $rules['latitude'] = 'nullable|numeric|between:-90,90';
+        $rules['longitude'] = 'nullable|numeric|between:-180,180';
+        $rules['camera_make'] = 'nullable|string|max:255';
+        $rules['camera_model'] = 'nullable|string|max:255';
+        $rules['orientation'] = 'nullable|integer|between:1,8';
+
         // Add type-specific validation
         if ($hasFile || in_array($momentType, ['photo', 'video', null])) {
             $rules['file'] = 'required_without:moment_type|file|max:512000';
             $rules['device_asset_id'] = 'nullable|string|max:255';
-            $rules['exif_date'] = 'nullable|date';
-            $rules['latitude'] = 'nullable|numeric|between:-90,90';
-            $rules['longitude'] = 'nullable|numeric|between:-180,180';
-            $rules['camera_make'] = 'nullable|string|max:255';
-            $rules['camera_model'] = 'nullable|string|max:255';
-            $rules['orientation'] = 'nullable|integer|between:1,8';
         }
 
         if ($momentType === 'story') {

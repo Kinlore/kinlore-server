@@ -170,6 +170,13 @@ class MomentService
             'kid_id' => $kid->id,
             'moment_type' => 'story',
             'description' => $data['description'],
+            // Metadata
+            'exif_date' => $data['exif_date'] ?? null,
+            'latitude' => $data['latitude'] ?? null,
+            'longitude' => $data['longitude'] ?? null,
+            'camera_make' => $data['camera_make'] ?? null,
+            'camera_model' => $data['camera_model'] ?? null,
+            'orientation' => $data['orientation'] ?? null,
             'synced_at' => now()->timestamp * 1000,
         ]);
 
@@ -193,6 +200,13 @@ class MomentService
             'moment_type' => 'milestone',
             'milestone_id' => $data['milestone_id'],
             'description' => $data['description'] ?? null,
+            // Metadata
+            'exif_date' => $data['exif_date'] ?? null,
+            'latitude' => $data['latitude'] ?? null,
+            'longitude' => $data['longitude'] ?? null,
+            'camera_make' => $data['camera_make'] ?? null,
+            'camera_model' => $data['camera_model'] ?? null,
+            'orientation' => $data['orientation'] ?? null,
             'synced_at' => now()->timestamp * 1000,
         ]);
 
