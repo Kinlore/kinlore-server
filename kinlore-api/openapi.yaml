@@ -100,7 +100,7 @@ components:
         milestone_id:
           type: string
           nullable: true
-          description: Reference to predefined_milestones.id (required for milestone type)
+          description: Reference to milestones.id (required for milestone type)
         photo_url:
           type: string
           nullable: true
@@ -185,7 +185,7 @@ components:
           type: string
           format: date-time
 
-    PredefinedMilestone:
+    Milestone:
       type: object
       properties:
         id:
@@ -194,10 +194,16 @@ components:
           type: string
         description:
           type: string
+        image_path:
+          type: string
         stage_key:
           type: string
         stage_label:
           type: string
+        age_min_months:
+          type: integer
+        age_max_months:
+          type: integer
         category:
           type: string
         sort_order:
@@ -212,7 +218,7 @@ components:
         kid_id:
           type: string
           format: uuid
-        predefined_milestone_id:
+        milestone_id:
           type: string
           nullable: true
         custom_title:
@@ -886,7 +892,7 @@ paths:
                   description: Required for story type, optional for milestone type
                 milestone_id:
                   type: string
-                  description: Required for milestone type (references predefined_milestones.id)
+                  description: Required for milestone type (references milestones.id)
                 device_asset_id:
                   type: string
                 exif_date:
@@ -1391,10 +1397,10 @@ paths:
   # ============================================================================
   # PREDEFINED MILESTONES
   # ============================================================================
-  /v1/milestones/predefined:
+  /v1/milestones:
     get:
       tags: [Milestones]
-      summary: List predefined milestones
+      summary: List all milestones
       security:
         - bearerAuth: []
       parameters:
@@ -1411,9 +1417,13 @@ paths:
           in: query
           schema:
             type: string
+        - name: flat
+          in: query
+          schema:
+            type: boolean
       responses:
         "200":
-          description: Predefined milestones
+          description: Milestones list
           content:
             application/json:
               schema:
@@ -1424,12 +1434,12 @@ paths:
                   data:
                     type: array
                     items:
-                      $ref: "#/components/schemas/PredefinedMilestone"
+                      $ref: "#/components/schemas/Milestone"
 
-  /v1/milestones/predefined/{id}:
+  /v1/milestones/{id}:
     get:
       tags: [Milestones]
-      summary: Get predefined milestone
+      summary: Get milestone details
       security:
         - bearerAuth: []
       parameters:
@@ -1440,7 +1450,7 @@ paths:
             type: string
       responses:
         "200":
-          description: Predefined milestone details
+          description: Milestone details
           content:
             application/json:
               schema:
@@ -1449,7 +1459,7 @@ paths:
                   success:
                     type: boolean
                   data:
-                    $ref: "#/components/schemas/PredefinedMilestone"
+                    $ref: "#/components/schemas/Milestone"
 
   # ============================================================================
   # USER

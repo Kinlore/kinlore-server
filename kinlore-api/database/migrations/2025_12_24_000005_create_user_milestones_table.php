@@ -20,7 +20,7 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             
             // Link to predefined milestone OR custom title
-            $table->string('predefined_milestone_id')->nullable(); // FK to predefined_milestones
+            $table->string('milestone_id')->nullable(); // FK to milestones
             $table->string('custom_title')->nullable(); // For custom milestones
             $table->text('custom_description')->nullable();
             
@@ -43,9 +43,9 @@ return new class extends Migration
                   ->on('kids')
                   ->cascadeOnDelete();
                   
-            $table->foreign('predefined_milestone_id')
+            $table->foreign('milestone_id')
                   ->references('id')
-                  ->on('predefined_milestones')
+                  ->on('milestones')
                   ->nullOnDelete();
                   
             $table->foreign('icon_image_id')
@@ -62,7 +62,7 @@ return new class extends Migration
             $table->index('kid_id');
             $table->index('user_id');
             $table->index('milestone_date');
-            $table->index('predefined_milestone_id');
+            $table->index('milestone_id');
         });
     }
 

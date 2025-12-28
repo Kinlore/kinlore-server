@@ -32,16 +32,21 @@ class Milestone extends Model
         'id',
         'title',
         'description',
+        'image_path',
+        'category',
         'stage_key',
         'stage_label',
+        'age_min_months',
+        'age_max_months',
         'sort_order',
-        'icon_image_id',
     ];
 
     /**
      * The attributes that should be cast.
      */
     protected $casts = [
+        'age_min_months' => 'integer',
+        'age_max_months' => 'integer',
         'sort_order' => 'integer',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
@@ -51,28 +56,20 @@ class Milestone extends Model
      * Relationships
      */
     
-    public function moments()
+    public function userMilestones()
     {
-        return $this->hasMany(Moment::class);
-    }
-
-    public function iconImage()
-    {
-        return $this->belongsTo(Image::class, 'icon_image_id');
-    }
-
-    /**
-     * Get icon URL (from related image or null)
-     */
-    public function getIconUrlAttribute(): ?string
-    {
-        return $this->iconImage?->url;
+        return $this->hasMany(UserMilestone::class, 'milestone_id');
     }
 
     /**
      * Scopes
      */
     
+    public function scopeByCategory($query, string $category)
+    {
+        return $query->where('category', $category);
+    }
+
     public function scopeByStage($query, string $stageKey)
     {
         return $query->where('stage_key', $stageKey);
@@ -80,7 +77,7 @@ class Milestone extends Model
 
     public function scopeOrdered($query)
     {
-        return $query->orderBy('sort_order');
+        return $query->orderBy('stage_key')->orderBy('sort_order');
     }
 
     /**
@@ -89,7 +86,7 @@ class Milestone extends Model
     public static function getAllCached()
     {
         return Cache::remember('milestones.all', 60 * 60 * 24, function () {
-            return static::with('iconImage')->orderBy('stage_key')->orderBy('sort_order')->get();
+            return static::ordered()->get();
         });
     }
 
@@ -99,13 +96,30 @@ class Milestone extends Model
     public static function getGroupedByStage()
     {
         return Cache::remember('milestones.grouped', 60 * 60 * 24, function () {
-            $milestones = static::orderBy('sort_order')->get();
+            $milestones = static::ordered()->get();
             
             return $milestones->groupBy('stage_key')->map(function ($stageMilestones, $stageKey) {
                 return [
                     'stage_key' => $stageKey,
                     'stage_label' => $stageMilestones->first()->stage_label,
                     'milestones' => $stageMilestones->values(),
+                ];
+            })->values();
+        });
+    }
+
+    /**
+     * Get milestones grouped by category
+     */
+    public static function getGroupedByCategory()
+    {
+        return Cache::remember('milestones.by_category', 60 * 60 * 24, function () {
+            $milestones = static::ordered()->get();
+            
+            return $milestones->groupBy('category')->map(function ($categoryMilestones, $category) {
+                return [
+                    'category' => $category,
+                    'milestones' => $categoryMilestones->values(),
                 ];
             })->values();
         });
@@ -121,11 +135,13 @@ class Milestone extends Model
         static::saved(function () {
             Cache::forget('milestones.all');
             Cache::forget('milestones.grouped');
+            Cache::forget('milestones.by_category');
         });
 
         static::deleted(function () {
             Cache::forget('milestones.all');
             Cache::forget('milestones.grouped');
+            Cache::forget('milestones.by_category');
         });
     }
 
@@ -138,10 +154,13 @@ class Milestone extends Model
             'id' => $this->id,
             'title' => $this->title,
             'description' => $this->description,
+            'image_path' => $this->image_path,
+            'category' => $this->category,
             'stage_key' => $this->stage_key,
             'stage_label' => $this->stage_label,
+            'age_min_months' => $this->age_min_months,
+            'age_max_months' => $this->age_max_months,
             'sort_order' => $this->sort_order,
-            'icon_url' => $this->icon_url,
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];

@@ -5,7 +5,7 @@ namespace App\Services;
 use App\Models\Kid;
 use App\Models\Media;
 use App\Models\Moment;
-use App\Models\PredefinedMilestone;
+use App\Models\Milestone;
 use App\Models\User;
 use App\Models\UserMilestone;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -20,21 +20,21 @@ use Illuminate\Support\Str;
 class MilestoneService
 {
     /**
-     * Get predefined milestones with optional grouping/filtering.
+     * Get milestones with optional grouping/filtering.
      */
-    public function getPredefinedMilestones(array $filters = []): Collection|array
+    public function getMilestones(array $filters = []): Collection|array
     {
         $groupBy = $filters['group_by'] ?? null;
         
         if ($groupBy === 'stage') {
-            return PredefinedMilestone::getGroupedByStage();
+            return Milestone::getGroupedByStage();
         }
         
         if ($groupBy === 'category') {
-            return PredefinedMilestone::getGroupedByCategory();
+            return Milestone::getGroupedByCategory();
         }
 
-        $query = PredefinedMilestone::ordered();
+        $query = Milestone::ordered();
         
         if (!empty($filters['category'])) {
             $query->byCategory($filters['category']);
@@ -48,11 +48,11 @@ class MilestoneService
     }
 
     /**
-     * Get a single predefined milestone.
+     * Get a single milestone.
      */
-    public function getPredefinedMilestone(string $id): PredefinedMilestone
+    public function getMilestone(string $id): Milestone
     {
-        return PredefinedMilestone::findOrFail($id);
+        return Milestone::findOrFail($id);
     }
 
     /**
@@ -60,7 +60,7 @@ class MilestoneService
      */
     public function getUserMilestones(User $user, array $filters = []): LengthAwarePaginator
     {
-        $query = UserMilestone::with(['predefinedMilestone', 'iconImage', 'moment', 'kid'])
+        $query = UserMilestone::with(['milestone', 'iconImage', 'moment', 'kid'])
             ->forUser($user->id)
             ->orderByDate('desc');
 
@@ -103,7 +103,7 @@ class MilestoneService
                 'id' => Str::uuid()->toString(),
                 'kid_id' => $kid->id,
                 'user_id' => $user->id,
-                'predefined_milestone_id' => $data['predefined_milestone_id'] ?? null,
+                'milestone_id' => $data['milestone_id'] ?? null,
                 'custom_title' => $data['custom_title'] ?? null,
                 'custom_description' => $data['custom_description'] ?? null,
                 'milestone_date' => $data['milestone_date'],
@@ -112,7 +112,7 @@ class MilestoneService
                 'moment_id' => $momentId,
             ]);
 
-            $milestone->load(['predefinedMilestone', 'iconImage', 'moment']);
+            $milestone->load(['milestone', 'iconImage', 'moment']);
 
             Log::info('User milestone created', [
                 'milestone_id' => $milestone->id,
@@ -129,7 +129,7 @@ class MilestoneService
      */
     public function getUserMilestone(UserMilestone $milestone): UserMilestone
     {
-        $milestone->load(['predefinedMilestone', 'iconImage', 'moment']);
+        $milestone->load(['milestone', 'iconImage', 'moment']);
         
         return $milestone;
     }
@@ -140,7 +140,7 @@ class MilestoneService
     public function updateUserMilestone(UserMilestone $milestone, array $data): UserMilestone
     {
         $milestone->update($data);
-        $milestone->load(['predefinedMilestone', 'iconImage', 'moment']);
+        $milestone->load(['milestone', 'iconImage', 'moment']);
         
         return $milestone;
     }
@@ -154,15 +154,15 @@ class MilestoneService
     }
 
     /**
-     * Validate predefined milestone exists.
+     * Validate milestone exists.
      */
-    public function validatePredefinedMilestone(?string $id): bool
+    public function validateMilestone(?string $id): bool
     {
         if (empty($id)) {
             return true;
         }
         
-        return PredefinedMilestone::where('id', $id)->exists();
+        return Milestone::where('id', $id)->exists();
     }
 
     /**

@@ -32,7 +32,7 @@ class UserMilestone extends Model
     protected $fillable = [
         'kid_id',
         'user_id',
-        'predefined_milestone_id',
+        'milestone_id',
         'custom_title',
         'custom_description',
         'milestone_date',
@@ -65,9 +65,9 @@ class UserMilestone extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function predefinedMilestone()
+    public function milestone()
     {
-        return $this->belongsTo(PredefinedMilestone::class, 'predefined_milestone_id');
+        return $this->belongsTo(Milestone::class, 'milestone_id');
     }
 
     public function iconImage()
@@ -85,7 +85,7 @@ class UserMilestone extends Model
      */
     public function isCustom(): bool
     {
-        return is_null($this->predefined_milestone_id);
+        return is_null($this->milestone_id);
     }
 
     /**
@@ -93,8 +93,8 @@ class UserMilestone extends Model
      */
     public function getTitleAttribute(): string
     {
-        if ($this->predefinedMilestone) {
-            return $this->predefinedMilestone->title;
+        if ($this->milestone) {
+            return $this->milestone->title;
         }
         
         return $this->custom_title ?? 'Untitled Milestone';
@@ -105,8 +105,8 @@ class UserMilestone extends Model
      */
     public function getDescriptionAttribute(): ?string
     {
-        if ($this->predefinedMilestone) {
-            return $this->predefinedMilestone->description;
+        if ($this->milestone) {
+            return $this->milestone->description;
         }
         
         return $this->custom_description;
@@ -136,12 +136,12 @@ class UserMilestone extends Model
 
     public function scopeCustom($query)
     {
-        return $query->whereNull('predefined_milestone_id');
+        return $query->whereNull('milestone_id');
     }
 
     public function scopePredefined($query)
     {
-        return $query->whereNotNull('predefined_milestone_id');
+        return $query->whereNotNull('milestone_id');
     }
 
     public function scopeOrderByDate($query, $direction = 'desc')
@@ -169,9 +169,9 @@ class UserMilestone extends Model
             'updated_at' => $this->updated_at->toIso8601String(),
         ];
 
-        // Include predefined milestone details if loaded
-        if ($this->relationLoaded('predefinedMilestone') && $this->predefinedMilestone) {
-            $data['predefined_milestone'] = $this->predefinedMilestone->toArray();
+        // Include milestone details if loaded
+        if ($this->relationLoaded('milestone') && $this->milestone) {
+            $data['milestone'] = $this->milestone->toArray();
         }
 
         // Include icon image details if loaded

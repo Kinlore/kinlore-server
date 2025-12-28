@@ -48,8 +48,8 @@ class UserMilestoneController extends Controller
     {
         $validated = $request->validate([
             'kid_id' => 'required|uuid|exists:kids,id',
-            'predefined_milestone_id' => 'nullable|string|exists:predefined_milestones,id',
-            'custom_title' => 'required_without:predefined_milestone_id|nullable|string|max:255',
+            'milestone_id' => 'nullable|string|exists:milestones,id',
+            'custom_title' => 'required_without:milestone_id|nullable|string|max:255',
             'custom_description' => 'nullable|string|max:5000',
             'milestone_date' => 'required|date',
             'notes' => 'nullable|string|max:5000',
@@ -60,11 +60,11 @@ class UserMilestoneController extends Controller
         $kid = Kid::findOrFail($validated['kid_id']);
         $this->authorize('view', $kid);
 
-        // Validate predefined milestone exists if provided
-        if (!$this->milestoneService->validatePredefinedMilestone($validated['predefined_milestone_id'] ?? null)) {
+        // Validate milestone exists if provided
+        if (!$this->milestoneService->validateMilestone($validated['milestone_id'] ?? null)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Invalid predefined milestone',
+                'message' => 'Invalid milestone',
             ], 422);
         }
 

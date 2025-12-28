@@ -8,6 +8,8 @@ return new class extends Migration
 {
     /**
      * Run the migrations.
+     * 
+     * Creates unified milestones table that stores all predefined milestone data.
      */
     public function up(): void
     {
@@ -21,29 +23,33 @@ return new class extends Migration
             // Description of the milestone
             $table->text('description')->nullable();
             
+            // Image path (bundled with mobile app as assets/milestones/{id}.png)
+            $table->string('image_path')->nullable();
+            
+            // Category for filtering (optional)
+            $table->string('category')->nullable();
+            
             // Stage grouping (e.g., "infancy_0_12m", "toddler_1_3y")
             $table->string('stage_key');
             
             // Human-readable stage label (e.g., "Infancy (0–12 months)")
             $table->string('stage_label');
             
-            // Order within the stage for sorting
-            $table->integer('sort_order')->default(0);
+            // Unified age range in months for easy querying
+            $table->integer('age_min_months')->nullable();
+            $table->integer('age_max_months')->nullable();
             
-            // Optional icon image
-            $table->uuid('icon_image_id')->nullable();
+            // Order for sorting
+            $table->integer('sort_order')->default(0);
             
             $table->timestamps();
 
-            // Foreign key for icon image
-            $table->foreign('icon_image_id')
-                  ->references('id')
-                  ->on('images')
-                  ->nullOnDelete();
-
             // Indexes
+            $table->index('category');
             $table->index('stage_key');
             $table->index('sort_order');
+            $table->index('age_min_months');
+            $table->index('age_max_months');
         });
     }
 

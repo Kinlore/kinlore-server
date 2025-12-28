@@ -6,7 +6,7 @@ use App\Http\Controllers\Api\KidController;
 use App\Http\Controllers\Api\MomentController;
 use App\Http\Controllers\Api\SyncController;
 use App\Http\Controllers\Api\MediaController;
-use App\Http\Controllers\Api\PredefinedMilestoneController;
+use App\Http\Controllers\Api\MilestoneController;
 use App\Http\Controllers\Api\MomentInteractionController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -104,12 +104,12 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | Predefined Milestones (Read-only)
+    | Milestones Routes (Predefined list)
     |--------------------------------------------------------------------------
     */
-    Route::prefix('milestones/predefined')->group(function () {
-        Route::get('/', [PredefinedMilestoneController::class, 'index']);
-        Route::get('/{id}', [PredefinedMilestoneController::class, 'show']);
+    Route::prefix('milestones')->group(function () {
+        Route::get('/', [MilestoneController::class, 'index']);
+        Route::get('/{id}', [MilestoneController::class, 'show']);
     });
 
     /*

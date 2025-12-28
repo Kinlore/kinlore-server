@@ -3,81 +3,47 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Milestone;
+use App\Services\MilestoneService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class MilestoneController extends Controller
 {
+    public function __construct(
+        private MilestoneService $milestoneService
+    ) {}
+
     /**
-     * List all predefined milestones.
-     * Returns milestones grouped by stage for easy UI rendering.
+     * List all milestones.
+     * Returns milestones grouped by stage for easy UI rendering by default.
      */
-    public function index(Request $request)
+    public function index(Request $request): JsonResponse
     {
-        // Check if flat list is requested
-        if ($request->boolean('flat')) {
-            $milestones = Milestone::getAllCached();
-            return response()->json([
-                'success' => true,
-                'data' => $milestones->map(fn($m) => $m->toArray()),
-            ]);
+        $filters = $request->only(['group_by', 'category', 'stage_key']);
+        
+        // Default to stage grouping if no group_by specified and not flat
+        if (!$request->has('group_by') && !$request->boolean('flat')) {
+            $filters['group_by'] = 'stage';
         }
 
-        // Default: return grouped by stage
-        $grouped = Milestone::getGroupedByStage();
+        $milestones = $this->milestoneService->getMilestones($filters);
 
         return response()->json([
             'success' => true,
-            'data' => $grouped,
+            'data' => $milestones,
         ]);
     }
 
     /**
      * Get a specific milestone by ID.
      */
-    public function show(Request $request, string $identifier)
+    public function show(string $id): JsonResponse
     {
-        $milestone = Milestone::where('id', $identifier)
-            ->with('iconImage')
-            ->first();
-
-        if (!$milestone) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Milestone not found',
-            ], 404);
-        }
+        $milestone = $this->milestoneService->getMilestone($id);
 
         return response()->json([
             'success' => true,
             'data' => $milestone->toArray(),
-        ]);
-    }
-
-    /**
-     * Get milestones for a specific stage.
-     */
-    public function byStage(Request $request, string $stageKey)
-    {
-        $milestones = Milestone::byStage($stageKey)
-            ->ordered()
-            ->with('iconImage')
-            ->get();
-
-        if ($milestones->isEmpty()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Stage not found',
-            ], 404);
-        }
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'stage_key' => $stageKey,
-                'stage_label' => $milestones->first()->stage_label,
-                'milestones' => $milestones->map(fn($m) => $m->toArray()),
-            ],
         ]);
     }
 }
