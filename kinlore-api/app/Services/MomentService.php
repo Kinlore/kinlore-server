@@ -279,30 +279,43 @@ class MomentService
                 'duration' => $duration
             ]);
 
-            // Generate thumbnail from the first frame
+            // Generate thumbnail from the first frame (300x300)
             $timestamp = 0.1; // Use first frame
 
-            // Get frame contents directly (no disk save needed)
+            // Get thumbnail contents (300px width)
             $thumbnailContent = $ffmpeg->getFrameFromSeconds($timestamp)
                 ->export()
+                ->addFilter('-vf', 'scale=300:-1')
+                ->getFrameContents();
+
+            // Get medium contents (1200px width)
+            $mediumContent = $ffmpeg->getFrameFromSeconds($timestamp)
+                ->export()
+                ->addFilter('-vf', 'scale=1200:-1')
                 ->getFrameContents();
 
             // Upload thumbnail to seaweedfs storage
             $basePath = dirname($storagePath);
             $thumbnailStoragePath = "{$basePath}/thumbnail.jpg";
             Storage::disk('seaweedfs')->put($thumbnailStoragePath, $thumbnailContent);
+
+            // Upload medium to seaweedfs storage
+            $mediumStoragePath = "{$basePath}/medium.jpg";
+            Storage::disk('seaweedfs')->put($mediumStoragePath, $mediumContent);
             
             // Clean up local storage temp files
             Storage::disk('local')->deleteDirectory('tmp/video_' . $media->id);
 
-            Log::info('MomentService: Thumbnail generated', [
+            Log::info('MomentService: Thumbnail and medium generated', [
                 'media_id' => $media->id,
-                'thumbnail_path' => $thumbnailStoragePath
+                'thumbnail_path' => $thumbnailStoragePath,
+                'medium_path' => $mediumStoragePath
             ]);
 
             // Update media with video metadata
             $media->markAsCompleted([
                 'thumbnail_url' => $thumbnailStoragePath,
+                'medium_url' => $mediumStoragePath,
                 'video_metadata' => [
                     'duration' => $duration,
                 ],
