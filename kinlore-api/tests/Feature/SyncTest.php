@@ -31,6 +31,7 @@ class SyncTest extends TestCase
             'changes' => [
                 'kids' => ['created', 'updated', 'deleted'],
                 'moments' => ['created', 'updated', 'deleted'],
+                'milestones' => ['created', 'updated', 'deleted'],
             ],
             'timestamp',
         ]);

@@ -194,8 +194,6 @@ components:
           type: string
         description:
           type: string
-        image_path:
-          type: string
         stage_key:
           type: string
         stage_label:
@@ -208,6 +206,12 @@ components:
           type: string
         sort_order:
           type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
 
     UserMilestone:
       type: object
@@ -364,6 +368,60 @@ components:
         longitude:
           type: number
           nullable: true
+        created_at:
+          type: integer
+          description: Timestamp in milliseconds
+        updated_at:
+          type: integer
+          description: Timestamp in milliseconds
+
+    SyncMilestone:
+      type: object
+      description: Milestone data as returned by sync endpoint (timestamps in milliseconds)
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        category:
+          type: string
+          nullable: true
+        stage_key:
+          type: string
+        stage_label:
+          type: string
+        age_min_months:
+          type: integer
+          nullable: true
+        age_max_months:
+          type: integer
+          nullable: true
+        sort_order:
+          type: integer
+        created_at:
+          type: integer
+          description: Timestamp in milliseconds
+        updated_at:
+          type: integer
+          description: Timestamp in milliseconds
+
+    SyncKid:
+      type: object
+      description: Kid data as returned by sync endpoint (timestamps in milliseconds)
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        date_of_birth:
+          type: integer
+          description: Timestamp in milliseconds
+        avatar_color:
+          type: string
         created_at:
           type: integer
           description: Timestamp in milliseconds

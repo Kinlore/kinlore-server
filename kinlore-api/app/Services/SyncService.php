@@ -247,10 +247,12 @@ class SyncService
             'id' => $milestone->id,
             'title' => $milestone->title,
             'description' => $milestone->description,
+            'category' => $milestone->category,
             'stage_key' => $milestone->stage_key,
             'stage_label' => $milestone->stage_label,
+            'age_min_months' => $milestone->age_min_months,
+            'age_max_months' => $milestone->age_max_months,
             'sort_order' => $milestone->sort_order,
-            'icon_url' => $milestone->icon_url,
             'created_at' => $milestone->created_at?->timestamp * 1000,
             'updated_at' => $milestone->updated_at?->timestamp * 1000,
         ];
