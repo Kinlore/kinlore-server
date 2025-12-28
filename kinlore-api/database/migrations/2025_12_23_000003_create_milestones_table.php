@@ -23,8 +23,6 @@ return new class extends Migration
             // Description of the milestone
             $table->text('description')->nullable();
             
-            // Image path (bundled with mobile app as assets/milestones/{id}.png)
-            $table->string('image_path')->nullable();
             
             // Category for filtering (optional)
             $table->string('category')->nullable();

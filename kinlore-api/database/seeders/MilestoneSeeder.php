@@ -65,7 +65,6 @@ class MilestoneSeeder extends Seeder
                     [
                         'title' => $milestone['title'],
                         'description' => $milestone['description'] ?? null,
-                        'image_path' => "assets/milestones/{$milestone['id']}.png",
                         'stage_key' => $stageKey,
                         'stage_label' => $stageLabel,
                         'age_min_months' => $ageRange['min'],
