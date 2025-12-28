@@ -282,17 +282,38 @@ class MomentService
             // Generate thumbnail from the first frame (300x300)
             $timestamp = 0.1; // Use first frame
 
-            // Get thumbnail contents (300px width)
-            $thumbnailContent = $ffmpeg->getFrameFromSeconds($timestamp)
+            // Get full frame contents first
+            $frameContent = $ffmpeg->getFrameFromSeconds($timestamp)
                 ->export()
-                ->addFilter('-vf', 'scale=300:-1')
                 ->getFrameContents();
 
-            // Get medium contents (1200px width)
-            $mediumContent = $ffmpeg->getFrameFromSeconds($timestamp)
-                ->export()
-                ->addFilter('-vf', 'scale=1200:-1')
-                ->getFrameContents();
+            // Use GD to create resized versions
+            $sourceImage = imagecreatefromstring($frameContent);
+            $origWidth = imagesx($sourceImage);
+            $origHeight = imagesy($sourceImage);
+
+            // Create thumbnail (300px width, maintain aspect ratio)
+            $thumbWidth = 300;
+            $thumbHeight = (int) ($origHeight * ($thumbWidth / $origWidth));
+            $thumbImage = imagecreatetruecolor($thumbWidth, $thumbHeight);
+            imagecopyresampled($thumbImage, $sourceImage, 0, 0, 0, 0, $thumbWidth, $thumbHeight, $origWidth, $origHeight);
+            
+            ob_start();
+            imagejpeg($thumbImage, null, 85);
+            $thumbnailContent = ob_get_clean();
+            imagedestroy($thumbImage);
+
+            // Create medium (1200px width, maintain aspect ratio)
+            $mediumWidth = min(1200, $origWidth); // Don't upscale
+            $mediumHeight = (int) ($origHeight * ($mediumWidth / $origWidth));
+            $mediumImage = imagecreatetruecolor($mediumWidth, $mediumHeight);
+            imagecopyresampled($mediumImage, $sourceImage, 0, 0, 0, 0, $mediumWidth, $mediumHeight, $origWidth, $origHeight);
+            
+            ob_start();
+            imagejpeg($mediumImage, null, 85);
+            $mediumContent = ob_get_clean();
+            imagedestroy($mediumImage);
+            imagedestroy($sourceImage);
 
             // Upload thumbnail to seaweedfs storage
             $basePath = dirname($storagePath);
