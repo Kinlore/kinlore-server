@@ -141,6 +141,7 @@ class MomentService
             'photo_url' => $media->getRawFilePath(),
             'thumbnail_url' => $media->getRawThumbnailUrl(),
             'medium_url' => $media->getRawMediumUrl(),
+            'hls_url' => $type === 'video' ? $media->getRawHlsUrl() : null,
             'file_size' => $media->file_size,
             'mime_type' => $media->mime_type,
             'original_filename' => $media->original_filename,
@@ -258,7 +259,7 @@ class MomentService
 
     /**
      * Process video synchronously in foreground.
-     * Extracts duration, generates thumbnail.
+     * Extracts duration, generates thumbnail, and creates HLS stream.
      */
     private function processVideo(Media $media): void
     {
@@ -337,9 +338,6 @@ class MomentService
             // Upload medium to seaweedfs storage
             $mediumStoragePath = "{$basePath}/medium.jpg";
             Storage::disk('seaweedfs')->put($mediumStoragePath, $mediumContent);
-            
-            // Clean up local storage temp files
-            Storage::disk('local')->deleteDirectory('tmp/video_' . $media->id);
 
             Log::info('MomentService: Thumbnail and medium generated', [
                 'media_id' => $media->id,
@@ -347,19 +345,29 @@ class MomentService
                 'medium_path' => $mediumStoragePath
             ]);
 
-            // Update media with video metadata
+            // Generate HLS stream
+            $hlsStoragePath = $this->generateHLSStream($media, $localStoragePath, $basePath, $tempDir);
+
+            // Clean up local storage temp files
+            Storage::disk('local')->deleteDirectory('tmp/video_' . $media->id);
+
+            // Update media with video metadata and HLS URL
             $media->markAsCompleted([
                 'thumbnail_url' => $thumbnailStoragePath,
                 'medium_url' => $mediumStoragePath,
+                'hls_url' => $hlsStoragePath,
                 'video_metadata' => [
                     'duration' => $duration,
+                    'width' => $origWidth,
+                    'height' => $origHeight,
                 ],
             ]);
 
             Log::info('MomentService: Video processing completed', [
                 'media_id' => $media->id,
                 'duration' => $duration,
-                'thumbnail_url' => $thumbnailStoragePath
+                'thumbnail_url' => $thumbnailStoragePath,
+                'hls_url' => $hlsStoragePath
             ]);
 
         } catch (\Exception $e) {
@@ -377,6 +385,102 @@ class MomentService
                 $this->cleanupTempDir($tempDir);
             }
         }
+    }
+
+    /**
+     * Generate HLS stream with multiple quality variants.
+     */
+    private function generateHLSStream(Media $media, string $localStoragePath, string $basePath, string $tempDir): string
+    {
+        $hlsDir = $tempDir . '/hls';
+        if (!file_exists($hlsDir)) {
+            mkdir($hlsDir, 0755, true);
+        }
+
+        // Also create HLS output directory in local storage
+        $hlsLocalPath = 'tmp/video_' . $media->id . '/hls/playlist.m3u8';
+
+        Log::info('MomentService: Starting HLS generation', [
+            'media_id' => $media->id,
+            'output_path' => $hlsLocalPath
+        ]);
+
+        // Get configured quality variants (default: 720, 480, 240)
+        $variants = explode(',', env('VIDEO_QUALITY_VARIANTS', '720,480,240'));
+
+        $ffmpeg = FFMpeg::fromDisk('local')->open($localStoragePath);
+
+        // Create HLS export with multiple bitrates
+        $hlsExport = $ffmpeg->exportForHLS();
+
+        foreach ($variants as $height) {
+            $height = (int) trim($height);
+            $bitrate = $this->getBitrateForHeight($height);
+            
+            $hlsExport->addFormat(
+                (new \FFMpeg\Format\Video\X264())
+                    ->setKiloBitrate($bitrate)
+                    ->setAudioKiloBitrate(128),
+                function ($media) use ($height) {
+                    $media->scale(-2, $height);
+                }
+            );
+        }
+
+        $hlsExport
+            ->setSegmentLength(10)
+            ->toDisk('local')
+            ->save($hlsLocalPath);
+
+        Log::info('MomentService: HLS generated locally', ['media_id' => $media->id]);
+
+        // Upload HLS files to SeaweedFS storage
+        $hlsStoragePath = $this->uploadHLSFilesToStorage($media, $basePath);
+
+        return $hlsStoragePath;
+    }
+
+    /**
+     * Get recommended bitrate for video height.
+     */
+    private function getBitrateForHeight(int $height): int
+    {
+        return match (true) {
+            $height >= 1080 => 5000,
+            $height >= 720 => 2500,
+            $height >= 480 => 1000,
+            $height >= 360 => 600,
+            default => 400,
+        };
+    }
+
+    /**
+     * Upload HLS files to SeaweedFS storage.
+     */
+    private function uploadHLSFilesToStorage(Media $media, string $basePath): string
+    {
+        $localHlsDir = 'tmp/video_' . $media->id . '/hls';
+        $files = Storage::disk('local')->files($localHlsDir);
+        
+        foreach ($files as $file) {
+            $filename = basename($file);
+            $storagePath = "{$basePath}/hls/{$filename}";
+            
+            $content = Storage::disk('local')->get($file);
+            Storage::disk('seaweedfs')->put($storagePath, $content);
+            
+            Log::debug('MomentService: Uploaded HLS file', [
+                'local' => $file,
+                'storage' => $storagePath
+            ]);
+        }
+
+        Log::info('MomentService: All HLS files uploaded', [
+            'media_id' => $media->id,
+            'file_count' => count($files)
+        ]);
+
+        return "{$basePath}/hls/playlist.m3u8";
     }
 
     /**
@@ -567,10 +671,11 @@ class MomentService
             'original' => $moment->getRawOriginal('photo_url'),
             'medium' => $moment->getRawOriginal('medium_url'),
             'thumbnail' => $moment->getRawOriginal('thumbnail_url'),
+            'hls' => $moment->getRawOriginal('hls_url'),
         ];
 
         if (!isset($pathMap[$type])) {
-            throw new \InvalidArgumentException('Invalid file type. Use: original, medium, or thumbnail');
+            throw new \InvalidArgumentException('Invalid file type. Use: original, medium, thumbnail, or hls');
         }
 
         $path = $pathMap[$type];
@@ -582,9 +687,16 @@ class MomentService
         $content = $this->storage->get($path);
         $size = $this->storage->size($path);
 
-        $mimeType = ($type === 'thumbnail' || $type === 'medium')
-            ? 'image/jpeg'
-            : ($moment->mime_type ?? 'application/octet-stream');
+        // Determine MIME type based on file type
+        if ($type === 'thumbnail' || $type === 'medium') {
+            $mimeType = 'image/jpeg';
+        } elseif ($type === 'hls') {
+            $mimeType = str_ends_with($path, '.m3u8') 
+                ? 'application/vnd.apple.mpegurl' 
+                : 'video/MP2T';
+        } else {
+            $mimeType = $moment->mime_type ?? 'application/octet-stream';
+        }
 
         return [
             'content' => $content,

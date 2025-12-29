@@ -44,6 +44,7 @@ class Moment extends Model
         'photo_url',
         'thumbnail_url',
         'medium_url',
+        'hls_url',
         'file_size',
         'mime_type',
         'original_filename',
@@ -205,6 +206,11 @@ class Moment extends Model
         return $this->generateSignedUrl($value);
     }
 
+    public function getHlsUrlAttribute($value)
+    {
+        return $this->generateSignedUrl($value);
+    }
+
     protected function generateSignedUrl($path, $expiration = 60)
     {
         if (empty($path)) {
@@ -348,6 +354,7 @@ class Moment extends Model
             'photo_url' => $this->photo_url,
             'medium_url' => $this->medium_url,
             'thumbnail_url' => $this->thumbnail_url,
+            'hls_url' => $this->isVideo() ? $this->hls_url : null,
             'file_size' => $this->file_size,
             'file_size_formatted' => $this->file_size_formatted,
             'mime_type' => $this->mime_type,

@@ -120,6 +120,7 @@ class MediaService
             'photo_url' => $media->getRawFilePath(),
             'thumbnail_url' => $media->getRawThumbnailUrl(),
             'medium_url' => $media->getRawMediumUrl(),
+            'hls_url' => $media->isVideo() ? $media->getRawHlsUrl() : null,
             'file_size' => $media->file_size,
             'mime_type' => $media->mime_type,
             'original_filename' => $media->original_filename,
@@ -177,7 +178,7 @@ class MediaService
 
     /**
      * Process video synchronously in foreground.
-     * Extracts duration, generates thumbnail.
+     * Extracts duration, generates thumbnail, and creates HLS stream.
      */
     public function processVideo(Media $media): void
     {
@@ -188,6 +189,7 @@ class MediaService
 
             // Get the storage path
             $storagePath = $media->getRawFilePath();
+            $basePath = dirname($storagePath);
             
             // Download video to temp file for processing
             $tempDir = sys_get_temp_dir() . '/video_processing_' . $media->id;
@@ -199,8 +201,12 @@ class MediaService
             $fileContents = Storage::disk('seaweedfs')->get($storagePath);
             file_put_contents($tempInputFile, $fileContents);
 
+            // Copy to Laravel local storage for FFMpeg
+            $localStoragePath = 'tmp/video_' . $media->id . '/' . basename($storagePath);
+            Storage::disk('local')->put($localStoragePath, file_get_contents($tempInputFile));
+
             // Extract video duration using FFMpeg
-            $ffmpeg = FFMpeg::fromDisk('local')->open($tempInputFile);
+            $ffmpeg = FFMpeg::fromDisk('local')->open($localStoragePath);
             $duration = $ffmpeg->getDurationInSeconds();
             
             Log::info('MediaService: Duration extracted', [
@@ -209,39 +215,59 @@ class MediaService
             ]);
 
             // Generate thumbnail at 50% of duration
-            $thumbnailTempPath = $tempDir . '/thumbnail.jpg';
-            $timestamp = max(1, $duration * 0.5);
-
-            $ffmpeg->getFrameFromSeconds($timestamp)
+            $timestamp = max(0.1, $duration * 0.5);
+            $frameContent = $ffmpeg->getFrameFromSeconds($timestamp)
                 ->export()
-                ->toDisk('local')
-                ->save($thumbnailTempPath);
+                ->getFrameContents();
+
+            // Use GD to resize thumbnail
+            $sourceImage = imagecreatefromstring($frameContent);
+            $origWidth = imagesx($sourceImage);
+            $origHeight = imagesy($sourceImage);
+
+            // Create thumbnail (300px width)
+            $thumbWidth = 300;
+            $thumbHeight = (int) ($origHeight * ($thumbWidth / $origWidth));
+            $thumbImage = imagecreatetruecolor($thumbWidth, $thumbHeight);
+            imagecopyresampled($thumbImage, $sourceImage, 0, 0, 0, 0, $thumbWidth, $thumbHeight, $origWidth, $origHeight);
+            
+            ob_start();
+            imagejpeg($thumbImage, null, 85);
+            $thumbnailContent = ob_get_clean();
+            imagedestroy($thumbImage);
+            imagedestroy($sourceImage);
 
             // Upload thumbnail to storage
-            $basePath = dirname($storagePath);
             $thumbnailStoragePath = "{$basePath}/thumbnail.jpg";
-            Storage::disk('seaweedfs')->put(
-                $thumbnailStoragePath,
-                file_get_contents($thumbnailTempPath)
-            );
+            Storage::disk('seaweedfs')->put($thumbnailStoragePath, $thumbnailContent);
 
             Log::info('MediaService: Thumbnail generated', [
                 'media_id' => $media->id,
                 'thumbnail_path' => $thumbnailStoragePath
             ]);
 
-            // Update media with video metadata
+            // Generate HLS stream
+            $hlsStoragePath = $this->generateHLSStream($media, $localStoragePath, $basePath);
+
+            // Clean up local storage
+            Storage::disk('local')->deleteDirectory('tmp/video_' . $media->id);
+
+            // Update media with video metadata and HLS URL
             $media->markAsCompleted([
                 'thumbnail_url' => $thumbnailStoragePath,
+                'hls_url' => $hlsStoragePath,
                 'video_metadata' => [
                     'duration' => $duration,
+                    'width' => $origWidth,
+                    'height' => $origHeight,
                 ],
             ]);
 
             Log::info('MediaService: Video processing completed', [
                 'media_id' => $media->id,
                 'duration' => $duration,
-                'thumbnail_url' => $thumbnailStoragePath
+                'thumbnail_url' => $thumbnailStoragePath,
+                'hls_url' => $hlsStoragePath
             ]);
 
         } catch (\Exception $e) {
@@ -258,7 +284,99 @@ class MediaService
             if ($tempDir && file_exists($tempDir)) {
                 $this->cleanupTempDir($tempDir);
             }
+            // Also clean up local storage if it exists
+            Storage::disk('local')->deleteDirectory('tmp/video_' . $media->id);
         }
+    }
+
+    /**
+     * Generate HLS stream with multiple quality variants.
+     */
+    private function generateHLSStream(Media $media, string $localStoragePath, string $basePath): string
+    {
+        $hlsLocalPath = 'tmp/video_' . $media->id . '/hls/playlist.m3u8';
+
+        Log::info('MediaService: Starting HLS generation', [
+            'media_id' => $media->id,
+            'output_path' => $hlsLocalPath
+        ]);
+
+        // Get configured quality variants (default: 720, 480, 240)
+        $variants = explode(',', env('VIDEO_QUALITY_VARIANTS', '720,480,240'));
+
+        $ffmpeg = FFMpeg::fromDisk('local')->open($localStoragePath);
+
+        // Create HLS export with multiple bitrates
+        $hlsExport = $ffmpeg->exportForHLS();
+
+        foreach ($variants as $height) {
+            $height = (int) trim($height);
+            $bitrate = $this->getBitrateForHeight($height);
+            
+            $hlsExport->addFormat(
+                (new \FFMpeg\Format\Video\X264())
+                    ->setKiloBitrate($bitrate)
+                    ->setAudioKiloBitrate(128),
+                function ($media) use ($height) {
+                    $media->scale(-2, $height);
+                }
+            );
+        }
+
+        $hlsExport
+            ->setSegmentLength(10)
+            ->toDisk('local')
+            ->save($hlsLocalPath);
+
+        Log::info('MediaService: HLS generated locally', ['media_id' => $media->id]);
+
+        // Upload HLS files to SeaweedFS storage
+        $hlsStoragePath = $this->uploadHLSFilesToStorage($media, $basePath);
+
+        return $hlsStoragePath;
+    }
+
+    /**
+     * Get recommended bitrate for video height.
+     */
+    private function getBitrateForHeight(int $height): int
+    {
+        return match (true) {
+            $height >= 1080 => 5000,
+            $height >= 720 => 2500,
+            $height >= 480 => 1000,
+            $height >= 360 => 600,
+            default => 400,
+        };
+    }
+
+    /**
+     * Upload HLS files to SeaweedFS storage.
+     */
+    private function uploadHLSFilesToStorage(Media $media, string $basePath): string
+    {
+        $localHlsDir = 'tmp/video_' . $media->id . '/hls';
+        $files = Storage::disk('local')->files($localHlsDir);
+        
+        foreach ($files as $file) {
+            $filename = basename($file);
+            $storagePath = "{$basePath}/hls/{$filename}";
+            
+            $content = Storage::disk('local')->get($file);
+            Storage::disk('seaweedfs')->put($storagePath, $content);
+            
+            Log::debug('MediaService: Uploaded HLS file', [
+                'local' => $file,
+                'storage' => $storagePath
+            ]);
+        }
+
+        Log::info('MediaService: All HLS files uploaded', [
+            'media_id' => $media->id,
+            'file_count' => count($files)
+        ]);
+
+        return "{$basePath}/hls/playlist.m3u8";
     }
 
     /**
