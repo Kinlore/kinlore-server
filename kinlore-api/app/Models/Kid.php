@@ -31,7 +31,7 @@ class Kid extends Model
      * The attributes that are mass assignable.
      */
     protected $fillable = [
-        'user_id',
+        'server_id',
         'name',
         'date_of_birth',
         'avatar_color',
@@ -60,9 +60,17 @@ class Kid extends Model
      * Relationships
      */
     
-    public function user()
+    public function server()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(Server::class);
+    }
+    
+    /**
+     * Get the user who owns the server (convenience method)
+     */
+    public function owner()
+    {
+        return $this->hasOneThrough(User::class, Server::class, 'id', 'id', 'server_id', 'owner_id');
     }
 
     public function moments()
@@ -142,9 +150,9 @@ class Kid extends Model
      * Scopes
      */
     
-    public function scopeForUser($query, $userId)
+    public function scopeForServer($query, $serverId)
     {
-        return $query->where('user_id', $userId);
+        return $query->where('server_id', $serverId);
     }
 
     public function scopeWithMomentsCount($query)

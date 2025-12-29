@@ -10,3 +10,8 @@ Artisan::command('inspire', function () {
 Artisan::command('minio:test', function () {
     $this->call('minio:test');
 })->purpose('Test MinIO connection and operations');
+
+use Illuminate\Support\Facades\Schedule;
+use App\Jobs\CleanupExpiredInvitations;
+
+Schedule::job(new CleanupExpiredInvitations)->daily();

@@ -14,9 +14,14 @@ class KidService
     /**
      * Get all kids for a user.
      */
+    /**
+     * Get all kids for a user across all servers they belong to.
+     */
     public function getKidsForUser(User $user): Collection
     {
-        return $user->kids()
+        $serverIds = $user->servers()->pluck('servers.id');
+        
+        return Kid::whereIn('server_id', $serverIds)
             ->withCount('moments')
             ->orderBy('created_at', 'asc')
             ->get()
@@ -25,10 +30,29 @@ class KidService
 
     /**
      * Create a new kid for a user.
+     * Assigns to the user's owned server by default, or the first server they can contribute to.
      */
     public function createKid(User $user, array $data): Kid
     {
-        return $user->kids()->create([
+        // Find a suitable server
+        $server = $user->ownedServers()->first();
+        
+        if (!$server) {
+            // Fallback to any server they are a member of with contributor role
+            $server = $user->servers()
+                ->wherePivotIn('role', ['owner', 'contributor'])
+                ->first();
+        }
+        
+        if (!$server) {
+             throw new \Exception("User does not belong to any server where they can create kids.");
+        }
+
+        // We keep user_id as the creator/original owner reference if needed, 
+        // but server_id is the main grouping now.
+        return Kid::create([
+            'server_id' => $server->id,
+            'user_id' => $user->id,
             'name' => $data['name'],
             'date_of_birth' => $data['date_of_birth'],
             'avatar_color' => $data['avatar_color'] ?? Kid::randomAvatarColor(),

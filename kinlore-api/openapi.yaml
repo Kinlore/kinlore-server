@@ -51,6 +51,94 @@ components:
           type: string
           format: date-time
 
+    Server:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        owner_id:
+          type: integer
+        settings:
+          type: object
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ServerMember:
+      type: object
+      properties:
+        id:
+          type: integer
+        user_id:
+          type: integer
+        server_id:
+          type: string
+          format: uuid
+        role:
+          type: string
+          enum: [owner, contributor, viewer]
+        invited_by:
+          type: integer
+          nullable: true
+        joined_at:
+          type: string
+          format: date-time
+        metadata:
+          type: object
+          nullable: true
+        user:
+          $ref: "#/components/schemas/User"
+
+    Invitation:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        server_id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+          nullable: true
+        role:
+          type: string
+          enum: [contributor, viewer]
+        invited_by:
+          type: integer
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+        accepted_at:
+          type: string
+          format: date-time
+          nullable: true
+        invite_link:
+          type: string
+          description: "Calculated deep link for the invitation (e.g., kinlore://invite/{token})"
+
+    InvitationValidation:
+      type: object
+      properties:
+        valid:
+          type: boolean
+        reason:
+          type: string
+          nullable: true
+          enum: [invalid_token, revoked, already_used, expired]
+        data:
+          $ref: "#/components/schemas/Invitation"
+          nullable: true
+
     Kid:
       type: object
       properties:
@@ -1681,6 +1769,353 @@ paths:
                     type: boolean
                   data:
                     $ref: "#/components/schemas/Milestone"
+
+  # ============================================================================
+  # SERVERS & INVITATIONS
+  # ============================================================================
+  /v1/servers:
+    get:
+      tags: [Servers]
+      summary: List user's servers
+      description: Returns all servers the user is a member of.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Servers list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  username:
+                    type: string
+                  servers:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        server:
+                          $ref: "#/components/schemas/Server"
+                        role:
+                          type: string
+                          enum: [owner, contributor, viewer]
+                        member_count:
+                          type: integer
+                        kid_count:
+                          type: integer
+
+    post:
+      tags: [Servers]
+      summary: Create a new server
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+      responses:
+        "201":
+          description: Server created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    $ref: "#/components/schemas/Server"
+
+  /v1/servers/{server}:
+    get:
+      tags: [Servers]
+      summary: Get server details
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: server
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Server details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: "#/components/schemas/Server"
+
+    put:
+      tags: [Servers]
+      summary: Update server settings
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: server
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                settings:
+                  type: object
+      responses:
+        "200":
+          description: Server updated
+
+    delete:
+      tags: [Servers]
+      summary: Delete server (Owner only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: server
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Server deleted
+
+  /v1/servers/{server}/members:
+    get:
+      tags: [Servers]
+      summary: List server members
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: server
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Members list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ServerMember"
+
+  /v1/servers/{server}/members/{member}:
+    delete:
+      tags: [Servers]
+      summary: Remove member from server
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: server
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: member
+          in: path
+          required: true
+          description: The ServerMember ID to remove
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Member removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /v1/servers/{server}/invitations:
+    get:
+      tags: [Invitations]
+      summary: List pending invitations for server
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: server
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Invitations list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Invitation"
+
+    post:
+      tags: [Invitations]
+      summary: Create new invitation
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: server
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role]
+              properties:
+                email:
+                  type: string
+                  format: email
+                  description: Optional email to help identify invitee
+                role:
+                  type: string
+                  enum: [contributor, viewer]
+      responses:
+        "201":
+          description: Invitation created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: "#/components/schemas/Invitation"
+
+  /v1/servers/{server}/invitations/{invitation}:
+    delete:
+      tags: [Invitations]
+      summary: Revoke invitation
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: server
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: invitation
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Invitation revoked
+
+  /v1/invitations/validate/{token}:
+    get:
+      tags: [Invitations]
+      summary: Validate invitation token (Public)
+      security: []
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvitationValidation"
+
+  /v1/invitations/accept:
+    post:
+      tags: [Invitations]
+      summary: Accept invitation
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token:
+                  type: string
+      responses:
+        "200":
+          description: Invitation accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /v1/user/servers:
+    get:
+      tags: [Servers]
+      summary: List user's servers (Alias)
+      description: Alias for /v1/servers
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Servers list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        server:
+                          $ref: "#/components/schemas/Server"
+                        role:
+                          type: string
 
   # ============================================================================
   # USER

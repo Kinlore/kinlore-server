@@ -26,6 +26,11 @@ class AuthService
             'password' => Hash::make($data['password']),
         ]);
 
+        // Create default server
+        $this->serverService->createServer($user, [
+            'name' => $user->name . "'s Family",
+        ]);
+
         $token = $user->createToken('mobile-app', ['*'])->plainTextToken;
 
         return [
@@ -109,8 +114,8 @@ class AuthService
             'email' => $user->email,
             'email_verified_at' => $user->email_verified_at,
             'created_at' => $user->created_at->toIso8601String(),
-            'kids_count' => $user->kids()->count(),
-            'moments_count' => $user->getTotalMomentsCount(),
+            'kids_count' => $user->servers()->withCount('kids')->get()->sum('kids_count'), // Count all kids in servers user is member of
+            'moments_count' => $user->getTotalMomentsCount(), // This needs update in User model ideally
             'storage_used' => $user->getStorageUsedFormatted(),
             'storage_bytes_used' => $storageBytesUsed,
             'storage_bytes_available' => $storageBytesAvailable,
