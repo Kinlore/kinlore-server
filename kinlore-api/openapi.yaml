@@ -1082,6 +1082,7 @@ paths:
     get:
       tags: [Moments]
       summary: Serve moment file
+      description: Serves the main moment file (original, medium, thumbnail, or HLS master playlist)
       security:
         - bearerAuth: []
       parameters:
@@ -1097,6 +1098,11 @@ paths:
           schema:
             type: string
             enum: [original, medium, thumbnail, hls]
+          description: |
+            - `original`: Original uploaded file (photo/video)
+            - `medium`: Medium resolution image (1200px width)
+            - `thumbnail`: Thumbnail image (300x300)
+            - `hls`: HLS master playlist (.m3u8) for video streaming
       responses:
         "200":
           description: File content
@@ -1109,8 +1115,87 @@ paths:
               schema:
                 type: string
                 format: binary
+            application/vnd.apple.mpegurl:
+              schema:
+                type: string
+                description: HLS playlist content
+              example: |
+                #EXTM3U
+                #EXT-X-VERSION:3
+                #EXT-X-STREAM-INF:BANDWIDTH=2500000,RESOLUTION=1280x720
+                playlist_0_2500.m3u8
+                #EXT-X-STREAM-INF:BANDWIDTH=1000000,RESOLUTION=854x480
+                playlist_1_1000.m3u8
         "404":
           description: File not found
+
+  /v1/moments/{moment}/file/{filename}:
+    get:
+      tags: [Moments]
+      summary: Serve HLS segment file
+      description: |
+        Serves individual HLS variant playlists and segment files.
+        This endpoint is called by HLS video players after loading the master playlist.
+
+        **Filename patterns:**
+        - Variant playlists: `playlist_0_2500.m3u8`, `playlist_1_1000.m3u8`
+        - Segment files: `playlist_0_00001.ts`, `playlist_1_00002.ts`
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: moment
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: filename
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '.*\.(m3u8|ts)$'
+          examples:
+            variant_playlist:
+              value: "playlist_0_2500.m3u8"
+              summary: Variant playlist for 720p quality
+            segment:
+              value: "playlist_0_00001.ts"
+              summary: Video segment file
+      responses:
+        "200":
+          description: HLS file content
+          content:
+            application/vnd.apple.mpegurl:
+              schema:
+                type: string
+                description: Variant playlist content (.m3u8)
+              example: |
+                #EXTM3U
+                #EXT-X-VERSION:3
+                #EXT-X-TARGETDURATION:10
+                #EXTINF:10.0,
+                playlist_0_00001.ts
+                #EXTINF:10.0,
+                playlist_0_00002.ts
+            video/MP2T:
+              schema:
+                type: string
+                format: binary
+                description: Video segment file (.ts)
+        "404":
+          description: HLS file not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: "HLS file not found: playlist_0_00001.ts"
 
   /v1/moments/{moment}/file-status:
     get:

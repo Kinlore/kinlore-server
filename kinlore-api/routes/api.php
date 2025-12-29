@@ -75,6 +75,8 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::apiResource('moments', MomentController::class);
     Route::get('/moments/{moment}/file/{type}', [MomentController::class, 'serveFile'])
         ->where('type', 'original|medium|thumbnail|hls');
+    Route::get('/moments/{moment}/file/{filename}', [MomentController::class, 'serveHlsFile'])
+        ->where('filename', '.*\.(m3u8|ts)$');
     Route::get('/moments/{moment}/file-status', [MomentController::class, 'checkFileStatus']);
     
     // Uploaded identifiers per kid (for duplicate detection)

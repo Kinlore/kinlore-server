@@ -248,6 +248,35 @@ class MomentController extends Controller
     }
 
     /**
+     * Serve HLS segment files (variant playlists and .ts segments).
+     */
+    public function serveHlsFile(Moment $moment, string $filename): Response
+    {
+        $this->authorize('view', $moment->kid);
+
+        try {
+            $file = $this->momentService->serveHlsFile($moment, $filename);
+
+            return response($file['content'], 200, [
+                'Content-Type' => $file['mime_type'],
+                'Content-Length' => $file['size'],
+                'Cache-Control' => 'private, max-age=3600',
+            ]);
+        } catch (\RuntimeException $e) {
+            Log::warning('HLS file not found', [
+                'moment_id' => $moment->id,
+                'filename' => $filename,
+                'error' => $e->getMessage()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 404);
+        }
+    }
+
+    /**
      * Diagnostic endpoint to check file status.
      */
     public function checkFileStatus(Moment $moment): JsonResponse
