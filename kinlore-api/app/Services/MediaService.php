@@ -415,13 +415,25 @@ class MediaService
                 'thumbnail_path' => $thumbnailStoragePath
             ]);
 
-            // Generate HLS stream
+            // Check if video is HDR and pre-process if needed
+            $hlsInputPath = $localStoragePath;
+            $isHdr = $this->isVideoHDR($localStoragePath);
+            
+            if ($isHdr) {
+                Log::info('MediaService: HDR video detected, pre-converting to SDR', [
+                    'media_id' => $media->id,
+                ]);
+                $hlsInputPath = $this->convertHdrToSdr($media, $localStoragePath);
+            }
+
+            // Generate HLS stream (using pre-processed SDR file if HDR was detected)
             Log::info('MediaService: Starting HLS stream generation', [
                 'media_id' => $media->id,
                 'video_dimensions' => "{$origWidth}x{$origHeight}",
+                'using_hdr_converted' => $isHdr,
             ]);
 
-            $hlsStoragePath = $this->generateHLSStream($media, $localStoragePath, $basePath);
+            $hlsStoragePath = $this->generateHLSStream($media, $hlsInputPath, $basePath);
 
             Log::info('MediaService: HLS stream generation completed', [
                 'media_id' => $media->id,
@@ -523,21 +535,16 @@ class MediaService
                     ->setKiloBitrate($bitrate)
                     ->setAudioKiloBitrate(128);
                 
-                // Add iOS-compatible additional parameters with proper HDR to SDR tone mapping
-                // iPhone videos are often 10-bit HEVC (yuv420p10le) with HDR/Dolby Vision (bt2020/HLG)
-                // We need to:
-                // 1. Tone-map HDR to SDR using zscale filter
-                // 2. Convert color space from BT.2020 to BT.709
-                // 3. Convert to 8-bit yuv420p for baseline profile compatibility
+                // Add iOS-compatible additional parameters
+                // Note: -pix_fmt converts 10-bit to 8-bit for baseline profile compatibility
+                // For HDR videos, this may result in slightly different colors, but it's the 
+                // only compatible approach with laravel-ffmpeg's HLS complex filtergraph
                 $format->setAdditionalParameters([
-                    '-vf', 'zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap=tonemap=hable:desat=0,zscale=t=bt709:m=bt709:r=tv,format=yuv420p',
+                    '-pix_fmt', 'yuv420p',
                     '-profile:v', 'baseline',
                     '-level', '3.1',
                     '-ar', '44100',
                     '-movflags', '+faststart',
-                    '-color_primaries', 'bt709',
-                    '-color_trc', 'bt709',
-                    '-colorspace', 'bt709',
                 ]);
                 
                 $hlsExport->addFormat(
@@ -611,6 +618,132 @@ class MediaService
             $height >= 720 => 2500,
             $height >= 480 => 1000,
             $height >= 360 => 600,
+            default => 400,
+        };
+    }
+
+    /**
+     * Check if video is HDR using ffprobe.
+     * Detects 10-bit HDR content by checking color properties.
+     */
+    private function isVideoHDR(string $localStoragePath): bool
+    {
+        try {
+            $fullPath = Storage::disk('local')->path($localStoragePath);
+            $ffprobeBinary = config('laravel-ffmpeg.ffprobe.binaries', '/usr/bin/ffprobe');
+            
+            // Run ffprobe to get video stream info
+            $command = escapeshellcmd($ffprobeBinary) . ' -v quiet -select_streams v:0 -show_entries stream=pix_fmt,color_transfer,color_primaries,bits_per_raw_sample -of json ' . escapeshellarg($fullPath);
+            
+            $output = shell_exec($command);
+            $data = json_decode($output, true);
+            
+            if (!$data || empty($data['streams'][0])) {
+                Log::debug('MediaService: Could not parse ffprobe output, assuming SDR');
+                return false;
+            }
+            
+            $stream = $data['streams'][0];
+            $pixFmt = $stream['pix_fmt'] ?? '';
+            $colorTransfer = $stream['color_transfer'] ?? '';
+            $colorPrimaries = $stream['color_primaries'] ?? '';
+            $bitsPerSample = (int)($stream['bits_per_raw_sample'] ?? 8);
+            
+            Log::info('MediaService: Video color properties', [
+                'pix_fmt' => $pixFmt,
+                'color_transfer' => $colorTransfer,
+                'color_primaries' => $colorPrimaries,
+                'bits_per_sample' => $bitsPerSample,
+            ]);
+            
+            // Check for HDR indicators:
+            // - 10-bit or higher pixel formats (p10, p10le, etc.)
+            // - HLG or PQ/SMPTE 2084 transfer functions
+            // - BT.2020 color primaries
+            $isHdr = false;
+            
+            // Check pixel format for 10-bit
+            if (str_contains($pixFmt, '10') || str_contains($pixFmt, '12') || $bitsPerSample >= 10) {
+                $isHdr = true;
+            }
+            
+            // Check for HDR transfer functions
+            $hdrTransfers = ['arib-std-b67', 'smpte2084', 'bt2020-10', 'bt2020-12'];
+            if (in_array($colorTransfer, $hdrTransfers)) {
+                $isHdr = true;
+            }
+            
+            // Check for BT.2020 color primaries
+            if ($colorPrimaries === 'bt2020') {
+                $isHdr = true;
+            }
+            
+            Log::info('MediaService: HDR detection result', ['is_hdr' => $isHdr]);
+            
+            return $isHdr;
+            
+        } catch (\Exception $e) {
+            Log::warning('MediaService: HDR detection failed, assuming SDR', [
+                'error' => $e->getMessage()
+            ]);
+            return false;
+        }
+    }
+
+    /**
+     * Convert HDR video to SDR with proper tone mapping.
+     * Creates a new file with BT.709 color space and 8-bit depth.
+     */
+    private function convertHdrToSdr(Media $media, string $inputPath): string
+    {
+        $fullInputPath = Storage::disk('local')->path($inputPath);
+        $outputFileName = 'sdr_converted.mp4';
+        $outputPath = 'tmp/video_' . $media->id . '/' . $outputFileName;
+        $fullOutputPath = Storage::disk('local')->path($outputPath);
+        
+        // Ensure output directory exists
+        $outputDir = dirname($fullOutputPath);
+        if (!file_exists($outputDir)) {
+            mkdir($outputDir, 0755, true);
+        }
+        
+        $ffmpegBinary = config('laravel-ffmpeg.ffmpeg.binaries', '/usr/bin/ffmpeg');
+        
+        // HDR to SDR conversion command with proper tone mapping
+        // Uses zscale for color space conversion and hable tonemap for HDR->SDR
+        $command = escapeshellcmd($ffmpegBinary) . ' -y -i ' . escapeshellarg($fullInputPath) . 
+            ' -vf "zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap=hable:desat=0,zscale=t=bt709:m=bt709:r=tv,format=yuv420p"' .
+            ' -c:v libx264 -preset medium -crf 18' .
+            ' -c:a aac -b:a 128k' .
+            ' -color_primaries bt709 -color_trc bt709 -colorspace bt709' .
+            ' -movflags +faststart' .
+            ' ' . escapeshellarg($fullOutputPath) . ' 2>&1';
+        
+        Log::info('MediaService: Starting HDR to SDR conversion', [
+            'media_id' => $media->id,
+            'input' => $inputPath,
+            'output' => $outputPath,
+        ]);
+        
+        $output = shell_exec($command);
+        
+        // Check if output file was created
+        if (!file_exists($fullOutputPath)) {
+            Log::error('MediaService: HDR to SDR conversion failed', [
+                'media_id' => $media->id,
+                'ffmpeg_output' => $output,
+            ]);
+            throw new \RuntimeException('HDR to SDR conversion failed');
+        }
+        
+        $outputSize = filesize($fullOutputPath);
+        Log::info('MediaService: HDR to SDR conversion completed', [
+            'media_id' => $media->id,
+            'output_size' => $outputSize,
+        ]);
+        
+        return $outputPath;
+    }
             default => 400,
         };
     }
