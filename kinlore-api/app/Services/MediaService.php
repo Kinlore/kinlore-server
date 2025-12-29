@@ -524,7 +524,11 @@ class MediaService
                     ->setAudioKiloBitrate(128);
                 
                 // Add iOS-compatible additional parameters
+                // IMPORTANT: -pix_fmt yuv420p converts 10-bit HDR video to 8-bit
+                // This is required because baseline profile only supports 8-bit
+                // iPhone videos are often 10-bit HEVC (yuv420p10le) with HDR/Dolby Vision
                 $format->setAdditionalParameters([
+                    '-pix_fmt', 'yuv420p',  // Convert 10-bit to 8-bit for baseline compatibility
                     '-profile:v', 'baseline',
                     '-level', '3.1',
                     '-ar', '44100',
