@@ -523,16 +523,21 @@ class MediaService
                     ->setKiloBitrate($bitrate)
                     ->setAudioKiloBitrate(128);
                 
-                // Add iOS-compatible additional parameters
-                // IMPORTANT: -pix_fmt yuv420p converts 10-bit HDR video to 8-bit
-                // This is required because baseline profile only supports 8-bit
-                // iPhone videos are often 10-bit HEVC (yuv420p10le) with HDR/Dolby Vision
+                // Add iOS-compatible additional parameters with proper HDR to SDR tone mapping
+                // iPhone videos are often 10-bit HEVC (yuv420p10le) with HDR/Dolby Vision (bt2020/HLG)
+                // We need to:
+                // 1. Tone-map HDR to SDR using zscale filter
+                // 2. Convert color space from BT.2020 to BT.709
+                // 3. Convert to 8-bit yuv420p for baseline profile compatibility
                 $format->setAdditionalParameters([
-                    '-pix_fmt', 'yuv420p',  // Convert 10-bit to 8-bit for baseline compatibility
+                    '-vf', 'zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap=tonemap=hable:desat=0,zscale=t=bt709:m=bt709:r=tv,format=yuv420p',
                     '-profile:v', 'baseline',
                     '-level', '3.1',
                     '-ar', '44100',
                     '-movflags', '+faststart',
+                    '-color_primaries', 'bt709',
+                    '-color_trc', 'bt709',
+                    '-colorspace', 'bt709',
                 ]);
                 
                 $hlsExport->addFormat(
