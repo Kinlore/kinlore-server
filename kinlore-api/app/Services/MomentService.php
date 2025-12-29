@@ -353,7 +353,7 @@ class MomentService
                 Log::info('MomentService: HDR video detected, pre-converting to SDR', [
                     'media_id' => $media->id,
                 ]);
-                $hlsInputPath = $this->convertHdrToSdr($media, $localStoragePath, $tempDir);
+                $hlsInputPath = $this->convertHdrToSdr($media, $localStoragePath);
             }
 
             // Generate HLS stream (using pre-processed SDR file if HDR was detected)
@@ -553,7 +553,7 @@ class MomentService
      * Convert HDR video to SDR with proper tone mapping.
      * Creates a new file with BT.709 color space and 8-bit depth.
      */
-    private function convertHdrToSdr(Media $media, string $inputPath, string $tempDir): string
+    private function convertHdrToSdr(Media $media, string $inputPath): string
     {
         $fullInputPath = Storage::disk('local')->path($inputPath);
         $outputFileName = 'sdr_converted.mp4';

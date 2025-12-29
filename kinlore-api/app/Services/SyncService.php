@@ -166,7 +166,7 @@ class SyncService
                     [
                         'user_id' => $user->id,
                         'name' => $kidData['name'],
-                        'date_of_birth' => Carbon::createFromTimestamp($kidData['date_of_birth'] / 1000),
+                        'date_of_birth' => Carbon::createFromTimestamp((float)($kidData['date_of_birth'] ?? 0) / 1000),
                         'avatar_color' => $kidData['avatar_color'],
                     ]
                 );
@@ -180,7 +180,7 @@ class SyncService
                 if ($kid && $kid->user_id === $user->id) {
                     $kid->update([
                         'name' => $kidData['name'],
-                        'date_of_birth' => Carbon::createFromTimestamp($kidData['date_of_birth'] / 1000),
+                        'date_of_birth' => Carbon::createFromTimestamp((float)($kidData['date_of_birth'] ?? 0) / 1000),
                         'avatar_color' => $kidData['avatar_color'],
                     ]);
                 }

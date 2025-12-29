@@ -744,9 +744,6 @@ class MediaService
         
         return $outputPath;
     }
-            default => 400,
-        };
-    }
 
     /**
      * Upload HLS files to SeaweedFS storage.
