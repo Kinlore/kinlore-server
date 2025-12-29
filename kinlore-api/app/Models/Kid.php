@@ -31,6 +31,7 @@ class Kid extends Model
      * The attributes that are mass assignable.
      */
     protected $fillable = [
+        'user_id',
         'server_id',
         'name',
         'date_of_birth',
