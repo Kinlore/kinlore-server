@@ -185,27 +185,147 @@ class MediaService
         $tempDir = null;
         
         try {
-            Log::info('MediaService: Starting video processing', ['media_id' => $media->id]);
+            Log::info('MediaService: Starting video processing', [
+                'media_id' => $media->id,
+                'file_path' => $media->file_path,
+                'mime_type' => $media->mime_type,
+                'file_size_db' => $media->file_size,
+            ]);
 
             // Get the storage path
             $storagePath = $media->getRawFilePath();
             $basePath = dirname($storagePath);
             
+            Log::debug('MediaService: Storage paths resolved', [
+                'media_id' => $media->id,
+                'storage_path' => $storagePath,
+                'base_path' => $basePath,
+            ]);
+
+            // Validate storage path
+            if (empty($storagePath)) {
+                throw new \RuntimeException('Media storage path is empty');
+            }
+
+            // Check if file exists in storage
+            if (!Storage::disk('seaweedfs')->exists($storagePath)) {
+                throw new \RuntimeException("Video file not found in storage: {$storagePath}");
+            }
+
+            $storageFileSize = Storage::disk('seaweedfs')->size($storagePath);
+            Log::debug('MediaService: Storage file validated', [
+                'media_id' => $media->id,
+                'storage_size' => $storageFileSize,
+            ]);
+
+            if ($storageFileSize === 0) {
+                throw new \RuntimeException("Video file in storage is empty (0 bytes): {$storagePath}");
+            }
+
             // Download video to temp file for processing
             $tempDir = sys_get_temp_dir() . '/video_processing_' . $media->id;
+            Log::debug('MediaService: Creating temp directory', [
+                'media_id' => $media->id,
+                'temp_dir' => $tempDir,
+            ]);
+
             if (!file_exists($tempDir)) {
-                mkdir($tempDir, 0755, true);
+                if (!mkdir($tempDir, 0755, true)) {
+                    throw new \RuntimeException("Failed to create temp directory: {$tempDir}");
+                }
             }
             
             $tempInputFile = $tempDir . '/input_' . basename($storagePath);
+            Log::debug('MediaService: Downloading video from storage', [
+                'media_id' => $media->id,
+                'temp_file' => $tempInputFile,
+            ]);
+
             $fileContents = Storage::disk('seaweedfs')->get($storagePath);
-            file_put_contents($tempInputFile, $fileContents);
+            
+            // Validate downloaded content
+            if ($fileContents === false || $fileContents === null) {
+                throw new \RuntimeException("Failed to download video from storage: {$storagePath}");
+            }
+            
+            $downloadedSize = strlen($fileContents);
+            Log::debug('MediaService: Downloaded video content', [
+                'media_id' => $media->id,
+                'downloaded_size' => $downloadedSize,
+                'expected_size' => $storageFileSize,
+            ]);
+
+            if ($downloadedSize === 0) {
+                throw new \RuntimeException("Downloaded video content is empty");
+            }
+
+            if ($downloadedSize !== $storageFileSize) {
+                Log::warning('MediaService: Downloaded size mismatch', [
+                    'media_id' => $media->id,
+                    'downloaded_size' => $downloadedSize,
+                    'storage_size' => $storageFileSize,
+                ]);
+            }
+
+            // Write to temp file
+            $bytesWritten = file_put_contents($tempInputFile, $fileContents);
+            if ($bytesWritten === false) {
+                throw new \RuntimeException("Failed to write video to temp file: {$tempInputFile}");
+            }
+
+            // Verify temp file
+            if (!file_exists($tempInputFile)) {
+                throw new \RuntimeException("Temp file was not created: {$tempInputFile}");
+            }
+
+            $tempFileSize = filesize($tempInputFile);
+            Log::debug('MediaService: Temp file created', [
+                'media_id' => $media->id,
+                'temp_file' => $tempInputFile,
+                'bytes_written' => $bytesWritten,
+                'temp_file_size' => $tempFileSize,
+            ]);
+
+            if ($tempFileSize === 0) {
+                throw new \RuntimeException("Temp video file is empty after write");
+            }
 
             // Copy to Laravel local storage for FFMpeg
             $localStoragePath = 'tmp/video_' . $media->id . '/' . basename($storagePath);
-            Storage::disk('local')->put($localStoragePath, file_get_contents($tempInputFile));
+            Log::debug('MediaService: Copying to local storage for FFMpeg', [
+                'media_id' => $media->id,
+                'local_path' => $localStoragePath,
+            ]);
+
+            $localContent = file_get_contents($tempInputFile);
+            if ($localContent === false || strlen($localContent) === 0) {
+                throw new \RuntimeException("Failed to read temp file for local storage copy");
+            }
+
+            Storage::disk('local')->put($localStoragePath, $localContent);
+
+            // Verify local storage file
+            if (!Storage::disk('local')->exists($localStoragePath)) {
+                throw new \RuntimeException("Failed to store video in local storage: {$localStoragePath}");
+            }
+
+            $localFileSize = Storage::disk('local')->size($localStoragePath);
+            Log::debug('MediaService: Local storage file ready', [
+                'media_id' => $media->id,
+                'local_path' => $localStoragePath,
+                'local_size' => $localFileSize,
+            ]);
+
+            if ($localFileSize === 0) {
+                throw new \RuntimeException("Local storage file is empty: {$localStoragePath}");
+            }
 
             // Extract video duration using FFMpeg
+            Log::info('MediaService: Opening video with FFMpeg', [
+                'media_id' => $media->id,
+                'local_path' => $localStoragePath,
+            ]);
+
             $ffmpeg = FFMpeg::fromDisk('local')->open($localStoragePath);
             $duration = $ffmpeg->getDurationInSeconds();
             
@@ -214,16 +334,50 @@ class MediaService
                 'duration' => $duration
             ]);
 
+            // Validate duration
+            if ($duration <= 0) {
+                throw new \RuntimeException("Invalid video duration: {$duration} seconds");
+            }
+
             // Generate thumbnail at 50% of duration
             $timestamp = max(0.1, $duration * 0.5);
+            Log::debug('MediaService: Extracting frame for thumbnail', [
+                'media_id' => $media->id,
+                'timestamp' => $timestamp,
+            ]);
+
             $frameContent = $ffmpeg->getFrameFromSeconds($timestamp)
                 ->export()
                 ->getFrameContents();
 
+            // Validate frame content
+            if (empty($frameContent)) {
+                throw new \RuntimeException("Failed to extract frame from video at {$timestamp}s");
+            }
+
+            Log::debug('MediaService: Frame extracted', [
+                'media_id' => $media->id,
+                'frame_size' => strlen($frameContent),
+            ]);
+
             // Use GD to resize thumbnail
             $sourceImage = imagecreatefromstring($frameContent);
+            if ($sourceImage === false) {
+                throw new \RuntimeException("Failed to create image from extracted frame");
+            }
+
             $origWidth = imagesx($sourceImage);
             $origHeight = imagesy($sourceImage);
+
+            Log::debug('MediaService: Video dimensions detected', [
+                'media_id' => $media->id,
+                'width' => $origWidth,
+                'height' => $origHeight,
+            ]);
+
+            if ($origWidth <= 0 || $origHeight <= 0) {
+                throw new \RuntimeException("Invalid video dimensions: {$origWidth}x{$origHeight}");
+            }
 
             // Create thumbnail (300px width)
             $thumbWidth = 300;
@@ -237,17 +391,42 @@ class MediaService
             imagedestroy($thumbImage);
             imagedestroy($sourceImage);
 
+            // Validate thumbnail content
+            if (empty($thumbnailContent)) {
+                throw new \RuntimeException("Failed to generate thumbnail JPEG");
+            }
+
+            Log::debug('MediaService: Thumbnail JPEG generated', [
+                'media_id' => $media->id,
+                'thumbnail_size' => strlen($thumbnailContent),
+            ]);
+
             // Upload thumbnail to storage
             $thumbnailStoragePath = "{$basePath}/thumbnail.jpg";
             Storage::disk('seaweedfs')->put($thumbnailStoragePath, $thumbnailContent);
 
-            Log::info('MediaService: Thumbnail generated', [
+            // Verify thumbnail upload
+            if (!Storage::disk('seaweedfs')->exists($thumbnailStoragePath)) {
+                throw new \RuntimeException("Failed to upload thumbnail to storage");
+            }
+
+            Log::info('MediaService: Thumbnail uploaded to storage', [
                 'media_id' => $media->id,
                 'thumbnail_path' => $thumbnailStoragePath
             ]);
 
             // Generate HLS stream
+            Log::info('MediaService: Starting HLS stream generation', [
+                'media_id' => $media->id,
+                'video_dimensions' => "{$origWidth}x{$origHeight}",
+            ]);
+
             $hlsStoragePath = $this->generateHLSStream($media, $localStoragePath, $basePath);
+
+            Log::info('MediaService: HLS stream generation completed', [
+                'media_id' => $media->id,
+                'hls_path' => $hlsStoragePath,
+            ]);
 
             // Clean up local storage
             Storage::disk('local')->deleteDirectory('tmp/video_' . $media->id);
@@ -299,48 +478,113 @@ class MediaService
 
         Log::info('MediaService: Starting iOS-compatible HLS generation', [
             'media_id' => $media->id,
+            'input_path' => $localStoragePath,
             'output_path' => $hlsLocalPath
+        ]);
+
+        // Verify input file exists before HLS generation
+        if (!Storage::disk('local')->exists($localStoragePath)) {
+            throw new \RuntimeException("Source video file not found for HLS: {$localStoragePath}");
+        }
+
+        $inputSize = Storage::disk('local')->size($localStoragePath);
+        Log::debug('MediaService: HLS input file verified', [
+            'media_id' => $media->id,
+            'input_size' => $inputSize,
         ]);
 
         // Get configured quality variants (default: 720, 480, 240)
         $variants = explode(',', env('VIDEO_QUALITY_VARIANTS', '720,480,240'));
 
-        $ffmpeg = FFMpeg::fromDisk('local')->open($localStoragePath);
+        Log::debug('MediaService: Configuring HLS variants', [
+            'media_id' => $media->id,
+            'variants' => $variants,
+        ]);
 
-        // Create HLS export with iOS-compatible settings
-        $hlsExport = $ffmpeg->exportForHLS();
+        try {
+            $ffmpeg = FFMpeg::fromDisk('local')->open($localStoragePath);
 
-        foreach ($variants as $height) {
-            $height = (int) trim($height);
-            $bitrate = $this->getBitrateForHeight($height);
-            
-            // Create iOS-compatible X264 format with baseline profile
-            $format = (new \FFMpeg\Format\Video\X264('aac', 'libx264'))
-                ->setKiloBitrate($bitrate)
-                ->setAudioKiloBitrate(128);
-            
-            // Add iOS-compatible additional parameters
-            $format->setAdditionalParameters([
-                '-profile:v', 'baseline',
-                '-level', '3.1',
-                '-ar', '44100',
-                '-movflags', '+faststart',
+            // Create HLS export with iOS-compatible settings
+            $hlsExport = $ffmpeg->exportForHLS();
+
+            foreach ($variants as $index => $height) {
+                $height = (int) trim($height);
+                $bitrate = $this->getBitrateForHeight($height);
+                
+                Log::debug('MediaService: Adding HLS variant', [
+                    'media_id' => $media->id,
+                    'variant_index' => $index,
+                    'height' => $height,
+                    'bitrate' => $bitrate,
+                ]);
+
+                // Create iOS-compatible X264 format with baseline profile
+                $format = (new \FFMpeg\Format\Video\X264('aac', 'libx264'))
+                    ->setKiloBitrate($bitrate)
+                    ->setAudioKiloBitrate(128);
+                
+                // Add iOS-compatible additional parameters
+                $format->setAdditionalParameters([
+                    '-profile:v', 'baseline',
+                    '-level', '3.1',
+                    '-ar', '44100',
+                    '-movflags', '+faststart',
+                ]);
+                
+                $hlsExport->addFormat(
+                    $format,
+                    function ($media) use ($height) {
+                        $media->scale(-2, $height);
+                    }
+                );
+            }
+
+            Log::info('MediaService: Starting FFmpeg HLS encoding', [
+                'media_id' => $media->id,
+                'segment_length' => 10,
             ]);
-            
-            $hlsExport->addFormat(
-                $format,
-                function ($media) use ($height) {
-                    $media->scale(-2, $height);
-                }
-            );
+
+            $hlsExport
+                ->setSegmentLength(10)
+                ->toDisk('local')
+                ->save($hlsLocalPath);
+
+            Log::info('MediaService: FFmpeg HLS encoding completed', ['media_id' => $media->id]);
+
+        } catch (\Exception $e) {
+            Log::error('MediaService: FFmpeg HLS generation failed', [
+                'media_id' => $media->id,
+                'error' => $e->getMessage(),
+                'error_class' => get_class($e),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            throw new \RuntimeException("HLS generation failed: " . $e->getMessage(), 0, $e);
         }
 
-        $hlsExport
-            ->setSegmentLength(10)
-            ->toDisk('local')
-            ->save($hlsLocalPath);
+        // Verify HLS files were created
+        $hlsDir = 'tmp/video_' . $media->id . '/hls';
+        $hlsFiles = Storage::disk('local')->files($hlsDir);
+        
+        Log::debug('MediaService: HLS files generated', [
+            'media_id' => $media->id,
+            'hls_dir' => $hlsDir,
+            'file_count' => count($hlsFiles),
+            'files' => array_map('basename', $hlsFiles),
+        ]);
 
-        Log::info('MediaService: iOS-compatible HLS generated locally', ['media_id' => $media->id]);
+        if (empty($hlsFiles)) {
+            throw new \RuntimeException("No HLS files were generated in {$hlsDir}");
+        }
+
+        // Check for master playlist
+        if (!Storage::disk('local')->exists($hlsLocalPath)) {
+            throw new \RuntimeException("Master playlist not created: {$hlsLocalPath}");
+        }
+
+        Log::info('MediaService: iOS-compatible HLS generated locally', [
+            'media_id' => $media->id,
+            'total_files' => count($hlsFiles),
+        ]);
 
         // Upload HLS files to SeaweedFS storage
         $hlsStoragePath = $this->uploadHLSFilesToStorage($media, $basePath);
@@ -369,26 +613,68 @@ class MediaService
     {
         $localHlsDir = 'tmp/video_' . $media->id . '/hls';
         $files = Storage::disk('local')->files($localHlsDir);
+
+        Log::info('MediaService: Starting HLS upload to storage', [
+            'media_id' => $media->id,
+            'local_dir' => $localHlsDir,
+            'file_count' => count($files),
+            'target_path' => "{$basePath}/hls/",
+        ]);
+
+        if (empty($files)) {
+            throw new \RuntimeException("No HLS files to upload from {$localHlsDir}");
+        }
+
+        $uploadedCount = 0;
+        $totalSize = 0;
         
         foreach ($files as $file) {
             $filename = basename($file);
             $storagePath = "{$basePath}/hls/{$filename}";
             
             $content = Storage::disk('local')->get($file);
+            
+            if ($content === false || $content === null) {
+                Log::error('MediaService: Failed to read local HLS file', [
+                    'media_id' => $media->id,
+                    'file' => $file,
+                ]);
+                throw new \RuntimeException("Failed to read local HLS file: {$file}");
+            }
+
+            $fileSize = strlen($content);
             Storage::disk('seaweedfs')->put($storagePath, $content);
+
+            // Verify upload
+            if (!Storage::disk('seaweedfs')->exists($storagePath)) {
+                throw new \RuntimeException("Failed to upload HLS file to storage: {$storagePath}");
+            }
+
+            $uploadedCount++;
+            $totalSize += $fileSize;
             
             Log::debug('MediaService: Uploaded HLS file', [
                 'local' => $file,
-                'storage' => $storagePath
+                'storage' => $storagePath,
+                'size' => $fileSize,
             ]);
         }
 
-        Log::info('MediaService: All HLS files uploaded', [
+        $masterPlaylistPath = "{$basePath}/hls/playlist.m3u8";
+
+        // Verify master playlist exists in storage
+        if (!Storage::disk('seaweedfs')->exists($masterPlaylistPath)) {
+            throw new \RuntimeException("Master playlist not found in storage after upload");
+        }
+
+        Log::info('MediaService: All HLS files uploaded successfully', [
             'media_id' => $media->id,
-            'file_count' => count($files)
+            'file_count' => $uploadedCount,
+            'total_size' => $totalSize,
+            'master_playlist' => $masterPlaylistPath,
         ]);
 
-        return "{$basePath}/hls/playlist.m3u8";
+        return $masterPlaylistPath;
     }
 
     /**
