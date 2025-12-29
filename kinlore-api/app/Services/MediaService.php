@@ -489,6 +489,41 @@ class MediaService
     }
 
     /**
+     * Serve individual HLS file (variant playlist or segment).
+     */
+    public function serveHlsFile(Media $media, string $filename): array
+    {
+        // Get the base HLS path from the media's hls_url
+        $hlsUrl = $media->getRawHlsUrl();
+        
+        if (empty($hlsUrl)) {
+            throw new \RuntimeException('HLS not available for this media');
+        }
+
+        // The hls_url points to playlist.m3u8, get the directory
+        $hlsDir = dirname($hlsUrl);
+        $filePath = "{$hlsDir}/{$filename}";
+
+        if (!$this->storage->exists($filePath)) {
+            throw new \RuntimeException("HLS file not found: {$filename}");
+        }
+
+        $content = $this->storage->get($filePath);
+        $size = $this->storage->size($filePath);
+
+        // Determine MIME type based on file extension
+        $mimeType = str_ends_with($filename, '.m3u8') 
+            ? 'application/vnd.apple.mpegurl' 
+            : 'video/MP2T';
+
+        return [
+            'content' => $content,
+            'size' => $size,
+            'mime_type' => $mimeType,
+        ];
+    }
+
+    /**
      * Delete media with all associated files.
      */
     public function deleteMedia(Media $media): void

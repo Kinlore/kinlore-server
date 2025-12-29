@@ -248,19 +248,42 @@ class MomentController extends Controller
     }
 
     /**
-     * Serve HLS segment files (variant playlists and .ts segments).
+     * Serve HLS master playlist (public, no auth required).
+     * iOS/Android video players cannot inject auth headers.
+     */
+    public function serveHlsPublic(Moment $moment): Response
+    {
+        try {
+            $file = $this->momentService->serveFile($moment, 'hls');
+
+            return response($file['content'], 200, [
+                'Content-Type' => $file['mime_type'],
+                'Content-Length' => $file['size'],
+                'Cache-Control' => 'public, max-age=3600',
+                'Access-Control-Allow-Origin' => '*',
+            ]);
+        } catch (\RuntimeException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 404);
+        }
+    }
+
+    /**
+     * Serve HLS segment files (public, no auth required).
+     * Serves variant playlists and .ts segments for video streaming.
      */
     public function serveHlsFile(Moment $moment, string $filename): Response
     {
-        $this->authorize('view', $moment->kid);
-
         try {
             $file = $this->momentService->serveHlsFile($moment, $filename);
 
             return response($file['content'], 200, [
                 'Content-Type' => $file['mime_type'],
                 'Content-Length' => $file['size'],
-                'Cache-Control' => 'private, max-age=3600',
+                'Cache-Control' => 'public, max-age=3600',
+                'Access-Control-Allow-Origin' => '*',
             ]);
         } catch (\RuntimeException $e) {
             Log::warning('HLS file not found', [

@@ -1081,8 +1081,9 @@ paths:
   /v1/moments/{moment}/file/{type}:
     get:
       tags: [Moments]
-      summary: Serve moment file
-      description: Serves the main moment file (original, medium, thumbnail, or HLS master playlist)
+      summary: Serve moment file (authenticated)
+      description: |
+        Serves moment files with authentication. For streaming video via HLS, use `/file/hls` instead (no auth required).
       security:
         - bearerAuth: []
       parameters:
@@ -1097,12 +1098,11 @@ paths:
           required: true
           schema:
             type: string
-            enum: [original, medium, thumbnail, hls]
+            enum: [original, medium, thumbnail]
           description: |
-            - `original`: Original uploaded file (photo/video)
-            - `medium`: Medium resolution image (1200px width)
-            - `thumbnail`: Thumbnail image (300x300)
-            - `hls`: HLS master playlist (.m3u8) for video streaming
+            - `original`: Original uploaded file (photo/video) - requires auth
+            - `medium`: Medium resolution image (1200px width) - requires auth
+            - `thumbnail`: Thumbnail image (300x300) - requires auth
       responses:
         "200":
           description: File content
@@ -1115,10 +1115,37 @@ paths:
               schema:
                 type: string
                 format: binary
+        "404":
+          description: File not found
+
+  /v1/moments/{moment}/file/hls:
+    get:
+      tags: [Moments]
+      summary: Serve HLS master playlist (public, no auth)
+      description: |
+        Serves the HLS master playlist for video streaming. **No authentication required.**
+        iOS/Android video players cannot inject auth headers, so HLS streaming is public.
+      security: [] # No authentication required
+      parameters:
+        - name: moment
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: HLS master playlist
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+                example: "*"
+          content:
             application/vnd.apple.mpegurl:
               schema:
                 type: string
-                description: HLS playlist content
+                description: HLS master playlist content
               example: |
                 #EXTM3U
                 #EXT-X-VERSION:3
@@ -1127,21 +1154,20 @@ paths:
                 #EXT-X-STREAM-INF:BANDWIDTH=1000000,RESOLUTION=854x480
                 playlist_1_1000.m3u8
         "404":
-          description: File not found
+          description: HLS not available
 
   /v1/moments/{moment}/file/{filename}:
     get:
       tags: [Moments]
-      summary: Serve HLS segment file
+      summary: Serve HLS segment file (public, no auth)
       description: |
-        Serves individual HLS variant playlists and segment files.
+        Serves individual HLS variant playlists and segment files. **No authentication required.**
         This endpoint is called by HLS video players after loading the master playlist.
 
         **Filename patterns:**
         - Variant playlists: `playlist_0_2500.m3u8`, `playlist_1_1000.m3u8`
         - Segment files: `playlist_0_00001.ts`, `playlist_1_00002.ts`
-      security:
-        - bearerAuth: []
+      security: [] # No authentication required
       parameters:
         - name: moment
           in: path
@@ -1480,7 +1506,9 @@ paths:
   /v1/media/{media}/file/{type}:
     get:
       tags: [Media]
-      summary: Serve media file
+      summary: Serve media file (authenticated)
+      description: |
+        Serves media files with authentication. For HLS streaming, use `/file/hls` (no auth required).
       security:
         - bearerAuth: []
       parameters:
@@ -1495,10 +1523,60 @@ paths:
           required: true
           schema:
             type: string
-            enum: [original, medium, thumbnail, hls]
+            enum: [original, medium, thumbnail]
       responses:
         "200":
           description: File content
+
+  /v1/media/{media}/file/hls:
+    get:
+      tags: [Media]
+      summary: Serve HLS master playlist (public, no auth)
+      description: |
+        Serves the HLS master playlist for video streaming. **No authentication required.**
+      security: []
+      parameters:
+        - name: media
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: HLS master playlist
+          content:
+            application/vnd.apple.mpegurl:
+              schema:
+                type: string
+        "404":
+          description: HLS not available
+
+  /v1/media/{media}/file/{filename}:
+    get:
+      tags: [Media]
+      summary: Serve HLS segment file (public, no auth)
+      description: |
+        Serves HLS variant playlists and segment files. **No authentication required.**
+      security: []
+      parameters:
+        - name: media
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: filename
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '.*\.(m3u8|ts)$'
+      responses:
+        "200":
+          description: HLS file content
+        "404":
+          description: HLS file not found
 
   /v1/kids/{kid}/media/uploaded-identifiers:
     get:

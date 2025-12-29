@@ -50,6 +50,26 @@ Route::prefix('auth')->group(function () {
 
 /*
 |--------------------------------------------------------------------------
+| Public HLS Streaming Routes (No Authentication Required)
+|--------------------------------------------------------------------------
+| iOS/Android video players cannot inject auth headers into HLS requests.
+| These routes serve HLS files without authentication for streaming.
+*/
+Route::prefix('v1')->group(function () {
+    // HLS master playlist
+    Route::get('/moments/{moment}/file/hls', [MomentController::class, 'serveHlsPublic']);
+    // HLS segment files (variant playlists and .ts segments)
+    Route::get('/moments/{moment}/file/{filename}', [MomentController::class, 'serveHlsFile'])
+        ->where('filename', '.*\.(m3u8|ts)$');
+    
+    // Media HLS routes
+    Route::get('/media/{media}/file/hls', [MediaController::class, 'serveHlsPublic']);
+    Route::get('/media/{media}/file/{filename}', [MediaController::class, 'serveHlsFile'])
+        ->where('filename', '.*\.(m3u8|ts)$');
+});
+
+/*
+|--------------------------------------------------------------------------
 | API v1 Routes (Protected)
 |--------------------------------------------------------------------------
 */
@@ -74,9 +94,7 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     */
     Route::apiResource('moments', MomentController::class);
     Route::get('/moments/{moment}/file/{type}', [MomentController::class, 'serveFile'])
-        ->where('type', 'original|medium|thumbnail|hls');
-    Route::get('/moments/{moment}/file/{filename}', [MomentController::class, 'serveHlsFile'])
-        ->where('filename', '.*\.(m3u8|ts)$');
+        ->where('type', 'original|medium|thumbnail');
     Route::get('/moments/{moment}/file-status', [MomentController::class, 'checkFileStatus']);
     
     // Uploaded identifiers per kid (for duplicate detection)
@@ -99,7 +117,7 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         Route::get('/{media}', [MediaController::class, 'show']);
         Route::delete('/{media}', [MediaController::class, 'destroy']);
         Route::get('/{media}/file/{type}', [MediaController::class, 'serveFile'])
-            ->where('type', 'original|medium|thumbnail|hls');
+            ->where('type', 'original|medium|thumbnail');
     });
     
     Route::get('/kids/{kid}/media/uploaded-identifiers', [MediaController::class, 'uploadedIdentifiers']);

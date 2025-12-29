@@ -168,6 +168,58 @@ class MediaController extends Controller
     }
 
     /**
+     * Serve HLS master playlist (public, no auth required).
+     * iOS/Android video players cannot inject auth headers.
+     */
+    public function serveHlsPublic(Media $media): Response
+    {
+        try {
+            $file = $this->mediaService->serveFile($media, 'hls');
+
+            return response($file['content'], 200, [
+                'Content-Type' => $file['mime_type'],
+                'Content-Length' => $file['size'],
+                'Cache-Control' => 'public, max-age=3600',
+                'Access-Control-Allow-Origin' => '*',
+            ]);
+        } catch (\RuntimeException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 404);
+        }
+    }
+
+    /**
+     * Serve HLS segment files (public, no auth required).
+     * Serves variant playlists and .ts segments for video streaming.
+     */
+    public function serveHlsFile(Media $media, string $filename): Response
+    {
+        try {
+            $file = $this->mediaService->serveHlsFile($media, $filename);
+
+            return response($file['content'], 200, [
+                'Content-Type' => $file['mime_type'],
+                'Content-Length' => $file['size'],
+                'Cache-Control' => 'public, max-age=3600',
+                'Access-Control-Allow-Origin' => '*',
+            ]);
+        } catch (\RuntimeException $e) {
+            Log::warning('HLS file not found', [
+                'media_id' => $media->id,
+                'filename' => $filename,
+                'error' => $e->getMessage()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 404);
+        }
+    }
+
+    /**
      * Get uploaded identifiers for duplicate detection.
      */
     public function uploadedIdentifiers(Request $request, Kid $kid): JsonResponse
