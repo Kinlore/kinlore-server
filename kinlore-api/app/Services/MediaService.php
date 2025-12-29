@@ -290,13 +290,14 @@ class MediaService
     }
 
     /**
-     * Generate HLS stream with multiple quality variants.
+     * Generate HLS stream with iOS-compatible settings.
+     * Uses baseline profile for maximum compatibility with iOS devices.
      */
     private function generateHLSStream(Media $media, string $localStoragePath, string $basePath): string
     {
         $hlsLocalPath = 'tmp/video_' . $media->id . '/hls/playlist.m3u8';
 
-        Log::info('MediaService: Starting HLS generation', [
+        Log::info('MediaService: Starting iOS-compatible HLS generation', [
             'media_id' => $media->id,
             'output_path' => $hlsLocalPath
         ]);
@@ -306,17 +307,28 @@ class MediaService
 
         $ffmpeg = FFMpeg::fromDisk('local')->open($localStoragePath);
 
-        // Create HLS export with multiple bitrates
+        // Create HLS export with iOS-compatible settings
         $hlsExport = $ffmpeg->exportForHLS();
 
         foreach ($variants as $height) {
             $height = (int) trim($height);
             $bitrate = $this->getBitrateForHeight($height);
             
+            // Create iOS-compatible X264 format with baseline profile
+            $format = (new \FFMpeg\Format\Video\X264('aac', 'libx264'))
+                ->setKiloBitrate($bitrate)
+                ->setAudioKiloBitrate(128);
+            
+            // Add iOS-compatible additional parameters
+            $format->setAdditionalParameters([
+                '-profile:v', 'baseline',
+                '-level', '3.1',
+                '-ar', '44100',
+                '-movflags', '+faststart',
+            ]);
+            
             $hlsExport->addFormat(
-                (new \FFMpeg\Format\Video\X264())
-                    ->setKiloBitrate($bitrate)
-                    ->setAudioKiloBitrate(128),
+                $format,
                 function ($media) use ($height) {
                     $media->scale(-2, $height);
                 }
@@ -328,7 +340,7 @@ class MediaService
             ->toDisk('local')
             ->save($hlsLocalPath);
 
-        Log::info('MediaService: HLS generated locally', ['media_id' => $media->id]);
+        Log::info('MediaService: iOS-compatible HLS generated locally', ['media_id' => $media->id]);
 
         // Upload HLS files to SeaweedFS storage
         $hlsStoragePath = $this->uploadHLSFilesToStorage($media, $basePath);
