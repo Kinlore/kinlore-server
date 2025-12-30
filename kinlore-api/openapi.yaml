@@ -573,6 +573,11 @@ paths:
     post:
       tags: [Auth]
       summary: Register new user
+      description: |
+        Register a new user account. Can optionally include an invite_token to join an existing family/server.
+        - If invite_token is provided and valid → user is created and added to the server with the invite's role
+        - If invite_token is invalid/expired → registration fails with 422 error
+        - If no invite_token → normal registration (creates a new family/server for the user)
       requestBody:
         required: true
         content:
@@ -593,6 +598,10 @@ paths:
                   minLength: 8
                 password_confirmation:
                   type: string
+                invite_token:
+                  type: string
+                  description: Optional invitation token to join an existing family/server
+                  example: abc123xyz...
       responses:
         "201":
           description: User registered
@@ -616,7 +625,7 @@ paths:
                         type: string
                         example: Bearer
         "422":
-          description: Validation error
+          description: Validation error (including invalid invite_token)
           content:
             application/json:
               schema:

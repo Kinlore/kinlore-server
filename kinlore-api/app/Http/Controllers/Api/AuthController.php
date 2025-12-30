@@ -23,9 +23,10 @@ class AuthController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8|confirmed',
+            'invite_token' => 'nullable|string',
         ]);
 
-        $result = $this->authService->register($validated);
+        $result = $this->authService->register($validated, $validated['invite_token'] ?? null);
 
         return response()->json([
             'success' => true,

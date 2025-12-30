@@ -12,24 +12,50 @@ use Illuminate\Validation\ValidationException;
  */
 class AuthService
 {
+    public function __construct(
+        private ServerService $serverService,
+        private InvitationService $invitationService
+    ) {}
     /**
      * Register a new user.
      *
      * @param array{name: string, email: string, password: string} $data
+     * @param string|null $inviteToken Optional invitation token
      * @return array{user: array, token: string, token_type: string}
+     * @throws ValidationException
      */
-    public function register(array $data): array
+    public function register(array $data, ?string $inviteToken = null): array
     {
+        // If invite_token provided, validate it BEFORE creating user
+        $invitation = null;
+        if ($inviteToken) {
+            $validation = $this->invitationService->validateToken($inviteToken);
+            
+            if (!$validation['valid']) {
+                throw ValidationException::withMessages([
+                    'invite_token' => ['Invalid invitation: ' . $validation['reason']],
+                ]);
+            }
+            
+            $invitation = $validation['invitation'];
+        }
+
+        // Create user
         $user = User::create([
             'name' => $data['name'],
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
         ]);
 
-        // Create default server
-        $this->serverService->createServer($user, [
-            'name' => $user->name . "'s Family",
-        ]);
+        if ($invitation) {
+            // Join existing server via invitation
+            $this->invitationService->acceptInvitation($inviteToken, $user);
+        } else {
+            // Create default server for new user
+            $this->serverService->createServer($user, [
+                'name' => $user->name . "'s Family",
+            ]);
+        }
 
         $token = $user->createToken('mobile-app', ['*'])->plainTextToken;
 
