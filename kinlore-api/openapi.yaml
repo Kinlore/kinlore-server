@@ -708,7 +708,7 @@ paths:
         - bearerAuth: []
       responses:
         "200":
-          description: User info
+          description: User info with server memberships
           content:
             application/json:
               schema:
@@ -725,14 +725,46 @@ paths:
                         type: string
                       email:
                         type: string
+                      email_verified_at:
+                        type: string
+                        format: date-time
+                        nullable: true
+                      created_at:
+                        type: string
+                        format: date-time
                       kids_count:
                         type: integer
+                        description: Total kids across all servers
                       moments_count:
                         type: integer
                       storage_used:
                         type: string
+                        example: "1.5 GB"
                       storage_bytes_used:
                         type: integer
+                      storage_bytes_available:
+                        type: integer
+                      servers:
+                        type: array
+                        description: List of servers the user is a member of
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              format: uuid
+                            name:
+                              type: string
+                            role:
+                              type: string
+                              enum: [owner, contributor, viewer]
+                            members_count:
+                              type: integer
+                            kids_count:
+                              type: integer
+                            joined_at:
+                              type: string
+                              format: date-time
 
   /auth/refresh:
     post:

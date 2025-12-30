@@ -134,17 +134,30 @@ class AuthService
         $storageBytesUsed = $user->getStorageUsed();
         $storageBytesAvailable = (int) disk_free_space(storage_path());
 
+        // Get server memberships with role
+        $servers = $user->servers()->withCount(['members', 'kids'])->get()->map(function ($server) {
+            return [
+                'id' => $server->id,
+                'name' => $server->name,
+                'role' => $server->pivot->role,
+                'members_count' => $server->members_count,
+                'kids_count' => $server->kids_count,
+                'joined_at' => $server->pivot->created_at?->toIso8601String(),
+            ];
+        });
+
         return [
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
             'email_verified_at' => $user->email_verified_at,
             'created_at' => $user->created_at->toIso8601String(),
-            'kids_count' => $user->servers()->withCount('kids')->get()->sum('kids_count'), // Count all kids in servers user is member of
-            'moments_count' => $user->getTotalMomentsCount(), // This needs update in User model ideally
+            'kids_count' => $servers->sum('kids_count'),
+            'moments_count' => $user->getTotalMomentsCount(),
             'storage_used' => $user->getStorageUsedFormatted(),
             'storage_bytes_used' => $storageBytesUsed,
             'storage_bytes_available' => $storageBytesAvailable,
+            'servers' => $servers->toArray(),
         ];
     }
 
