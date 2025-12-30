@@ -81,25 +81,15 @@ class HealthController extends Controller
             DB::connection()->getPdo();
             $responseTime = round((microtime(true) - $start) * 1000, 2);
 
-            // Get database info
-            $dbName = DB::connection()->getDatabaseName();
-            $version = DB::select('SELECT version()')[0]->version ?? 'unknown';
-
-            // Test a query
-            $usersCount = DB::table('users')->count();
-
             return [
                 'status' => 'ok',
                 'connection' => config('database.default'),
-                'database' => $dbName,
-                'version' => $version,
                 'response_time_ms' => $responseTime,
-                'users_count' => $usersCount,
             ];
         } catch (\Exception $e) {
             return [
                 'status' => 'error',
-                'message' => $e->getMessage(),
+                'message' => 'Database connection failed',
                 'connection' => config('database.default'),
             ];
         }
@@ -127,14 +117,12 @@ class HealthController extends Controller
                 'status' => 'ok',
                 'disk' => $disk,
                 'driver' => config("filesystems.disks.{$disk}.driver"),
-                'endpoint' => config("filesystems.disks.{$disk}.endpoint"),
-                'bucket' => config("filesystems.disks.{$disk}.bucket"),
                 'response_time_ms' => $responseTime,
             ];
         } catch (\Exception $e) {
             return [
                 'status' => 'error',
-                'message' => $e->getMessage(),
+                'message' => 'Storage connection failed',
                 'disk' => $disk ?? 'unknown',
             ];
         }

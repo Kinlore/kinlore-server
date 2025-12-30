@@ -38,7 +38,8 @@ Route::get('/health/detailed', [HealthController::class, 'detailed'])
 */
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
-    Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/login', [AuthController::class, 'login'])
+        ->middleware('throttle:5,1'); // 5 attempts per minute
     
     // Protected auth routes
     Route::middleware('auth:sanctum')->group(function () {
@@ -120,7 +121,12 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     | Unified Moments Routes (Photo, Video, Story, Milestone)
     |--------------------------------------------------------------------------
     */
-    Route::apiResource('moments', MomentController::class);
+    Route::get('moments', [MomentController::class, 'index']);
+    Route::post('moments', [MomentController::class, 'store'])
+        ->middleware('throttle:10,1'); // 10 uploads per minute
+    Route::get('moments/{moment}', [MomentController::class, 'show']);
+    Route::put('moments/{moment}', [MomentController::class, 'update']);
+    Route::delete('moments/{moment}', [MomentController::class, 'destroy']);
     Route::get('/moments/{moment}/file/{type}', [MomentController::class, 'serveFile'])
         ->where('type', 'original|medium|thumbnail');
     Route::get('/moments/{moment}/file-status', [MomentController::class, 'checkFileStatus']);

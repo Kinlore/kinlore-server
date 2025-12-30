@@ -81,7 +81,7 @@ class MomentController extends Controller
 
         // Add type-specific validation
         if ($hasFile || in_array($momentType, ['photo', 'video', null])) {
-            $rules['file'] = 'required_without:moment_type|file|max:512000';
+            $rules['file'] = 'required_without:moment_type|file|max:512000|mimes:jpeg,jpg,png,gif,webp,heic,heif,mp4,mov,avi,webm,mkv,m4v';
             $rules['device_asset_id'] = 'nullable|string|max:255';
         }
 
@@ -276,6 +276,14 @@ class MomentController extends Controller
      */
     public function serveHlsFile(Moment $moment, string $filename): Response
     {
+        // Validate filename to prevent path traversal
+        if (!preg_match('/^[a-zA-Z0-9_-]+\.(m3u8|ts)$/', $filename)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid filename format',
+            ], 400);
+        }
+        
         try {
             $file = $this->momentService->serveHlsFile($moment, $filename);
 
@@ -294,7 +302,7 @@ class MomentController extends Controller
             
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage(),
+                'message' => 'File not found',
             ], 404);
         }
     }

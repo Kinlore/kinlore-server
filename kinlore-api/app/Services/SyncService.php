@@ -40,7 +40,8 @@ class SyncService
      */
     private function getKidsChanges(User $user, ?Carbon $lastPulledAt): array
     {
-        $query = Kid::where('user_id', $user->id);
+        // Get all kids from servers the user is a member of
+        $query = Kid::whereHas('server.members', fn ($q) => $q->where('user_id', $user->id));
         
         if ($lastPulledAt) {
             $query->where('updated_at', '>', $lastPulledAt);
@@ -75,7 +76,8 @@ class SyncService
      */
     private function getMomentsChanges(User $user, ?Carbon $lastPulledAt): array
     {
-        $query = Moment::whereHas('kid', fn ($q) => $q->where('user_id', $user->id));
+        // Get moments from kids in servers the user is a member of
+        $query = Moment::whereHas('kid.server.members', fn ($q) => $q->where('user_id', $user->id));
 
         if ($lastPulledAt) {
             $query->where('updated_at', '>', $lastPulledAt);
@@ -150,7 +152,7 @@ class SyncService
         // Note: Moments are typically created via upload endpoint, not sync
         // But we can handle updates and deletes
 
-        Log::info('Sync push completed', ['user_id' => $user->id]);
+        // Sync completed
     }
 
     /**
@@ -249,7 +251,8 @@ class SyncService
         if (!empty($kidsChanges['deleted'])) {
             foreach ($kidsChanges['deleted'] as $kidId) {
                 $kid = Kid::find($kidId);
-                if ($kid && $kid->user_id === $user->id) {
+                // User can delete if they are owner/contributor of the kid's server
+                if ($kid && $kid->server && in_array($kid->server->getMemberRole($user), ['owner', 'contributor'])) {
                     $kid->delete();
                 }
             }

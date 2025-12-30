@@ -20,6 +20,8 @@ class MomentInteractionController extends Controller
      */
     public function like(Request $request, Moment $moment): JsonResponse
     {
+        $this->authorize('view', $moment);
+        
         $interaction = $this->interactionService->like($request->user(), $moment);
 
         if ($interaction === null) {
@@ -34,6 +36,8 @@ class MomentInteractionController extends Controller
      */
     public function unlike(Request $request, Moment $moment): JsonResponse
     {
+        $this->authorize('view', $moment);
+        
         $deleted = $this->interactionService->unlike($request->user(), $moment);
 
         if ($deleted) {
@@ -48,6 +52,8 @@ class MomentInteractionController extends Controller
      */
     public function comment(Request $request, Moment $moment): JsonResponse
     {
+        $this->authorize('view', $moment);
+        
         $request->validate([
             'content' => 'required|string|max:1000',
         ]);
@@ -70,6 +76,7 @@ class MomentInteractionController extends Controller
      */
     public function deleteComment(Request $request, MomentInteraction $interaction): JsonResponse
     {
+        // User can only delete their own comments
         try {
             $this->interactionService->deleteComment($request->user(), $interaction);
             
@@ -86,6 +93,8 @@ class MomentInteractionController extends Controller
      */
     public function index(Moment $moment): JsonResponse
     {
+        $this->authorize('view', $moment);
+        
         $comments = $this->interactionService->getComments($moment);
 
         return response()->json([

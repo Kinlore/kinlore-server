@@ -23,7 +23,7 @@ class MediaController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'file' => 'required|file|max:512000', // 500MB
+            'file' => 'required|file|max:512000|mimes:jpeg,jpg,png,gif,webp,heic,heif,mp4,mov,avi,webm,mkv,m4v', // 500MB, validated types
             'kid_id' => 'required|uuid|exists:kids,id',
             'title' => 'nullable|string|max:255',
             'description' => 'nullable|string|max:5000',
@@ -196,6 +196,14 @@ class MediaController extends Controller
      */
     public function serveHlsFile(Media $media, string $filename): Response
     {
+        // Validate filename to prevent path traversal
+        if (!preg_match('/^[a-zA-Z0-9_-]+\.(m3u8|ts)$/', $filename)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid filename format',
+            ], 400);
+        }
+        
         try {
             $file = $this->mediaService->serveHlsFile($media, $filename);
 
@@ -214,7 +222,7 @@ class MediaController extends Controller
             
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage(),
+                'message' => 'File not found',
             ], 404);
         }
     }
