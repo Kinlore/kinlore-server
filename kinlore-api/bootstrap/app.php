@@ -19,6 +19,9 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // run CORS before everything else
         $middleware->prepend(HandleCors::class);
+        
+        // Add security headers
+        $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
 
         // Add Sanctum middleware for API routes
         $middleware->api(prepend: [
