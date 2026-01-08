@@ -3,9 +3,15 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\DestroyVideoRequest;
+use App\Http\Requests\Api\IndexVideoRequest;
+use App\Http\Requests\Api\ServeVideoHlsRequest;
+use App\Http\Requests\Api\ServeVideoThumbnailRequest;
+use App\Http\Requests\Api\ShowVideoRequest;
+use App\Http\Requests\Api\StatusVideoRequest;
+use App\Http\Requests\Api\UploadVideoRequest;
 use App\Jobs\ProcessVideoJob;
 use App\Models\Video;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
@@ -15,7 +21,7 @@ class VideoController extends Controller
     /**
      * List user's videos with optional filtering.
      */
-    public function index(Request $request)
+    public function index(IndexVideoRequest $request)
     {
         $user = $request->user();
         
@@ -47,17 +53,9 @@ class VideoController extends Controller
     /**
      * Upload a new video.
      */
-    public function upload(Request $request)
+    public function upload(UploadVideoRequest $request)
     {
-        $validated = $request->validate([
-            'video' => [
-                'required',
-                'file',
-                'mimetypes:video/mp4,video/quicktime,video/x-msvideo,video/x-matroska,video/webm',
-                'max:' . (env('VIDEO_MAX_SIZE_MB', 500) * 1024), // Convert MB to KB
-            ],
-            'original_filename' => 'nullable|string|max:255',
-        ]);
+        $validated = $request->validated();
 
         $user = $request->user();
         $file = $request->file('video');
@@ -123,10 +121,8 @@ class VideoController extends Controller
     /**
      * Get video processing status.
      */
-    public function status(Video $video)
+    public function status(StatusVideoRequest $request, Video $video)
     {
-        $this->authorize('view', $video);
-
         return response()->json([
             'success' => true,
             'data' => $video->toStatusArray(),
@@ -136,10 +132,8 @@ class VideoController extends Controller
     /**
      * Get video details.
      */
-    public function show(Video $video)
+    public function show(ShowVideoRequest $request, Video $video)
     {
-        $this->authorize('view', $video);
-
         return response()->json([
             'success' => true,
             'data' => $video->toArray(),
@@ -149,10 +143,8 @@ class VideoController extends Controller
     /**
      * Delete a video.
      */
-    public function destroy(Video $video)
+    public function destroy(DestroyVideoRequest $request, Video $video)
     {
-        $this->authorize('delete', $video);
-
         try {
             $video->deleteWithFiles();
             
@@ -176,10 +168,8 @@ class VideoController extends Controller
     /**
      * Serve HLS playlist or segment through authenticated proxy.
      */
-    public function serveHLS(Video $video, string $filename)
+    public function serveHLS(ServeVideoHlsRequest $request, Video $video, string $filename)
     {
-        $this->authorize('view', $video);
-
         if (!$video->isCompleted()) {
             return response()->json([
                 'success' => false,
@@ -210,10 +200,8 @@ class VideoController extends Controller
     /**
      * Serve video thumbnail through authenticated proxy.
      */
-    public function serveThumbnail(Video $video)
+    public function serveThumbnail(ServeVideoThumbnailRequest $request, Video $video)
     {
-        $this->authorize('view', $video);
-
         $path = $video->getRawThumbnailUrl();
 
         if (!$path) {

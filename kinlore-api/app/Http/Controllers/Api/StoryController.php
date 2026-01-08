@@ -3,11 +3,15 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\DestroyStoryRequest;
+use App\Http\Requests\Api\IndexStoryRequest;
+use App\Http\Requests\Api\ShowStoryRequest;
+use App\Http\Requests\Api\StoreStoryRequest;
+use App\Http\Requests\Api\UpdateStoryRequest;
 use App\Models\Kid;
 use App\Models\Story;
 use App\Services\StoryService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class StoryController extends Controller
@@ -19,12 +23,9 @@ class StoryController extends Controller
     /**
      * List stories with optional filters.
      */
-    public function index(Request $request): JsonResponse
+    public function index(IndexStoryRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'kid_id' => 'nullable|uuid|exists:kids,id',
-            'per_page' => 'nullable|integer|min:1|max:100',
-        ]);
+        $validated = $request->validated();
 
         $stories = $this->storyService->getStoriesForUser($request->user(), $validated);
 
@@ -43,25 +44,11 @@ class StoryController extends Controller
     /**
      * Create a new story.
      */
-    public function store(Request $request): JsonResponse
+    public function store(StoreStoryRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'kid_id' => 'required|uuid|exists:kids,id',
-            'title' => 'required|string|max:255',
-            'text' => 'required|string|max:50000',
-            'icon_image_id' => 'nullable|uuid|exists:media,id',
-        ]);
+        $validated = $request->validated();
 
         $kid = Kid::findOrFail($validated['kid_id']);
-        $this->authorize('view', $kid);
-
-        // Verify icon image belongs to user if provided
-        if (!$this->storyService->validateIconImage($request->user(), $validated['icon_image_id'] ?? null)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Invalid icon image',
-            ], 422);
-        }
 
         try {
             $story = $this->storyService->createStory($kid, $validated);
@@ -85,10 +72,8 @@ class StoryController extends Controller
     /**
      * Get single story.
      */
-    public function show(Story $story): JsonResponse
+    public function show(ShowStoryRequest $request, Story $story): JsonResponse
     {
-        $this->authorize('view', $story->kid);
-
         $story = $this->storyService->getStory($story);
 
         return response()->json([
@@ -100,23 +85,9 @@ class StoryController extends Controller
     /**
      * Update a story.
      */
-    public function update(Request $request, Story $story): JsonResponse
+    public function update(UpdateStoryRequest $request, Story $story): JsonResponse
     {
-        $this->authorize('view', $story->kid);
-
-        $validated = $request->validate([
-            'title' => 'sometimes|required|string|max:255',
-            'text' => 'sometimes|required|string|max:50000',
-            'icon_image_id' => 'nullable|uuid|exists:media,id',
-        ]);
-
-        // Verify icon image belongs to user if provided
-        if (!$this->storyService->validateIconImage($request->user(), $validated['icon_image_id'] ?? null)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Invalid icon image',
-            ], 422);
-        }
+        $validated = $request->validated();
 
         try {
             $story = $this->storyService->updateStory($story, $validated);
@@ -139,10 +110,8 @@ class StoryController extends Controller
     /**
      * Delete a story.
      */
-    public function destroy(Story $story): JsonResponse
+    public function destroy(DestroyStoryRequest $request, Story $story): JsonResponse
     {
-        $this->authorize('delete', $story->kid);
-
         try {
             $this->storyService->deleteStory($story);
 

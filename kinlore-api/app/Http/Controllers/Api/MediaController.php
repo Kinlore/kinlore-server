@@ -3,11 +3,17 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\DestroyMediaRequest;
+use App\Http\Requests\Api\IndexMediaRequest;
+use App\Http\Requests\Api\ServeMediaFileRequest;
+use App\Http\Requests\Api\ServeMediaHlsFileRequest;
+use App\Http\Requests\Api\ShowMediaRequest;
+use App\Http\Requests\Api\StoreMediaRequest;
+use App\Http\Requests\Api\UploadedMediaIdentifiersRequest;
 use App\Models\Kid;
 use App\Models\Media;
 use App\Services\MediaService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -20,24 +26,11 @@ class MediaController extends Controller
     /**
      * Upload media (photo or video) with unified endpoint.
      */
-    public function store(Request $request): JsonResponse
+    public function store(StoreMediaRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'file' => 'required|file|max:512000|mimes:jpeg,jpg,png,gif,webp,heic,heif,mp4,mov,avi,webm,mkv,m4v', // 500MB, validated types
-            'kid_id' => 'required|uuid|exists:kids,id',
-            'title' => 'nullable|string|max:255',
-            'description' => 'nullable|string|max:5000',
-            'device_asset_id' => 'nullable|string|max:255',
-            'exif_date' => 'nullable|date',
-            'latitude' => 'nullable|numeric|between:-90,90',
-            'longitude' => 'nullable|numeric|between:-180,180',
-            'camera_make' => 'nullable|string|max:255',
-            'camera_model' => 'nullable|string|max:255',
-            'orientation' => 'nullable|integer|between:1,8',
-        ]);
+        $validated = $request->validated();
 
         $kid = Kid::findOrFail($validated['kid_id']);
-        $this->authorize('view', $kid);
 
         try {
             $result = $this->mediaService->upload(
@@ -79,14 +72,9 @@ class MediaController extends Controller
     /**
      * List media with optional filters.
      */
-    public function index(Request $request): JsonResponse
+    public function index(IndexMediaRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'kid_id' => 'nullable|uuid|exists:kids,id',
-            'type' => 'nullable|in:photo,video',
-            'status' => 'nullable|in:uploading,processing,completed,failed',
-            'per_page' => 'nullable|integer|min:1|max:100',
-        ]);
+        $validated = $request->validated();
 
         $media = $this->mediaService->getMediaForUser($request->user(), $validated);
 
@@ -105,10 +93,8 @@ class MediaController extends Controller
     /**
      * Get a single media item.
      */
-    public function show(Media $media): JsonResponse
+    public function show(ShowMediaRequest $request, Media $media): JsonResponse
     {
-        $this->authorize('view', $media->kid);
-
         return response()->json([
             'success' => true,
             'data' => $media->toArray(),
@@ -118,10 +104,8 @@ class MediaController extends Controller
     /**
      * Delete media.
      */
-    public function destroy(Media $media): JsonResponse
+    public function destroy(DestroyMediaRequest $request, Media $media): JsonResponse
     {
-        $this->authorize('view', $media->kid);
-
         try {
             $this->mediaService->deleteMedia($media);
 
@@ -142,10 +126,8 @@ class MediaController extends Controller
     /**
      * Serve file through authenticated proxy.
      */
-    public function serveFile(Media $media, string $type): Response
+    public function serveFile(ServeMediaFileRequest $request, Media $media, string $type): Response
     {
-        $this->authorize('view', $media->kid);
-
         try {
             $file = $this->mediaService->serveFile($media, $type);
 
@@ -194,17 +176,11 @@ class MediaController extends Controller
      * Serve HLS segment files (public, no auth required).
      * Serves variant playlists and .ts segments for video streaming.
      */
-    public function serveHlsFile(Media $media, string $filename): Response
+    public function serveHlsFile(ServeMediaHlsFileRequest $request, Media $media, string $filename): Response
     {
-        // Validate filename to prevent path traversal
-        if (!preg_match('/^[a-zA-Z0-9_-]+\.(m3u8|ts)$/', $filename)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Invalid filename format',
-            ], 400);
-        }
-        
         try {
+            $validated = $request->validated();
+            $filename = $validated['filename'];
             $file = $this->mediaService->serveHlsFile($media, $filename);
 
             return response($file['content'], 200, [
@@ -230,10 +206,8 @@ class MediaController extends Controller
     /**
      * Get uploaded identifiers for duplicate detection.
      */
-    public function uploadedIdentifiers(Request $request, Kid $kid): JsonResponse
+    public function uploadedIdentifiers(UploadedMediaIdentifiersRequest $request, Kid $kid): JsonResponse
     {
-        $this->authorize('view', $kid);
-
         $identifiers = $this->mediaService->getUploadedIdentifiers($kid);
 
         return response()->json([

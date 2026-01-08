@@ -3,11 +3,16 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\CheckPhotoFileStatusRequest;
+use App\Http\Requests\Api\DestroyPhotoRequest;
+use App\Http\Requests\Api\IndexPhotoRequest;
+use App\Http\Requests\Api\ServePhotoFileRequest;
+use App\Http\Requests\Api\ShowPhotoRequest;
+use App\Http\Requests\Api\UploadedPhotoIdentifiersRequest;
 use App\Models\Kid;
 use App\Models\Moment;
 use App\Services\MomentService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -20,18 +25,9 @@ class PhotoController extends Controller
     /**
      * Display a listing of moments for a kid.
      */
-    public function index(Request $request, Kid $kid): JsonResponse
+    public function index(IndexPhotoRequest $request, Kid $kid): JsonResponse
     {
-        $this->authorize('view', $kid);
-
-        $validated = $request->validate([
-            'per_page' => 'nullable|integer|min:1|max:100',
-            'start_date' => 'nullable|date',
-            'end_date' => 'nullable|date|after_or_equal:start_date',
-            'device_asset_id' => 'nullable|string',
-            'moment_type' => 'nullable|string|in:photo,video,story,milestone',
-            'sort_direction' => 'nullable|in:asc,desc',
-        ]);
+        $validated = $request->validated();
 
         $moments = $this->momentService->getMomentsForKid($kid, $validated);
 
@@ -50,10 +46,8 @@ class PhotoController extends Controller
     /**
      * Display the specified moment.
      */
-    public function show(Moment $moment): JsonResponse
+    public function show(ShowPhotoRequest $request, Moment $moment): JsonResponse
     {
-        $this->authorize('view', $moment->kid);
-
         return response()->json([
             'success' => true,
             'data' => $this->momentService->getMoment($moment),
@@ -63,10 +57,8 @@ class PhotoController extends Controller
     /**
      * Remove the specified moment.
      */
-    public function destroy(Moment $moment): JsonResponse
+    public function destroy(DestroyPhotoRequest $request, Moment $moment): JsonResponse
     {
-        $this->authorize('view', $moment->kid);
-
         try {
             $this->momentService->deleteMoment($moment);
 
@@ -90,10 +82,8 @@ class PhotoController extends Controller
     /**
      * Serve a file from storage through authenticated proxy.
      */
-    public function serveFile(Moment $moment, string $type): Response
+    public function serveFile(ServePhotoFileRequest $request, Moment $moment, string $type): Response
     {
-        $this->authorize('view', $moment->kid);
-
         try {
             $file = $this->momentService->serveFile($moment, $type);
 
@@ -118,10 +108,8 @@ class PhotoController extends Controller
     /**
      * Diagnostic endpoint to check file storage status.
      */
-    public function checkFileStatus(Moment $moment): JsonResponse
+    public function checkFileStatus(CheckPhotoFileStatusRequest $request, Moment $moment): JsonResponse
     {
-        $this->authorize('view', $moment->kid);
-
         $status = $this->momentService->checkFileStatus($moment);
 
         return response()->json([
@@ -133,10 +121,8 @@ class PhotoController extends Controller
     /**
      * Get list of uploaded identifiers for duplicate detection.
      */
-    public function uploadedIdentifiers(Request $request, Kid $kid): JsonResponse
+    public function uploadedIdentifiers(UploadedPhotoIdentifiersRequest $request, Kid $kid): JsonResponse
     {
-        $this->authorize('view', $kid);
-
         $identifiers = $this->momentService->getUploadedIdentifiers($kid);
 
         return response()->json([

@@ -3,11 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\DestroyServerMemberRequest;
+use App\Http\Requests\Api\IndexServerMemberRequest;
 use App\Models\Server;
 use App\Models\ServerMember;
 use App\Services\ServerService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class ServerMemberController extends Controller
 {
@@ -18,10 +19,8 @@ class ServerMemberController extends Controller
     /**
      * List members of a server.
      */
-    public function index(Request $request, Server $server): JsonResponse
+    public function index(IndexServerMemberRequest $request, Server $server): JsonResponse
     {
-        $this->authorize('view', $server);
-
         $members = $server->users; // Uses the belongsToMany relationship on Server
 
         return response()->json([
@@ -33,15 +32,8 @@ class ServerMemberController extends Controller
     /**
      * Remove a member from the server.
      */
-    public function destroy(Server $server, ServerMember $member): JsonResponse
+    public function destroy(DestroyServerMemberRequest $request, Server $server, ServerMember $member): JsonResponse
     {
-        // Ensure member belongs to server
-        if ($member->server_id !== $server->id) {
-            abort(404, 'Member not found in this server');
-        }
-
-        $this->authorize('delete', $member);
-
         $result = $this->serverService->removeMember($server, $member);
 
         if (!$result) {

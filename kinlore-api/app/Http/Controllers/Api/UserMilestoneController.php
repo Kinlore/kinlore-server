@@ -3,11 +3,15 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\DestroyUserMilestoneRequest;
+use App\Http\Requests\Api\IndexUserMilestoneRequest;
+use App\Http\Requests\Api\ShowUserMilestoneRequest;
+use App\Http\Requests\Api\StoreUserMilestoneRequest;
+use App\Http\Requests\Api\UpdateUserMilestoneRequest;
 use App\Models\Kid;
 use App\Models\UserMilestone;
 use App\Services\MilestoneService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class UserMilestoneController extends Controller
@@ -19,13 +23,9 @@ class UserMilestoneController extends Controller
     /**
      * List user milestones with optional filters.
      */
-    public function index(Request $request): JsonResponse
+    public function index(IndexUserMilestoneRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'kid_id' => 'nullable|uuid|exists:kids,id',
-            'type' => 'nullable|in:custom,predefined',
-            'per_page' => 'nullable|integer|min:1|max:100',
-        ]);
+        $validated = $request->validated();
 
         $milestones = $this->milestoneService->getUserMilestones($request->user(), $validated);
 
@@ -44,45 +44,11 @@ class UserMilestoneController extends Controller
     /**
      * Create a new user milestone (predefined or custom).
      */
-    public function store(Request $request): JsonResponse
+    public function store(StoreUserMilestoneRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'kid_id' => 'required|uuid|exists:kids,id',
-            'milestone_id' => 'nullable|string|exists:milestones,id',
-            'custom_title' => 'required_without:milestone_id|nullable|string|max:255',
-            'custom_description' => 'nullable|string|max:5000',
-            'milestone_date' => 'required|date',
-            'notes' => 'nullable|string|max:5000',
-            'icon_image_id' => 'nullable|uuid|exists:media,id',
-            'moment_id' => 'nullable|uuid|exists:moments,id',
-        ]);
+        $validated = $request->validated();
 
         $kid = Kid::findOrFail($validated['kid_id']);
-        $this->authorize('view', $kid);
-
-        // Validate milestone exists if provided
-        if (!$this->milestoneService->validateMilestone($validated['milestone_id'] ?? null)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Invalid milestone',
-            ], 422);
-        }
-
-        // Verify icon image belongs to user if provided
-        if (!$this->milestoneService->validateIconImage($request->user(), $validated['icon_image_id'] ?? null)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Invalid icon image',
-            ], 422);
-        }
-
-        // Verify moment belongs to kid if provided
-        if (!$this->milestoneService->validateMoment($kid, $validated['moment_id'] ?? null)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Invalid moment',
-            ], 422);
-        }
 
         try {
             $milestone = $this->milestoneService->createUserMilestone($request->user(), $kid, $validated);
@@ -106,10 +72,8 @@ class UserMilestoneController extends Controller
     /**
      * Get single user milestone.
      */
-    public function show(UserMilestone $userMilestone): JsonResponse
+    public function show(ShowUserMilestoneRequest $request, UserMilestone $userMilestone): JsonResponse
     {
-        $this->authorize('view', $userMilestone->kid);
-
         $milestone = $this->milestoneService->getUserMilestone($userMilestone);
 
         return response()->json([
@@ -121,25 +85,9 @@ class UserMilestoneController extends Controller
     /**
      * Update a user milestone.
      */
-    public function update(Request $request, UserMilestone $userMilestone): JsonResponse
+    public function update(UpdateUserMilestoneRequest $request, UserMilestone $userMilestone): JsonResponse
     {
-        $this->authorize('view', $userMilestone->kid);
-
-        $validated = $request->validate([
-            'custom_title' => 'nullable|string|max:255',
-            'custom_description' => 'nullable|string|max:5000',
-            'milestone_date' => 'sometimes|required|date',
-            'notes' => 'nullable|string|max:5000',
-            'icon_image_id' => 'nullable|uuid|exists:media,id',
-        ]);
-
-        // Verify icon image belongs to user if provided
-        if (!$this->milestoneService->validateIconImage($request->user(), $validated['icon_image_id'] ?? null)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Invalid icon image',
-            ], 422);
-        }
+        $validated = $request->validated();
 
         try {
             $milestone = $this->milestoneService->updateUserMilestone($userMilestone, $validated);
@@ -162,10 +110,8 @@ class UserMilestoneController extends Controller
     /**
      * Delete a user milestone.
      */
-    public function destroy(UserMilestone $userMilestone): JsonResponse
+    public function destroy(DestroyUserMilestoneRequest $request, UserMilestone $userMilestone): JsonResponse
     {
-        $this->authorize('delete', $userMilestone->kid);
-
         try {
             $this->milestoneService->deleteUserMilestone($userMilestone);
 

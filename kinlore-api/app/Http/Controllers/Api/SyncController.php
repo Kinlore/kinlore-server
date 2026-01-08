@@ -3,9 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\PullSyncRequest;
+use App\Http\Requests\Api\PushSyncRequest;
 use App\Services\SyncService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class SyncController extends Controller
 {
@@ -16,13 +17,9 @@ class SyncController extends Controller
     /**
      * Pull changes from server (WatermelonDB sync).
      */
-    public function pull(Request $request): JsonResponse
+    public function pull(PullSyncRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'lastPulledAt' => 'nullable|integer',
-            'schemaVersion' => 'required|integer',
-            'migration' => 'nullable',
-        ]);
+        $validated = $request->validated();
 
         $result = $this->syncService->pull(
             $request->user(),
@@ -35,12 +32,9 @@ class SyncController extends Controller
     /**
      * Push changes to server (WatermelonDB sync).
      */
-    public function push(Request $request): JsonResponse
+    public function push(PushSyncRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'changes' => 'required|array',
-            'lastPulledAt' => 'nullable|integer',
-        ]);
+        $validated = $request->validated();
 
         $this->syncService->push($request->user(), $validated['changes']);
 

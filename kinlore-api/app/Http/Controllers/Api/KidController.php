@@ -3,10 +3,14 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\DestroyKidRequest;
+use App\Http\Requests\Api\IndexKidRequest;
+use App\Http\Requests\Api\ShowKidRequest;
+use App\Http\Requests\Api\StoreKidRequest;
+use App\Http\Requests\Api\UpdateKidRequest;
 use App\Models\Kid;
 use App\Services\KidService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class KidController extends Controller
 {
@@ -17,10 +21,8 @@ class KidController extends Controller
     /**
      * Display a listing of the user's kids.
      */
-    public function index(Request $request): JsonResponse
+    public function index(IndexKidRequest $request): JsonResponse
     {
-        $this->authorize('viewAny', Kid::class);
-
         $kids = $this->kidService->getKidsForUser($request->user());
 
         return response()->json([
@@ -32,15 +34,9 @@ class KidController extends Controller
     /**
      * Store a newly created kid.
      */
-    public function store(Request $request): JsonResponse
+    public function store(StoreKidRequest $request): JsonResponse
     {
-        $this->authorize('create', Kid::class);
-
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'date_of_birth' => 'required|date|before:today',
-            'avatar_color' => 'nullable|string|regex:/^#[0-9A-F]{6}$/i',
-        ]);
+        $validated = $request->validated();
 
         $kid = $this->kidService->createKid($request->user(), $validated);
 
@@ -54,10 +50,8 @@ class KidController extends Controller
     /**
      * Display the specified kid.
      */
-    public function show(Kid $kid): JsonResponse
+    public function show(ShowKidRequest $request, Kid $kid): JsonResponse
     {
-        $this->authorize('view', $kid);
-
         $kidDetails = $this->kidService->getKidDetails($kid);
 
         return response()->json([
@@ -69,15 +63,9 @@ class KidController extends Controller
     /**
      * Update the specified kid.
      */
-    public function update(Request $request, Kid $kid): JsonResponse
+    public function update(UpdateKidRequest $request, Kid $kid): JsonResponse
     {
-        $this->authorize('update', $kid);
-
-        $validated = $request->validate([
-            'name' => 'sometimes|string|max:255',
-            'date_of_birth' => 'sometimes|date|before:today',
-            'avatar_color' => 'sometimes|string|regex:/^#[0-9A-F]{6}$/i',
-        ]);
+        $validated = $request->validated();
 
         $kid = $this->kidService->updateKid($kid, $validated);
 
@@ -91,10 +79,8 @@ class KidController extends Controller
     /**
      * Remove the specified kid.
      */
-    public function destroy(Kid $kid): JsonResponse
+    public function destroy(DestroyKidRequest $request, Kid $kid): JsonResponse
     {
-        $this->authorize('delete', $kid);
-
         $this->kidService->deleteKid($kid);
 
         return response()->json([

@@ -3,11 +3,14 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\AcceptInvitationRequest;
+use App\Http\Requests\Api\DestroyInvitationRequest;
+use App\Http\Requests\Api\IndexInvitationRequest;
+use App\Http\Requests\Api\StoreInvitationRequest;
 use App\Models\Invitation;
 use App\Models\Server;
 use App\Services\InvitationService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class InvitationController extends Controller
 {
@@ -18,10 +21,8 @@ class InvitationController extends Controller
     /**
      * List invitations for a server.
      */
-    public function index(Request $request, Server $server): JsonResponse
+    public function index(IndexInvitationRequest $request, Server $server): JsonResponse
     {
-        $this->authorize('viewAny', [Invitation::class, $server]);
-
         $invitations = $this->invitationService->getPendingInvitations($server);
 
         return response()->json([
@@ -33,15 +34,9 @@ class InvitationController extends Controller
     /**
      * Create a new invitation.
      */
-    public function store(Request $request, Server $server): JsonResponse
+    public function store(StoreInvitationRequest $request, Server $server): JsonResponse
     {
-        $this->authorize('create', [Invitation::class, $server]);
-
-        $validated = $request->validate([
-            'role' => 'nullable|in:viewer,contributor',
-            'email' => 'nullable|email',
-            'expires_in_days' => 'nullable|integer|min:1|max:90',
-        ]);
+        $validated = $request->validated();
 
         $invitation = $this->invitationService->createInvitation(
             $server, 
@@ -74,15 +69,13 @@ class InvitationController extends Controller
     /**
      * Accept an invitation.
      */
-    public function accept(Request $request): JsonResponse
+    public function accept(AcceptInvitationRequest $request): JsonResponse
     {
-        $request->validate([
-            'token' => 'required|string',
-        ]);
+        $validated = $request->validated();
 
         try {
             $member = $this->invitationService->acceptInvitation(
-                $request->token,
+                $validated['token'],
                 $request->user()
             );
 
@@ -102,15 +95,8 @@ class InvitationController extends Controller
     /**
      * Revoke an invitation.
      */
-    public function destroy(Server $server, Invitation $invitation): JsonResponse
+    public function destroy(DestroyInvitationRequest $request, Server $server, Invitation $invitation): JsonResponse
     {
-        // Ensure invitation belongs to server
-        if ($invitation->server_id !== $server->id) {
-            abort(404, 'Invitation not found in this server');
-        }
-
-        $this->authorize('delete', $invitation);
-
         $this->invitationService->revokeInvitation($invitation);
 
         return response()->json([

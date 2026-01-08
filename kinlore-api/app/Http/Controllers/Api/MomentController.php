@@ -3,11 +3,19 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\CheckMomentFileStatusRequest;
+use App\Http\Requests\Api\DestroyMomentRequest;
+use App\Http\Requests\Api\IndexMomentRequest;
+use App\Http\Requests\Api\ServeMomentFileRequest;
+use App\Http\Requests\Api\ServeMomentHlsFileRequest;
+use App\Http\Requests\Api\ShowMomentRequest;
+use App\Http\Requests\Api\StoreMomentRequest;
+use App\Http\Requests\Api\UpdateMomentRequest;
+use App\Http\Requests\Api\UploadedMomentIdentifiersRequest;
 use App\Models\Kid;
 use App\Models\Moment;
 use App\Services\MomentService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -23,16 +31,9 @@ class MomentController extends Controller
     /**
      * List moments with optional filters.
      */
-    public function index(Request $request): JsonResponse
+    public function index(IndexMomentRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'kid_id' => 'nullable|uuid|exists:kids,id',
-            'moment_type' => 'nullable|in:photo,video,story,milestone',
-            'start_date' => 'nullable|date',
-            'end_date' => 'nullable|date|after_or_equal:start_date',
-            'sort_direction' => 'nullable|in:asc,desc',
-            'per_page' => 'nullable|integer|min:1|max:100',
-        ]);
+        $validated = $request->validated();
 
         $moments = $this->momentService->getMomentsForUser($request->user(), $validated);
 
@@ -56,48 +57,11 @@ class MomentController extends Controller
      * - story: JSON with title, text
      * - milestone: JSON with milestone data
      */
-    public function store(Request $request): JsonResponse
+    public function store(StoreMomentRequest $request): JsonResponse
     {
-        // Determine validation rules based on content
-        $hasFile = $request->hasFile('file');
-        $momentType = $request->input('moment_type');
-
-        // Base validation
-        $rules = [
-            'kid_id' => 'required|uuid|exists:kids,id',
-            'moment_type' => 'nullable|in:photo,video,story,milestone',
-            'title' => 'nullable|string|max:255',
-            'description' => 'nullable|string|max:5000',
-        ];
-
-        // Optional metadata metadata (exif, location, camera) 
-        // These are now accepted for all moment types (stories, milestones, etc.) if provided
-        $rules['exif_date'] = 'nullable|date';
-        $rules['latitude'] = 'nullable|numeric|between:-90,90';
-        $rules['longitude'] = 'nullable|numeric|between:-180,180';
-        $rules['camera_make'] = 'nullable|string|max:255';
-        $rules['camera_model'] = 'nullable|string|max:255';
-        $rules['orientation'] = 'nullable|integer|between:1,8';
-
-        // Add type-specific validation
-        if ($hasFile || in_array($momentType, ['photo', 'video', null])) {
-            $rules['file'] = 'required_without:moment_type|file|max:512000|mimes:jpeg,jpg,png,gif,webp,heic,heif,mp4,mov,avi,webm,mkv,m4v';
-            $rules['device_asset_id'] = 'nullable|string|max:255';
-        }
-
-        if ($momentType === 'story') {
-            $rules['description'] = 'required|string|max:5000';
-        }
-
-        if ($momentType === 'milestone') {
-            $rules['milestone_id'] = 'required|string|exists:predefined_milestones,id';
-            $rules['description'] = 'nullable|string|max:5000';
-        }
-
-        $validated = $request->validate($rules);
+        $validated = $request->validated();
 
         $kid = Kid::findOrFail($validated['kid_id']);
-        $this->authorize('view', $kid);
 
         try {
             $result = $this->momentService->create(
@@ -141,10 +105,8 @@ class MomentController extends Controller
     /**
      * Get a single moment.
      */
-    public function show(Moment $moment): JsonResponse
+    public function show(ShowMomentRequest $request, Moment $moment): JsonResponse
     {
-        $this->authorize('view', $moment->kid);
-
         return response()->json([
             'success' => true,
             'data' => $this->momentService->getMoment($moment),
@@ -154,28 +116,9 @@ class MomentController extends Controller
     /**
      * Update a moment.
      */
-    public function update(Request $request, Moment $moment): JsonResponse
+    public function update(UpdateMomentRequest $request, Moment $moment): JsonResponse
     {
-        $this->authorize('view', $moment->kid);
-
-        $rules = [
-            'title' => 'nullable|string|max:255',
-            'description' => 'nullable|string|max:5000',
-        ];
-
-        // Add type-specific update rules
-        if ($moment->moment_type === 'story') {
-            $rules['text'] = 'nullable|string|max:50000';
-        }
-
-        if ($moment->moment_type === 'milestone') {
-            $rules['custom_title'] = 'nullable|string|max:255';
-            $rules['custom_description'] = 'nullable|string|max:5000';
-            $rules['milestone_date'] = 'nullable|date';
-            $rules['notes'] = 'nullable|string|max:5000';
-        }
-
-        $validated = $request->validate($rules);
+        $validated = $request->validated();
 
         try {
             $moment = $this->momentService->updateMoment($moment, $validated);
@@ -198,10 +141,8 @@ class MomentController extends Controller
     /**
      * Delete a moment.
      */
-    public function destroy(Moment $moment): JsonResponse
+    public function destroy(DestroyMomentRequest $request, Moment $moment): JsonResponse
     {
-        $this->authorize('view', $moment->kid);
-
         try {
             $this->momentService->deleteMoment($moment);
 
@@ -222,10 +163,8 @@ class MomentController extends Controller
     /**
      * Serve file through authenticated proxy.
      */
-    public function serveFile(Moment $moment, string $type): Response
+    public function serveFile(ServeMomentFileRequest $request, Moment $moment, string $type): Response
     {
-        $this->authorize('view', $moment->kid);
-
         try {
             $file = $this->momentService->serveFile($moment, $type);
 
@@ -274,17 +213,11 @@ class MomentController extends Controller
      * Serve HLS segment files (public, no auth required).
      * Serves variant playlists and .ts segments for video streaming.
      */
-    public function serveHlsFile(Moment $moment, string $filename): Response
+    public function serveHlsFile(ServeMomentHlsFileRequest $request, Moment $moment, string $filename): Response
     {
-        // Validate filename to prevent path traversal
-        if (!preg_match('/^[a-zA-Z0-9_-]+\.(m3u8|ts)$/', $filename)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Invalid filename format',
-            ], 400);
-        }
-        
         try {
+            $validated = $request->validated();
+            $filename = $validated['filename'];
             $file = $this->momentService->serveHlsFile($moment, $filename);
 
             return response($file['content'], 200, [
@@ -310,10 +243,8 @@ class MomentController extends Controller
     /**
      * Diagnostic endpoint to check file status.
      */
-    public function checkFileStatus(Moment $moment): JsonResponse
+    public function checkFileStatus(CheckMomentFileStatusRequest $request, Moment $moment): JsonResponse
     {
-        $this->authorize('view', $moment->kid);
-
         return response()->json([
             'success' => true,
             'data' => $this->momentService->checkFileStatus($moment),
@@ -323,10 +254,8 @@ class MomentController extends Controller
     /**
      * Get uploaded identifiers for duplicate detection.
      */
-    public function uploadedIdentifiers(Request $request, Kid $kid): JsonResponse
+    public function uploadedIdentifiers(UploadedMomentIdentifiersRequest $request, Kid $kid): JsonResponse
     {
-        $this->authorize('view', $kid);
-
         $identifiers = $this->momentService->getUploadedIdentifiers($kid);
 
         return response()->json([

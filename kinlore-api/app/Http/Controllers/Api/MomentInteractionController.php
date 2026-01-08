@@ -3,6 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\CommentMomentRequest;
+use App\Http\Requests\Api\LikeMomentRequest;
+use App\Http\Requests\Api\ListMomentCommentsRequest;
+use App\Http\Requests\Api\UnlikeMomentRequest;
 use App\Models\Moment;
 use App\Models\MomentInteraction;
 use App\Services\InteractionService;
@@ -18,10 +22,8 @@ class MomentInteractionController extends Controller
     /**
      * Like a moment.
      */
-    public function like(Request $request, Moment $moment): JsonResponse
+    public function like(LikeMomentRequest $request, Moment $moment): JsonResponse
     {
-        $this->authorize('view', $moment);
-        
         $interaction = $this->interactionService->like($request->user(), $moment);
 
         if ($interaction === null) {
@@ -34,10 +36,8 @@ class MomentInteractionController extends Controller
     /**
      * Unlike a moment.
      */
-    public function unlike(Request $request, Moment $moment): JsonResponse
+    public function unlike(UnlikeMomentRequest $request, Moment $moment): JsonResponse
     {
-        $this->authorize('view', $moment);
-        
         $deleted = $this->interactionService->unlike($request->user(), $moment);
 
         if ($deleted) {
@@ -50,18 +50,14 @@ class MomentInteractionController extends Controller
     /**
      * Post a comment.
      */
-    public function comment(Request $request, Moment $moment): JsonResponse
+    public function comment(CommentMomentRequest $request, Moment $moment): JsonResponse
     {
-        $this->authorize('view', $moment);
-        
-        $request->validate([
-            'content' => 'required|string|max:1000',
-        ]);
+        $validated = $request->validated();
 
         $interaction = $this->interactionService->comment(
             $request->user(),
             $moment,
-            $request->input('content')
+            $validated['content']
         );
 
         return response()->json([
@@ -91,10 +87,8 @@ class MomentInteractionController extends Controller
     /**
      * Get comments for a moment.
      */
-    public function index(Moment $moment): JsonResponse
+    public function index(ListMomentCommentsRequest $request, Moment $moment): JsonResponse
     {
-        $this->authorize('view', $moment);
-        
         $comments = $this->interactionService->getComments($moment);
 
         return response()->json([

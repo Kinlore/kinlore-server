@@ -3,6 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\DestroyServerRequest;
+use App\Http\Requests\Api\ShowServerRequest;
+use App\Http\Requests\Api\StoreServerRequest;
+use App\Http\Requests\Api\UpdateServerRequest;
 use App\Models\Server;
 use App\Services\ServerService;
 use Illuminate\Http\JsonResponse;
@@ -30,14 +34,9 @@ class ServerController extends Controller
     /**
      * Store a newly created server.
      */
-    public function store(Request $request): JsonResponse
+    public function store(StoreServerRequest $request): JsonResponse
     {
-        $this->authorize('create', Server::class);
-
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'settings' => 'nullable|array',
-        ]);
+        $validated = $request->validated();
 
         $server = $this->serverService->createServer($request->user(), $validated);
 
@@ -50,10 +49,8 @@ class ServerController extends Controller
     /**
      * Display the specified server.
      */
-    public function show(Server $server): JsonResponse
+    public function show(ShowServerRequest $request, Server $server): JsonResponse
     {
-        $this->authorize('view', $server);
-
         // Load stats/details if needed
         $server->loadCount(['members', 'kids']);
 
@@ -69,14 +66,9 @@ class ServerController extends Controller
     /**
      * Update the specified server.
      */
-    public function update(Request $request, Server $server): JsonResponse
+    public function update(UpdateServerRequest $request, Server $server): JsonResponse
     {
-        $this->authorize('update', $server);
-
-        $validated = $request->validate([
-            'name' => 'sometimes|string|max:255',
-            'settings' => 'nullable|array',
-        ]);
+        $validated = $request->validated();
 
         $server->update($validated);
 
@@ -89,10 +81,8 @@ class ServerController extends Controller
     /**
      * Remove the specified server.
      */
-    public function destroy(Server $server): JsonResponse
+    public function destroy(DestroyServerRequest $request, Server $server): JsonResponse
     {
-        $this->authorize('delete', $server);
-
         $server->delete();
 
         return response()->json([
