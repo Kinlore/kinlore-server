@@ -171,6 +171,10 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     | Sync Routes (WatermelonDB)
     |--------------------------------------------------------------------------
     */
-    Route::post('/sync/pull', [SyncController::class, 'pull']);
-    Route::post('/sync/push', [SyncController::class, 'push']);
+    Route::post('/sync/pull', [SyncController::class, 'pull'])
+        ->middleware('throttle:sync')
+        ->withoutMiddleware('throttle:api');
+    Route::post('/sync/push', [SyncController::class, 'push'])
+        ->middleware('throttle:sync')
+        ->withoutMiddleware('throttle:api');
 });
