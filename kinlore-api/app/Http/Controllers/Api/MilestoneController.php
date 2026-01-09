@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Responses\ApiResponse;
 use App\Services\MilestoneService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -28,10 +29,7 @@ class MilestoneController extends Controller
 
         $milestones = $this->milestoneService->getMilestones($filters);
 
-        return response()->json([
-            'success' => true,
-            'data' => $milestones,
-        ]);
+        return ApiResponse::success($milestones);
     }
 
     /**
@@ -41,9 +39,6 @@ class MilestoneController extends Controller
     {
         $milestone = $this->milestoneService->getMilestone($id);
 
-        return response()->json([
-            'success' => true,
-            'data' => $milestone->toArray(),
-        ]);
+        return ApiResponse::success($milestone->toArray());
     }
 }

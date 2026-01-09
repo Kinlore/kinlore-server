@@ -7,6 +7,7 @@ use App\Http\Requests\Api\DestroyServerRequest;
 use App\Http\Requests\Api\ShowServerRequest;
 use App\Http\Requests\Api\StoreServerRequest;
 use App\Http\Requests\Api\UpdateServerRequest;
+use App\Http\Responses\ApiResponse;
 use App\Models\Server;
 use App\Services\ServerService;
 use Illuminate\Http\JsonResponse;
@@ -25,10 +26,7 @@ class ServerController extends Controller
     {
         $servers = $this->serverService->getServersForUser($request->user());
 
-        return response()->json([
-            'success' => true,
-            'data' => $servers,
-        ]);
+        return ApiResponse::success($servers);
     }
 
     /**
@@ -40,10 +38,7 @@ class ServerController extends Controller
 
         $server = $this->serverService->createServer($request->user(), $validated);
 
-        return response()->json([
-            'success' => true,
-            'data' => $server,
-        ], 201);
+        return ApiResponse::success($server, status: 201);
     }
 
     /**
@@ -54,13 +49,12 @@ class ServerController extends Controller
         // Load stats/details if needed
         $server->loadCount(['members', 'kids']);
 
-        return response()->json([
-            'success' => true,
-            'data' => $server,
-            'meta' => [
+        return ApiResponse::success(
+            $server,
+            meta: [
                 'role' => $server->getMemberRole(request()->user()),
             ]
-        ]);
+        );
     }
 
     /**
@@ -72,10 +66,7 @@ class ServerController extends Controller
 
         $server->update($validated);
 
-        return response()->json([
-            'success' => true,
-            'data' => $server,
-        ]);
+        return ApiResponse::success($server);
     }
 
     /**
@@ -85,9 +76,6 @@ class ServerController extends Controller
     {
         $server->delete();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Server deleted successfully',
-        ]);
+        return ApiResponse::success(message: 'Server deleted successfully');
     }
 }

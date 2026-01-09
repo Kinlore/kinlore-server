@@ -10,6 +10,7 @@ use App\Http\Requests\Api\ServeVideoThumbnailRequest;
 use App\Http\Requests\Api\ShowVideoRequest;
 use App\Http\Requests\Api\StatusVideoRequest;
 use App\Http\Requests\Api\UploadVideoRequest;
+use App\Http\Responses\ApiResponse;
 use App\Jobs\ProcessVideoJob;
 use App\Models\Video;
 use Illuminate\Support\Facades\Storage;
@@ -38,16 +39,15 @@ class VideoController extends Controller
 
         $videos = $query->paginate($request->input('per_page', 20));
 
-        return response()->json([
-            'success' => true,
-            'data' => $videos->items(),
-            'meta' => [
+        return ApiResponse::success(
+            $videos->items(),
+            meta: [
                 'current_page' => $videos->currentPage(),
                 'last_page' => $videos->lastPage(),
                 'per_page' => $videos->perPage(),
                 'total' => $videos->total(),
-            ],
-        ]);
+            ]
+        );
     }
 
     /**
@@ -79,10 +79,7 @@ class VideoController extends Controller
                 'user_id' => $user->id,
             ]);
             
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to store video file',
-            ], 500);
+            return ApiResponse::error('Failed to store video file', 500);
         }
         
         // Create video record
@@ -105,17 +102,17 @@ class VideoController extends Controller
             'file_size' => $fileSize,
         ]);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Video uploaded successfully. Processing will begin shortly.',
-            'data' => [
+        return ApiResponse::success(
+            [
                 'id' => $video->id,
                 'status' => $video->status,
                 'original_filename' => $video->original_filename,
                 'file_size' => $video->file_size,
                 'file_size_formatted' => $video->file_size_formatted,
             ],
-        ], 201);
+            'Video uploaded successfully. Processing will begin shortly.',
+            201
+        );
     }
 
     /**
@@ -123,10 +120,7 @@ class VideoController extends Controller
      */
     public function status(StatusVideoRequest $request, Video $video)
     {
-        return response()->json([
-            'success' => true,
-            'data' => $video->toStatusArray(),
-        ]);
+        return ApiResponse::success($video->toStatusArray());
     }
 
     /**
@@ -134,10 +128,7 @@ class VideoController extends Controller
      */
     public function show(ShowVideoRequest $request, Video $video)
     {
-        return response()->json([
-            'success' => true,
-            'data' => $video->toArray(),
-        ]);
+        return ApiResponse::success($video->toArray());
     }
 
     /**
@@ -148,20 +139,14 @@ class VideoController extends Controller
         try {
             $video->deleteWithFiles();
             
-            return response()->json([
-                'success' => true,
-                'message' => 'Video deleted successfully',
-            ]);
+            return ApiResponse::success(message: 'Video deleted successfully');
         } catch (\Exception $e) {
             Log::error('Video deletion failed', [
                 'video_id' => $video->id,
                 'error' => $e->getMessage(),
             ]);
             
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to delete video',
-            ], 500);
+            return ApiResponse::error('Failed to delete video', 500);
         }
     }
 
@@ -171,10 +156,7 @@ class VideoController extends Controller
     public function serveHLS(ServeVideoHlsRequest $request, Video $video, string $filename)
     {
         if (!$video->isCompleted()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Video is not ready for playback',
-            ], 400);
+            return ApiResponse::error('Video is not ready for playback', 400);
         }
 
         $path = "videos/{$video->id}/hls/{$filename}";
@@ -190,10 +172,7 @@ class VideoController extends Controller
                 ->header('Content-Type', $contentType)
                 ->header('Cache-Control', 'max-age=3600');
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'File not found',
-            ], 404);
+            return ApiResponse::error('File not found', 404);
         }
     }
 
@@ -205,10 +184,7 @@ class VideoController extends Controller
         $path = $video->getRawThumbnailUrl();
 
         if (!$path) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Thumbnail not available',
-            ], 404);
+            return ApiResponse::error('Thumbnail not available', 404);
         }
 
         try {
@@ -218,10 +194,7 @@ class VideoController extends Controller
                 ->header('Content-Type', 'image/jpeg')
                 ->header('Cache-Control', 'max-age=86400');
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Thumbnail not found',
-            ], 404);
+            return ApiResponse::error('Thumbnail not found', 404);
         }
     }
 }

@@ -9,6 +9,7 @@ use App\Http\Requests\Api\IndexPhotoRequest;
 use App\Http\Requests\Api\ServePhotoFileRequest;
 use App\Http\Requests\Api\ShowPhotoRequest;
 use App\Http\Requests\Api\UploadedPhotoIdentifiersRequest;
+use App\Http\Responses\ApiResponse;
 use App\Models\Kid;
 use App\Models\Moment;
 use App\Services\MomentService;
@@ -31,16 +32,15 @@ class PhotoController extends Controller
 
         $moments = $this->momentService->getMomentsForKid($kid, $validated);
 
-        return response()->json([
-            'success' => true,
-            'data' => $moments->items(),
-            'meta' => [
+        return ApiResponse::success(
+            $moments->items(),
+            meta: [
                 'current_page' => $moments->currentPage(),
                 'last_page' => $moments->lastPage(),
                 'per_page' => $moments->perPage(),
                 'total' => $moments->total(),
-            ],
-        ]);
+            ]
+        );
     }
 
     /**
@@ -48,10 +48,7 @@ class PhotoController extends Controller
      */
     public function show(ShowPhotoRequest $request, Moment $moment): JsonResponse
     {
-        return response()->json([
-            'success' => true,
-            'data' => $this->momentService->getMoment($moment),
-        ]);
+        return ApiResponse::success($this->momentService->getMoment($moment));
     }
 
     /**
@@ -62,20 +59,14 @@ class PhotoController extends Controller
         try {
             $this->momentService->deleteMoment($moment);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Moment deleted successfully',
-            ]);
+            return ApiResponse::success(message: 'Moment deleted successfully');
         } catch (\Exception $e) {
             Log::error('Moment deletion failed', [
                 'moment_id' => $moment->id,
                 'error' => $e->getMessage(),
             ]);
 
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to delete moment',
-            ], 500);
+            return ApiResponse::error('Failed to delete moment', 500);
         }
     }
 
@@ -93,15 +84,9 @@ class PhotoController extends Controller
                 'Cache-Control' => 'private, max-age=3600',
             ]);
         } catch (\InvalidArgumentException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage(),
-            ], 400);
+            return ApiResponse::error($e->getMessage(), 400);
         } catch (\RuntimeException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage(),
-            ], 404);
+            return ApiResponse::error($e->getMessage(), 404);
         }
     }
 
@@ -112,10 +97,7 @@ class PhotoController extends Controller
     {
         $status = $this->momentService->checkFileStatus($moment);
 
-        return response()->json([
-            'success' => true,
-            'data' => $status,
-        ]);
+        return ApiResponse::success($status);
     }
 
     /**
@@ -125,9 +107,6 @@ class PhotoController extends Controller
     {
         $identifiers = $this->momentService->getUploadedIdentifiers($kid);
 
-        return response()->json([
-            'success' => true,
-            'data' => $identifiers,
-        ]);
+        return ApiResponse::success($identifiers);
     }
 }

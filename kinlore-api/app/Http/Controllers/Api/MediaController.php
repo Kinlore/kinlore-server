@@ -10,6 +10,7 @@ use App\Http\Requests\Api\ServeMediaHlsFileRequest;
 use App\Http\Requests\Api\ShowMediaRequest;
 use App\Http\Requests\Api\StoreMediaRequest;
 use App\Http\Requests\Api\UploadedMediaIdentifiersRequest;
+use App\Http\Responses\ApiResponse;
 use App\Models\Kid;
 use App\Models\Media;
 use App\Services\MediaService;
@@ -42,30 +43,28 @@ class MediaController extends Controller
 
             $type = $result['media']->type;
 
-            return response()->json([
-                'success' => true,
-                'message' => $type === Media::TYPE_PHOTO 
-                    ? 'Photo uploaded successfully' 
-                    : 'Video uploaded successfully. Processing will begin shortly.',
-                'data' => [
+            return ApiResponse::success(
+                [
                     'media' => $result['media']->fresh()->toArray(),
                     'moment' => $result['moment']->fresh()->toArray(),
                 ],
-            ], 201);
+                $type === Media::TYPE_PHOTO
+                    ? 'Photo uploaded successfully'
+                    : 'Video uploaded successfully. Processing will begin shortly.',
+                201
+            );
 
         } catch (\InvalidArgumentException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage(),
-            ], 422);
+            return ApiResponse::error($e->getMessage(), 422);
         } catch (\Exception $e) {
             Log::error('Media upload failed: ' . $e->getMessage());
             
-            return response()->json([
-                'success' => false,
-                'message' => 'Upload failed',
-                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error',
-            ], 500);
+            return ApiResponse::error(
+                'Upload failed',
+                500,
+                [],
+                ['error' => config('app.debug') ? $e->getMessage() : 'Internal server error']
+            );
         }
     }
 
@@ -78,16 +77,15 @@ class MediaController extends Controller
 
         $media = $this->mediaService->getMediaForUser($request->user(), $validated);
 
-        return response()->json([
-            'success' => true,
-            'data' => $media->items(),
-            'meta' => [
+        return ApiResponse::success(
+            $media->items(),
+            meta: [
                 'current_page' => $media->currentPage(),
                 'last_page' => $media->lastPage(),
                 'per_page' => $media->perPage(),
                 'total' => $media->total(),
-            ],
-        ]);
+            ]
+        );
     }
 
     /**
@@ -95,10 +93,7 @@ class MediaController extends Controller
      */
     public function show(ShowMediaRequest $request, Media $media): JsonResponse
     {
-        return response()->json([
-            'success' => true,
-            'data' => $media->toArray(),
-        ]);
+        return ApiResponse::success($media->toArray());
     }
 
     /**
@@ -109,17 +104,11 @@ class MediaController extends Controller
         try {
             $this->mediaService->deleteMedia($media);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Media deleted successfully',
-            ]);
+            return ApiResponse::success(message: 'Media deleted successfully');
         } catch (\Exception $e) {
             Log::error('Media deletion failed: ' . $e->getMessage());
             
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to delete media',
-            ], 500);
+            return ApiResponse::error('Failed to delete media', 500);
         }
     }
 
@@ -137,15 +126,9 @@ class MediaController extends Controller
                 'Cache-Control' => 'private, max-age=3600',
             ]);
         } catch (\InvalidArgumentException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage(),
-            ], 400);
+            return ApiResponse::error($e->getMessage(), 400);
         } catch (\RuntimeException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage(),
-            ], 404);
+            return ApiResponse::error($e->getMessage(), 404);
         }
     }
 
@@ -165,10 +148,7 @@ class MediaController extends Controller
                 'Access-Control-Allow-Origin' => '*',
             ]);
         } catch (\RuntimeException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage(),
-            ], 404);
+            return ApiResponse::error($e->getMessage(), 404);
         }
     }
 
@@ -196,10 +176,7 @@ class MediaController extends Controller
                 'error' => $e->getMessage()
             ]);
             
-            return response()->json([
-                'success' => false,
-                'message' => 'File not found',
-            ], 404);
+            return ApiResponse::error('File not found', 404);
         }
     }
 
@@ -210,9 +187,6 @@ class MediaController extends Controller
     {
         $identifiers = $this->mediaService->getUploadedIdentifiers($kid);
 
-        return response()->json([
-            'success' => true,
-            'data' => $identifiers,
-        ]);
+        return ApiResponse::success($identifiers);
     }
 }

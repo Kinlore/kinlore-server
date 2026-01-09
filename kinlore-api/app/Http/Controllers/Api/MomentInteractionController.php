@@ -7,6 +7,7 @@ use App\Http\Requests\Api\CommentMomentRequest;
 use App\Http\Requests\Api\LikeMomentRequest;
 use App\Http\Requests\Api\ListMomentCommentsRequest;
 use App\Http\Requests\Api\UnlikeMomentRequest;
+use App\Http\Responses\ApiResponse;
 use App\Models\Moment;
 use App\Models\MomentInteraction;
 use App\Services\InteractionService;
@@ -27,10 +28,10 @@ class MomentInteractionController extends Controller
         $interaction = $this->interactionService->like($request->user(), $moment);
 
         if ($interaction === null) {
-            return response()->json(['success' => true, 'message' => 'Already liked'], 200);
+            return ApiResponse::success(message: 'Already liked');
         }
 
-        return response()->json(['success' => true, 'message' => 'Moment liked'], 201);
+        return ApiResponse::success(message: 'Moment liked', status: 201);
     }
 
     /**
@@ -41,10 +42,10 @@ class MomentInteractionController extends Controller
         $deleted = $this->interactionService->unlike($request->user(), $moment);
 
         if ($deleted) {
-            return response()->json(['success' => true, 'message' => 'Moment unliked'], 200);
+            return ApiResponse::success(message: 'Moment unliked');
         }
 
-        return response()->json(['success' => false, 'message' => 'Not liked yet'], 404);
+        return ApiResponse::error('Not liked yet', 404);
     }
 
     /**
@@ -60,11 +61,7 @@ class MomentInteractionController extends Controller
             $validated['content']
         );
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Comment posted',
-            'data' => $interaction,
-        ], 201);
+        return ApiResponse::success($interaction, 'Comment posted', 201);
     }
 
     /**
@@ -76,11 +73,11 @@ class MomentInteractionController extends Controller
         try {
             $this->interactionService->deleteComment($request->user(), $interaction);
             
-            return response()->json(['success' => true, 'message' => 'Comment deleted'], 200);
+            return ApiResponse::success(message: 'Comment deleted');
         } catch (\InvalidArgumentException $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 400);
+            return ApiResponse::error($e->getMessage(), 400);
         } catch (\RuntimeException $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 403);
+            return ApiResponse::error($e->getMessage(), 403);
         }
     }
 
@@ -91,9 +88,6 @@ class MomentInteractionController extends Controller
     {
         $comments = $this->interactionService->getComments($moment);
 
-        return response()->json([
-            'success' => true,
-            'data' => $comments,
-        ]);
+        return ApiResponse::success($comments);
     }
 }

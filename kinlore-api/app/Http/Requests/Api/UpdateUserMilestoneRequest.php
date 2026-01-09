@@ -4,6 +4,7 @@ namespace App\Http\Requests\Api;
 
 use App\Models\UserMilestone;
 use App\Services\MilestoneService;
+use App\Http\Responses\ApiResponse;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Validation\Validator;
@@ -53,10 +54,7 @@ class UpdateUserMilestoneRequest extends FormRequest
             $service = app(MilestoneService::class);
 
             if (!$service->validateIconImage($this->user(), $iconId)) {
-                throw new HttpResponseException(response()->json([
-                    'success' => false,
-                    'message' => 'Invalid icon image',
-                ], 422));
+                throw new HttpResponseException(ApiResponse::error('Invalid icon image', 422));
             }
         });
     }

@@ -4,6 +4,16 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\HandleCors;
+use App\Http\Responses\ApiResponse;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Auth\AuthenticationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
+use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Throwable;
 
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -42,5 +52,75 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->shouldRenderJsonWhen(function (Request $request, Throwable $e): bool {
+            return $request->expectsJson();
+        });
+
+        $exceptions->renderable(function (ValidationException $e, Request $request) {
+            if (!$request->expectsJson()) {
+                return null;
+            }
+
+            return ApiResponse::validation($e->errors());
+        });
+
+        $exceptions->renderable(function (AuthenticationException $e, Request $request) {
+            if (!$request->expectsJson()) {
+                return null;
+            }
+
+            return ApiResponse::error($e->getMessage() ?: 'Unauthenticated', 401);
+        });
+
+        $exceptions->renderable(function (AuthorizationException $e, Request $request) {
+            if (!$request->expectsJson()) {
+                return null;
+            }
+
+            return ApiResponse::error($e->getMessage() ?: 'Forbidden', 403);
+        });
+
+        $exceptions->renderable(function (ModelNotFoundException $e, Request $request) {
+            if (!$request->expectsJson()) {
+                return null;
+            }
+
+            return ApiResponse::error('Resource not found', 404);
+        });
+
+        $exceptions->renderable(function (NotFoundHttpException $e, Request $request) {
+            if (!$request->expectsJson()) {
+                return null;
+            }
+
+            return ApiResponse::error('Route not found', 404);
+        });
+
+        $exceptions->renderable(function (MethodNotAllowedHttpException $e, Request $request) {
+            if (!$request->expectsJson()) {
+                return null;
+            }
+
+            return ApiResponse::error('Method not allowed', 405);
+        });
+
+        $exceptions->renderable(function (HttpExceptionInterface $e, Request $request) {
+            if (!$request->expectsJson()) {
+                return null;
+            }
+
+            $message = $e->getMessage() ?: 'Request failed';
+
+            return ApiResponse::error($message, $e->getStatusCode());
+        });
+
+        $exceptions->renderable(function (Throwable $e, Request $request) {
+            if (!$request->expectsJson()) {
+                return null;
+            }
+
+            $extra = config('app.debug') ? ['error' => $e->getMessage()] : [];
+
+            return ApiResponse::error('Server error', 500, [], $extra);
+        });
     })->create();

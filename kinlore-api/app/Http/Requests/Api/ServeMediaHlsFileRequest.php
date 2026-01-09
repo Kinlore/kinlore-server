@@ -5,6 +5,7 @@ namespace App\Http\Requests\Api;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
+use App\Http\Responses\ApiResponse;
 
 class ServeMediaHlsFileRequest extends FormRequest
 {
@@ -30,9 +31,6 @@ class ServeMediaHlsFileRequest extends FormRequest
 
     protected function failedValidation(Validator $validator): void
     {
-        throw new HttpResponseException(response()->json([
-            'success' => false,
-            'message' => 'Invalid filename format',
-        ], 400));
+        throw new HttpResponseException(ApiResponse::error('Invalid filename format', 400));
     }
 }

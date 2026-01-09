@@ -8,6 +8,7 @@ use App\Http\Requests\Api\IndexUserMilestoneRequest;
 use App\Http\Requests\Api\ShowUserMilestoneRequest;
 use App\Http\Requests\Api\StoreUserMilestoneRequest;
 use App\Http\Requests\Api\UpdateUserMilestoneRequest;
+use App\Http\Responses\ApiResponse;
 use App\Models\Kid;
 use App\Models\UserMilestone;
 use App\Services\MilestoneService;
@@ -29,16 +30,15 @@ class UserMilestoneController extends Controller
 
         $milestones = $this->milestoneService->getUserMilestones($request->user(), $validated);
 
-        return response()->json([
-            'success' => true,
-            'data' => $milestones->items(),
-            'meta' => [
+        return ApiResponse::success(
+            $milestones->items(),
+            meta: [
                 'current_page' => $milestones->currentPage(),
                 'last_page' => $milestones->lastPage(),
                 'per_page' => $milestones->perPage(),
                 'total' => $milestones->total(),
-            ],
-        ]);
+            ]
+        );
     }
 
     /**
@@ -53,19 +53,16 @@ class UserMilestoneController extends Controller
         try {
             $milestone = $this->milestoneService->createUserMilestone($request->user(), $kid, $validated);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Milestone created successfully',
-                'data' => $milestone->toArray(),
-            ], 201);
+            return ApiResponse::success($milestone->toArray(), 'Milestone created successfully', 201);
         } catch (\Exception $e) {
             Log::error('Milestone creation failed: ' . $e->getMessage());
 
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to create milestone',
-                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error',
-            ], 500);
+            return ApiResponse::error(
+                'Failed to create milestone',
+                500,
+                [],
+                ['error' => config('app.debug') ? $e->getMessage() : 'Internal server error']
+            );
         }
     }
 
@@ -76,10 +73,7 @@ class UserMilestoneController extends Controller
     {
         $milestone = $this->milestoneService->getUserMilestone($userMilestone);
 
-        return response()->json([
-            'success' => true,
-            'data' => $milestone->toArray(),
-        ]);
+        return ApiResponse::success($milestone->toArray());
     }
 
     /**
@@ -92,18 +86,11 @@ class UserMilestoneController extends Controller
         try {
             $milestone = $this->milestoneService->updateUserMilestone($userMilestone, $validated);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Milestone updated successfully',
-                'data' => $milestone->toArray(),
-            ]);
+            return ApiResponse::success($milestone->toArray(), 'Milestone updated successfully');
         } catch (\Exception $e) {
             Log::error('Milestone update failed: ' . $e->getMessage());
 
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to update milestone',
-            ], 500);
+            return ApiResponse::error('Failed to update milestone', 500);
         }
     }
 
@@ -115,17 +102,11 @@ class UserMilestoneController extends Controller
         try {
             $this->milestoneService->deleteUserMilestone($userMilestone);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Milestone deleted successfully',
-            ]);
+            return ApiResponse::success(message: 'Milestone deleted successfully');
         } catch (\Exception $e) {
             Log::error('Milestone deletion failed: ' . $e->getMessage());
 
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to delete milestone',
-            ], 500);
+            return ApiResponse::error('Failed to delete milestone', 500);
         }
     }
 }

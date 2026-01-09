@@ -16,6 +16,10 @@ tags:
     description: Authentication endpoints
   - name: Kids
     description: Child profile management
+  - name: Servers
+    description: Server management and membership
+  - name: Invitations
+    description: Server invitation flows
   - name: Moments
     description: Unified moments (photo, video, story, milestone)
   - name: Media
@@ -70,6 +74,24 @@ components:
         updated_at:
           type: string
           format: date-time
+
+    ServerWithPivot:
+      allOf:
+        - $ref: "#/components/schemas/Server"
+        - type: object
+          properties:
+            pivot:
+              type: object
+              properties:
+                role:
+                  type: string
+                  enum: [owner, contributor, viewer]
+                joined_at:
+                  type: string
+                  format: date-time
+                metadata:
+                  type: object
+                  nullable: true
 
     ServerMember:
       type: object
@@ -129,6 +151,9 @@ components:
     InvitationValidation:
       type: object
       properties:
+        success:
+          type: boolean
+          example: true
         valid:
           type: boolean
         reason:
@@ -358,6 +383,9 @@ components:
           example: true
         message:
           type: string
+          nullable: true
+      required:
+        - success
 
     ErrorResponse:
       type: object
@@ -367,18 +395,51 @@ components:
           example: false
         message:
           type: string
-
-    ValidationError:
-      type: object
-      properties:
-        message:
-          type: string
         errors:
           type: object
+          nullable: true
           additionalProperties:
             type: array
             items:
               type: string
+        error:
+          type: string
+          nullable: true
+      required:
+        - success
+        - message
+
+    ValidationError:
+      allOf:
+        - $ref: "#/components/schemas/ErrorResponse"
+        - type: object
+          properties:
+            errors:
+              type: object
+              additionalProperties:
+                type: array
+                items:
+                  type: string
+          required:
+            - errors
+
+    ServerUser:
+      allOf:
+        - $ref: "#/components/schemas/User"
+        - type: object
+          properties:
+            pivot:
+              type: object
+              properties:
+                role:
+                  type: string
+                  enum: [owner, contributor, viewer]
+                joined_at:
+                  type: string
+                  format: date-time
+                metadata:
+                  type: object
+                  nullable: true
 
     PaginationMeta:
       type: object
@@ -671,6 +732,10 @@ paths:
                         type: string
         "422":
           description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationError"
 
   /auth/logout:
     post:
@@ -782,6 +847,8 @@ paths:
                 properties:
                   success:
                     type: boolean
+                  message:
+                    type: string
                   data:
                     type: object
                     properties:
@@ -842,6 +909,10 @@ paths:
                 $ref: "#/components/schemas/SuccessResponse"
         "404":
           description: Token not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   # ============================================================================
   # KIDS
@@ -967,6 +1038,8 @@ paths:
                 properties:
                   success:
                     type: boolean
+                  message:
+                    type: string
                   data:
                     $ref: "#/components/schemas/Kid"
 
@@ -1190,6 +1263,17 @@ paths:
       responses:
         "200":
           description: Moment updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    $ref: "#/components/schemas/Moment"
 
     delete:
       tags: [Moments]
@@ -1206,6 +1290,10 @@ paths:
       responses:
         "200":
           description: Moment deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
 
   /v1/moments/{moment}/file/{type}:
     get:
@@ -1244,8 +1332,18 @@ paths:
               schema:
                 type: string
                 format: binary
+        "400":
+          description: Invalid file type
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "404":
           description: File not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /v1/moments/{moment}/file/hls:
     get:
@@ -1284,6 +1382,10 @@ paths:
                 playlist_1_1000.m3u8
         "404":
           description: HLS not available
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /v1/moments/{moment}/file/{filename}:
     get:
@@ -1343,14 +1445,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: false
-                  message:
-                    type: string
-                    example: "HLS file not found: playlist_0_00001.ts"
+                $ref: "#/components/schemas/ErrorResponse"
 
   /v1/moments/{moment}/file-status:
     get:
@@ -1441,8 +1536,16 @@ paths:
       responses:
         "201":
           description: Moment liked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
         "200":
           description: Already liked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
 
     delete:
       tags: [Interactions]
@@ -1459,8 +1562,16 @@ paths:
       responses:
         "200":
           description: Moment unliked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
         "404":
           description: Not liked yet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /v1/moments/{moment}/comments:
     get:
@@ -1521,6 +1632,8 @@ paths:
               schema:
                 type: object
                 properties:
+                  success:
+                    type: boolean
                   message:
                     type: string
                   data:
@@ -1541,8 +1654,28 @@ paths:
       responses:
         "200":
           description: Comment deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Invalid interaction
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "403":
           description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Comment not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   # ============================================================================
   # MEDIA (Raw file management)
@@ -1631,6 +1764,16 @@ paths:
       responses:
         "200":
           description: Media deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "404":
+          description: Media not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /v1/media/{media}/file/{type}:
     get:
@@ -1656,6 +1799,18 @@ paths:
       responses:
         "200":
           description: File content
+        "400":
+          description: Invalid file type
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: File not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /v1/media/{media}/file/hls:
     get:
@@ -1680,6 +1835,10 @@ paths:
                 type: string
         "404":
           description: HLS not available
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /v1/media/{media}/file/{filename}:
     get:
@@ -1706,6 +1865,10 @@ paths:
           description: HLS file content
         "404":
           description: HLS file not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /v1/kids/{kid}/media/uploaded-identifiers:
     get:
@@ -1829,22 +1992,12 @@ paths:
               schema:
                 type: object
                 properties:
-                  username:
-                    type: string
-                  servers:
+                  success:
+                    type: boolean
+                  data:
                     type: array
                     items:
-                      type: object
-                      properties:
-                        server:
-                          $ref: "#/components/schemas/Server"
-                        role:
-                          type: string
-                          enum: [owner, contributor, viewer]
-                        member_count:
-                          type: integer
-                        kid_count:
-                          type: integer
+                      $ref: "#/components/schemas/ServerWithPivot"
 
     post:
       tags: [Servers]
@@ -1871,8 +2024,6 @@ paths:
                 properties:
                   success:
                     type: boolean
-                  message:
-                    type: string
                   data:
                     $ref: "#/components/schemas/Server"
 
@@ -1901,6 +2052,12 @@ paths:
                     type: boolean
                   data:
                     $ref: "#/components/schemas/Server"
+                  meta:
+                    type: object
+                    properties:
+                      role:
+                        type: string
+                        enum: [owner, contributor, viewer]
 
     put:
       tags: [Servers]
@@ -1927,6 +2084,15 @@ paths:
       responses:
         "200":
           description: Server updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: "#/components/schemas/Server"
 
     delete:
       tags: [Servers]
@@ -1943,6 +2109,10 @@ paths:
       responses:
         "200":
           description: Server deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
 
   /v1/servers/{server}/members:
     get:
@@ -1970,7 +2140,7 @@ paths:
                   data:
                     type: array
                     items:
-                      $ref: "#/components/schemas/ServerMember"
+                      $ref: "#/components/schemas/ServerUser"
 
   /v1/servers/{server}/members/{member}:
     delete:
@@ -1998,6 +2168,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SuccessResponse"
+        "422":
+          description: Could not remove member (likely last owner)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /v1/servers/{server}/invitations:
     get:
@@ -2089,6 +2265,10 @@ paths:
       responses:
         "200":
           description: Invitation revoked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
 
   /v1/invitations/validate/{token}:
     get:
@@ -2131,7 +2311,20 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    $ref: "#/components/schemas/ServerMember"
+        "422":
+          description: Invalid invitation token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /v1/user/servers:
     get:
@@ -2148,15 +2341,12 @@ paths:
               schema:
                 type: object
                 properties:
+                  success:
+                    type: boolean
                   data:
                     type: array
                     items:
-                      type: object
-                      properties:
-                        server:
-                          $ref: "#/components/schemas/Server"
-                        role:
-                          type: string
+                      $ref: "#/components/schemas/ServerWithPivot"
 
   # ============================================================================
   # USER

@@ -4,6 +4,7 @@ namespace App\Http\Requests\Api;
 
 use App\Models\Story;
 use App\Services\StoryService;
+use App\Http\Responses\ApiResponse;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Validation\Validator;
@@ -48,10 +49,7 @@ class UpdateStoryRequest extends FormRequest
             $service = app(StoryService::class);
 
             if (!$service->validateIconImage($this->user(), $iconId)) {
-                throw new HttpResponseException(response()->json([
-                    'success' => false,
-                    'message' => 'Invalid icon image',
-                ], 422));
+                throw new HttpResponseException(ApiResponse::error('Invalid icon image', 422));
             }
         });
     }

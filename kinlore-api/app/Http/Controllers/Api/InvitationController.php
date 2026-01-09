@@ -7,6 +7,7 @@ use App\Http\Requests\Api\AcceptInvitationRequest;
 use App\Http\Requests\Api\DestroyInvitationRequest;
 use App\Http\Requests\Api\IndexInvitationRequest;
 use App\Http\Requests\Api\StoreInvitationRequest;
+use App\Http\Responses\ApiResponse;
 use App\Models\Invitation;
 use App\Models\Server;
 use App\Services\InvitationService;
@@ -25,10 +26,7 @@ class InvitationController extends Controller
     {
         $invitations = $this->invitationService->getPendingInvitations($server);
 
-        return response()->json([
-            'success' => true,
-            'data' => $invitations,
-        ]);
+        return ApiResponse::success($invitations);
     }
 
     /**
@@ -44,10 +42,7 @@ class InvitationController extends Controller
             $validated
         );
 
-        return response()->json([
-            'success' => true,
-            'data' => $invitation->append('invite_link'),
-        ], 201);
+        return ApiResponse::success($invitation->append('invite_link'), status: 201);
     }
 
     /**
@@ -58,12 +53,13 @@ class InvitationController extends Controller
     {
         $result = $this->invitationService->validateToken($token);
 
-        return response()->json([
-            'success' => true,
-            'valid' => $result['valid'],
-            'reason' => $result['reason'],
-            'data' => $result['invitation'], // Will be null if invalid
-        ]);
+        return ApiResponse::success(
+            $result['invitation'],
+            extra: [
+                'valid' => $result['valid'],
+                'reason' => $result['reason'],
+            ]
+        );
     }
 
     /**
@@ -79,16 +75,9 @@ class InvitationController extends Controller
                 $request->user()
             );
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Invitation accepted',
-                'data' => $member,
-            ]);
+            return ApiResponse::success($member, 'Invitation accepted');
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage(),
-            ], 422);
+            return ApiResponse::error($e->getMessage(), 422);
         }
     }
 
@@ -99,9 +88,6 @@ class InvitationController extends Controller
     {
         $this->invitationService->revokeInvitation($invitation);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Invitation revoked successfully',
-        ]);
+        return ApiResponse::success(message: 'Invitation revoked successfully');
     }
 }

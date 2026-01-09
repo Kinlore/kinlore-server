@@ -4,6 +4,7 @@ namespace App\Http\Requests\Api;
 
 use App\Models\Kid;
 use App\Services\MilestoneService;
+use App\Http\Responses\ApiResponse;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Validation\Validator;
@@ -60,28 +61,19 @@ class StoreUserMilestoneRequest extends FormRequest
 
             $milestoneId = $this->input('milestone_id');
             if ($milestoneId && !$service->validateMilestone($milestoneId)) {
-                throw new HttpResponseException(response()->json([
-                    'success' => false,
-                    'message' => 'Invalid milestone',
-                ], 422));
+                throw new HttpResponseException(ApiResponse::error('Invalid milestone', 422));
             }
 
             $iconId = $this->input('icon_image_id');
             if ($iconId && !$service->validateIconImage($this->user(), $iconId)) {
-                throw new HttpResponseException(response()->json([
-                    'success' => false,
-                    'message' => 'Invalid icon image',
-                ], 422));
+                throw new HttpResponseException(ApiResponse::error('Invalid icon image', 422));
             }
 
             $momentId = $this->input('moment_id');
             if ($momentId) {
                 $kid = Kid::find($this->input('kid_id'));
                 if ($kid && !$service->validateMoment($kid, $momentId)) {
-                    throw new HttpResponseException(response()->json([
-                        'success' => false,
-                        'message' => 'Invalid moment',
-                    ], 422));
+                    throw new HttpResponseException(ApiResponse::error('Invalid moment', 422));
                 }
             }
         });

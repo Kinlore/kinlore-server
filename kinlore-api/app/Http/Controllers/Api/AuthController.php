@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\LoginRequest;
 use App\Http\Requests\Api\RegisterRequest;
+use App\Http\Responses\ApiResponse;
 use App\Services\AuthService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -25,11 +26,7 @@ class AuthController extends Controller
 
         $result = $this->authService->register($validated, $validated['invite_token'] ?? null);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'User registered successfully',
-            'data' => $result,
-        ], 201);
+        return ApiResponse::success($result, 'User registered successfully', 201);
     }
 
     /**
@@ -44,11 +41,7 @@ class AuthController extends Controller
             $validated['password']
         );
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Login successful',
-            'data' => $result,
-        ]);
+        return ApiResponse::success($result, 'Login successful');
     }
 
     /**
@@ -58,10 +51,7 @@ class AuthController extends Controller
     {
         $this->authService->logout($request->user());
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Logged out successfully',
-        ]);
+        return ApiResponse::success(message: 'Logged out successfully');
     }
 
     /**
@@ -71,10 +61,7 @@ class AuthController extends Controller
     {
         $this->authService->logoutAll($request->user());
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Logged out from all devices',
-        ]);
+        return ApiResponse::success(message: 'Logged out from all devices');
     }
 
     /**
@@ -84,10 +71,7 @@ class AuthController extends Controller
     {
         $userData = $this->authService->getUserInfo($request->user());
 
-        return response()->json([
-            'success' => true,
-            'data' => $userData,
-        ]);
+        return ApiResponse::success($userData);
     }
 
     /**
@@ -97,14 +81,10 @@ class AuthController extends Controller
     {
         $token = $this->authService->refresh($request->user());
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Token refreshed',
-            'data' => [
-                'token' => $token,
-                'token_type' => 'Bearer',
-            ],
-        ]);
+        return ApiResponse::success([
+            'token' => $token,
+            'token_type' => 'Bearer',
+        ], 'Token refreshed');
     }
 
     /**
@@ -114,10 +94,7 @@ class AuthController extends Controller
     {
         $sessions = $this->authService->getSessions($request->user());
 
-        return response()->json([
-            'success' => true,
-            'data' => $sessions,
-        ]);
+        return ApiResponse::success($sessions);
     }
 
     /**
@@ -128,15 +105,9 @@ class AuthController extends Controller
         $deleted = $this->authService->revokeSession($request->user(), $tokenId);
 
         if (!$deleted) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Token not found',
-            ], 404);
+            return ApiResponse::error('Token not found', 404);
         }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Session revoked',
-        ]);
+        return ApiResponse::success(message: 'Session revoked');
     }
 }

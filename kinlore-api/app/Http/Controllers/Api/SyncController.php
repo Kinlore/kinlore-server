@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\PullSyncRequest;
 use App\Http\Requests\Api\PushSyncRequest;
+use App\Http\Responses\ApiResponse;
 use App\Services\SyncService;
 use Illuminate\Http\JsonResponse;
 
@@ -38,9 +39,6 @@ class SyncController extends Controller
 
         $this->syncService->push($request->user(), $validated['changes']);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Changes synced successfully',
-        ]);
+        return ApiResponse::success(message: 'Changes synced successfully');
     }
 }

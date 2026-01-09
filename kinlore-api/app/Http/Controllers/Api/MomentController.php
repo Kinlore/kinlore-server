@@ -12,6 +12,7 @@ use App\Http\Requests\Api\ShowMomentRequest;
 use App\Http\Requests\Api\StoreMomentRequest;
 use App\Http\Requests\Api\UpdateMomentRequest;
 use App\Http\Requests\Api\UploadedMomentIdentifiersRequest;
+use App\Http\Responses\ApiResponse;
 use App\Models\Kid;
 use App\Models\Moment;
 use App\Services\MomentService;
@@ -37,16 +38,15 @@ class MomentController extends Controller
 
         $moments = $this->momentService->getMomentsForUser($request->user(), $validated);
 
-        return response()->json([
-            'success' => true,
-            'data' => $moments->items(),
-            'meta' => [
+        return ApiResponse::success(
+            $moments->items(),
+            meta: [
                 'current_page' => $moments->currentPage(),
                 'last_page' => $moments->lastPage(),
                 'per_page' => $moments->perPage(),
                 'total' => $moments->total(),
-            ],
-        ]);
+            ]
+        );
     }
 
     /**
@@ -72,33 +72,31 @@ class MomentController extends Controller
             );
 
             $response = [
-                'success' => true,
-                'message' => $this->getSuccessMessage($result['moment']->moment_type),
-                'data' => [
-                    'moment' => $result['moment']->fresh()->toArray(),
-                ],
+                'moment' => $result['moment']->fresh()->toArray(),
             ];
 
             // Include media data for photo/video types
             if (isset($result['media'])) {
-                $response['data']['media'] = $result['media']->fresh()->toArray();
+                $response['media'] = $result['media']->fresh()->toArray();
             }
 
-            return response()->json($response, 201);
+            return ApiResponse::success(
+                $response,
+                $this->getSuccessMessage($result['moment']->moment_type),
+                201
+            );
 
         } catch (\InvalidArgumentException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage(),
-            ], 422);
+            return ApiResponse::error($e->getMessage(), 422);
         } catch (\Exception $e) {
             Log::error('Moment creation failed: ' . $e->getMessage());
 
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to create moment',
-                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error',
-            ], 500);
+            return ApiResponse::error(
+                'Failed to create moment',
+                500,
+                [],
+                ['error' => config('app.debug') ? $e->getMessage() : 'Internal server error']
+            );
         }
     }
 
@@ -107,10 +105,7 @@ class MomentController extends Controller
      */
     public function show(ShowMomentRequest $request, Moment $moment): JsonResponse
     {
-        return response()->json([
-            'success' => true,
-            'data' => $this->momentService->getMoment($moment),
-        ]);
+        return ApiResponse::success($this->momentService->getMoment($moment));
     }
 
     /**
@@ -123,18 +118,11 @@ class MomentController extends Controller
         try {
             $moment = $this->momentService->updateMoment($moment, $validated);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Moment updated successfully',
-                'data' => $moment->toArray(),
-            ]);
+            return ApiResponse::success($moment->toArray(), 'Moment updated successfully');
         } catch (\Exception $e) {
             Log::error('Moment update failed: ' . $e->getMessage());
 
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to update moment',
-            ], 500);
+            return ApiResponse::error('Failed to update moment', 500);
         }
     }
 
@@ -146,17 +134,11 @@ class MomentController extends Controller
         try {
             $this->momentService->deleteMoment($moment);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Moment deleted successfully',
-            ]);
+            return ApiResponse::success(message: 'Moment deleted successfully');
         } catch (\Exception $e) {
             Log::error('Moment deletion failed: ' . $e->getMessage());
 
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to delete moment',
-            ], 500);
+            return ApiResponse::error('Failed to delete moment', 500);
         }
     }
 
@@ -174,15 +156,9 @@ class MomentController extends Controller
                 'Cache-Control' => 'private, max-age=3600',
             ]);
         } catch (\InvalidArgumentException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage(),
-            ], 400);
+            return ApiResponse::error($e->getMessage(), 400);
         } catch (\RuntimeException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage(),
-            ], 404);
+            return ApiResponse::error($e->getMessage(), 404);
         }
     }
 
@@ -202,10 +178,7 @@ class MomentController extends Controller
                 'Access-Control-Allow-Origin' => '*',
             ]);
         } catch (\RuntimeException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage(),
-            ], 404);
+            return ApiResponse::error($e->getMessage(), 404);
         }
     }
 
@@ -233,10 +206,7 @@ class MomentController extends Controller
                 'error' => $e->getMessage()
             ]);
             
-            return response()->json([
-                'success' => false,
-                'message' => 'File not found',
-            ], 404);
+            return ApiResponse::error('File not found', 404);
         }
     }
 
@@ -245,10 +215,7 @@ class MomentController extends Controller
      */
     public function checkFileStatus(CheckMomentFileStatusRequest $request, Moment $moment): JsonResponse
     {
-        return response()->json([
-            'success' => true,
-            'data' => $this->momentService->checkFileStatus($moment),
-        ]);
+        return ApiResponse::success($this->momentService->checkFileStatus($moment));
     }
 
     /**
@@ -258,10 +225,7 @@ class MomentController extends Controller
     {
         $identifiers = $this->momentService->getUploadedIdentifiers($kid);
 
-        return response()->json([
-            'success' => true,
-            'data' => $identifiers,
-        ]);
+        return ApiResponse::success($identifiers);
     }
 
     /**

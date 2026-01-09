@@ -8,6 +8,7 @@ use App\Http\Requests\Api\IndexStoryRequest;
 use App\Http\Requests\Api\ShowStoryRequest;
 use App\Http\Requests\Api\StoreStoryRequest;
 use App\Http\Requests\Api\UpdateStoryRequest;
+use App\Http\Responses\ApiResponse;
 use App\Models\Kid;
 use App\Models\Story;
 use App\Services\StoryService;
@@ -29,16 +30,15 @@ class StoryController extends Controller
 
         $stories = $this->storyService->getStoriesForUser($request->user(), $validated);
 
-        return response()->json([
-            'success' => true,
-            'data' => $stories->items(),
-            'meta' => [
+        return ApiResponse::success(
+            $stories->items(),
+            meta: [
                 'current_page' => $stories->currentPage(),
                 'last_page' => $stories->lastPage(),
                 'per_page' => $stories->perPage(),
                 'total' => $stories->total(),
-            ],
-        ]);
+            ]
+        );
     }
 
     /**
@@ -53,19 +53,16 @@ class StoryController extends Controller
         try {
             $story = $this->storyService->createStory($kid, $validated);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Story created successfully',
-                'data' => $story->toArray(),
-            ], 201);
+            return ApiResponse::success($story->toArray(), 'Story created successfully', 201);
         } catch (\Exception $e) {
             Log::error('Story creation failed: ' . $e->getMessage());
 
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to create story',
-                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error',
-            ], 500);
+            return ApiResponse::error(
+                'Failed to create story',
+                500,
+                [],
+                ['error' => config('app.debug') ? $e->getMessage() : 'Internal server error']
+            );
         }
     }
 
@@ -76,10 +73,7 @@ class StoryController extends Controller
     {
         $story = $this->storyService->getStory($story);
 
-        return response()->json([
-            'success' => true,
-            'data' => $story->toArray(),
-        ]);
+        return ApiResponse::success($story->toArray());
     }
 
     /**
@@ -92,18 +86,11 @@ class StoryController extends Controller
         try {
             $story = $this->storyService->updateStory($story, $validated);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Story updated successfully',
-                'data' => $story->toArray(),
-            ]);
+            return ApiResponse::success($story->toArray(), 'Story updated successfully');
         } catch (\Exception $e) {
             Log::error('Story update failed: ' . $e->getMessage());
 
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to update story',
-            ], 500);
+            return ApiResponse::error('Failed to update story', 500);
         }
     }
 
@@ -115,17 +102,11 @@ class StoryController extends Controller
         try {
             $this->storyService->deleteStory($story);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Story deleted successfully',
-            ]);
+            return ApiResponse::success(message: 'Story deleted successfully');
         } catch (\Exception $e) {
             Log::error('Story deletion failed: ' . $e->getMessage());
 
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to delete story',
-            ], 500);
+            return ApiResponse::error('Failed to delete story', 500);
         }
     }
 }

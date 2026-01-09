@@ -8,6 +8,7 @@ use App\Http\Requests\Api\IndexKidRequest;
 use App\Http\Requests\Api\ShowKidRequest;
 use App\Http\Requests\Api\StoreKidRequest;
 use App\Http\Requests\Api\UpdateKidRequest;
+use App\Http\Responses\ApiResponse;
 use App\Models\Kid;
 use App\Services\KidService;
 use Illuminate\Http\JsonResponse;
@@ -25,10 +26,7 @@ class KidController extends Controller
     {
         $kids = $this->kidService->getKidsForUser($request->user());
 
-        return response()->json([
-            'success' => true,
-            'data' => $kids,
-        ]);
+        return ApiResponse::success($kids);
     }
 
     /**
@@ -40,11 +38,11 @@ class KidController extends Controller
 
         $kid = $this->kidService->createKid($request->user(), $validated);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Kid created successfully',
-            'data' => $this->kidService->formatKid($kid),
-        ], 201);
+        return ApiResponse::success(
+            $this->kidService->formatKid($kid),
+            'Kid created successfully',
+            201
+        );
     }
 
     /**
@@ -54,10 +52,7 @@ class KidController extends Controller
     {
         $kidDetails = $this->kidService->getKidDetails($kid);
 
-        return response()->json([
-            'success' => true,
-            'data' => $kidDetails,
-        ]);
+        return ApiResponse::success($kidDetails);
     }
 
     /**
@@ -69,11 +64,10 @@ class KidController extends Controller
 
         $kid = $this->kidService->updateKid($kid, $validated);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Kid updated successfully',
-            'data' => $this->kidService->formatKid($kid),
-        ]);
+        return ApiResponse::success(
+            $this->kidService->formatKid($kid),
+            'Kid updated successfully'
+        );
     }
 
     /**
@@ -83,9 +77,6 @@ class KidController extends Controller
     {
         $this->kidService->deleteKid($kid);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Kid deleted successfully',
-        ]);
+        return ApiResponse::success(message: 'Kid deleted successfully');
     }
 }

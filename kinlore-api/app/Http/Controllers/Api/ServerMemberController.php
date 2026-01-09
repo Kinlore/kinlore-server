@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\DestroyServerMemberRequest;
 use App\Http\Requests\Api\IndexServerMemberRequest;
+use App\Http\Responses\ApiResponse;
 use App\Models\Server;
 use App\Models\ServerMember;
 use App\Services\ServerService;
@@ -23,10 +24,7 @@ class ServerMemberController extends Controller
     {
         $members = $server->users; // Uses the belongsToMany relationship on Server
 
-        return response()->json([
-            'success' => true,
-            'data' => $members,
-        ]);
+        return ApiResponse::success($members);
     }
 
     /**
@@ -37,15 +35,9 @@ class ServerMemberController extends Controller
         $result = $this->serverService->removeMember($server, $member);
 
         if (!$result) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Could not remove member. This might be the last owner.',
-            ], 422);
+            return ApiResponse::error('Could not remove member. This might be the last owner.', 422);
         }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Member removed successfully',
-        ]);
+        return ApiResponse::success(message: 'Member removed successfully');
     }
 }
