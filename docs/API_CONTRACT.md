@@ -122,7 +122,7 @@ Moment payload (REST and the inside of `data.moment`):
 - `POST /v1/exports` → `202` export item. A queued job builds a ZIP file on the API server's local disk (`storage/app/exports`). Only one export can run at a time (`409` otherwise).
 - `GET /v1/exports` → `[{ id, status: pending|processing|ready|failed, size_bytes, error, created_at, completed_at, download_url: string|null }]`, newest first. `download_url` is a signed URL valid for 24 hours, set when `ready`.
 - `GET /v1/exports/{id}/download` (signed URL, no header) → the ZIP.
-- ZIP layout: `{Kid name}/{YYYY}/{YYYY-MM-DD}_{type}_{first 8 chars of id}.{ext}` for photos and videos (original files), plus `{Kid name}/memories.json` with every moment of that kid (all fields, including stories, milestones, growth, comments with author names) and `kinlore-export.json` at the root (instance name, export date, kids).
+- ZIP layout: `{Kid name}/{YYYY}/{YYYY-MM-DD}_{type}_{last 12 hex characters of id}.{ext}` for photos and videos (original files), plus `{Kid name}/memories.json` with every moment of that kid (all fields, including stories, milestones, growth, comments with author names) and `kinlore-export.json` at the root (instance name, export date, kids).
 - The server keeps the 3 newest exports and deletes older ZIP files.
 
 ## 9. Sync

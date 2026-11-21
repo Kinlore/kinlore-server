@@ -150,20 +150,29 @@ class BuildExportJob implements ShouldQueue
 
         $date = $moment->display_date;
         $ext = pathinfo($source, PATHINFO_EXTENSION) ?: 'bin';
-        $name = sprintf('%s/%s/%s_%s_%s.%s', $folder, $date->format('Y'), $date->format('Y-m-d'), $moment->moment_type, substr($moment->id, 0, 8), $ext);
+        $name = sprintf('%s/%s/%s_%s_%s.%s', $folder, $date->format('Y'), $date->format('Y-m-d'), $moment->moment_type, self::shortId($moment->id), $ext);
         $zip->addFile($temp, $name);
 
         return $name;
     }
 
     /** Kid name made safe for a folder; a second kid with the same name gets its id appended. */
+    /**
+     * Ids are UUIDv7: the first characters are a timestamp and repeat for items made close together,
+     * so names use the random end of the id.
+     */
+    private static function shortId(string $id): string
+    {
+        return substr(str_replace('-', '', $id), -12);
+    }
+
     private function folderName(Kid $kid, array &$folders): string
     {
         // leading dots are dropped so a kid named "." or ".." cannot make a path that leaves the archive root
         $name = ltrim(trim(preg_replace('/[\/\\\\:*?"<>|]+/', '-', $kid->name)), '.') ?: 'Kid';
 
         if (in_array($name, $folders, true)) {
-            $name .= ' ' . substr($kid->id, 0, 8);
+            $name .= ' ' . self::shortId($kid->id);
         }
 
         return $folders[$kid->id] = $name;

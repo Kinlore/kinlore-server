@@ -30,6 +30,29 @@ class ExportTest extends TestCase
         parent::tearDown();
     }
 
+    public function test_photos_made_close_together_on_one_day_all_reach_the_zip(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $kid = Kid::factory()->create(['name' => 'Mia']);
+        // UUIDv7 ids made in the same millisecond share their first characters
+        $ids = ['01a1ff89-d65a-70d8-a0a7-b66a09e98600', '01a1ff89-d907-734b-9d1f-6a085c675c5c'];
+        foreach ($ids as $i => $id) {
+            $m = Moment::factory()->make(['kid_id' => $kid->id, 'moment_type' => 'photo', 'exif_date' => '2026-11-21 10:00:00', 'photo_url' => "media/k/{$i}/original.jpg"]);
+            $m->id = $id;
+            $m->save();
+            Storage::disk('seaweedfs')->put("media/k/{$i}/original.jpg", "PHOTO-{$i}");
+        }
+        Sanctum::actingAs($admin);
+
+        $this->postJson('/api/v1/exports')->assertStatus(202);
+
+        $zip = new ZipArchive();
+        $this->assertTrue($zip->open(Export::latest()->first()->fullPath()));
+        $photos = collect(range(0, $zip->numFiles - 1))->map(fn ($i) => $zip->getNameIndex($i))->filter(fn ($n) => str_ends_with($n, '.jpg'));
+        $this->assertCount(2, $photos, 'both photos must be in the ZIP');
+        $zip->close();
+    }
+
     public function test_admin_builds_zip_and_downloads_it_with_signed_url(): void
     {
         $admin = User::factory()->admin()->create(['name' => 'Admin']);
@@ -54,7 +77,7 @@ class ExportTest extends TestCase
 
         $zip = new ZipArchive();
         $this->assertTrue($zip->open(Export::find($item['id'])->fullPath()));
-        $photoPath = 'Mia/2025/2025-06-01_photo_' . substr($photo->id, 0, 8) . '.jpg';
+        $photoPath = 'Mia/2025/2025-06-01_photo_' . substr(str_replace('-', '', $photo->id), -12) . '.jpg';
         $this->assertSame('JPEG-BYTES', $zip->getFromName($photoPath));
         $memories = json_decode($zip->getFromName('Mia/memories.json'), true);
         $this->assertCount(2, $memories);
