@@ -36,9 +36,10 @@ class InstanceAccessTest extends TestCase
         ]));
     }
 
-    public function test_first_user_becomes_admin_and_later_users_need_an_invitation(): void
+    public function test_first_user_comes_from_web_setup_and_later_users_need_an_invitation(): void
     {
-        $this->register('admin@example.test')->assertStatus(201)->assertJsonPath('data.user.is_admin', true);
+        $this->register('admin@example.test')->assertStatus(403);
+        User::factory()->admin()->create();
 
         $this->register('stranger@example.test')->assertStatus(422)->assertJsonValidationErrors('invite_token');
         $this->register('stranger@example.test', 'not-a-token')->assertStatus(422);

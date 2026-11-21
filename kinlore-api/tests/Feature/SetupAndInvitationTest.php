@@ -42,6 +42,7 @@ class SetupAndInvitationTest extends TestCase
         config(['app.name' => 'The Smiths', 'app.setup_token' => null]);
         $this->getJson('/api/auth/setup-status')->assertOk()->assertJson(['data' => [
             'needs_setup' => true, 'setup_token_required' => false, 'instance_name' => 'The Smiths',
+            'setup_url' => url('/setup'),
         ]]);
 
         config(['app.setup_token' => 'secret']);
@@ -53,25 +54,22 @@ class SetupAndInvitationTest extends TestCase
             ->assertJsonPath('data.setup_token_required', false);
     }
 
-    public function test_first_user_becomes_admin_without_setup_token(): void
-    {
-        config(['app.setup_token' => null]);
-
-        $this->register()->assertStatus(201)
-            ->assertJsonPath('data.user.role', 'admin')
-            ->assertJsonPath('data.user.is_admin', true)
-            ->assertJsonPath('data.user.permissions', ['add_content' => true, 'comment' => true, 'like' => true, 'download' => true]);
-    }
-
-    public function test_first_user_needs_the_setup_token_when_set(): void
+    public function test_api_register_on_an_empty_instance_points_to_the_web_setup(): void
     {
         config(['app.setup_token' => 'secret']);
 
-        $this->register()->assertStatus(422)->assertJsonValidationErrors('setup_token');
-        $this->register(['setup_token' => 'wrong'])->assertStatus(422)->assertJsonValidationErrors('setup_token');
+        $this->register()->assertStatus(403)->assertJsonPath('message', 'Finish setup in a web browser at ' . url('/setup'));
+        $this->register(['setup_token' => 'secret', 'invite_token' => 'anything'])->assertStatus(403);
         $this->assertDatabaseCount('users', 0);
+    }
 
-        $this->register(['setup_token' => 'secret'])->assertStatus(201)->assertJsonPath('data.user.role', 'admin');
+    public function test_api_register_needs_an_invitation_once_set_up(): void
+    {
+        User::factory()->admin()->create();
+
+        $this->register()->assertStatus(422)->assertJsonValidationErrors('invite_token');
+        $this->register(['setup_token' => 'secret'])->assertStatus(422)->assertJsonValidationErrors('invite_token');
+        $this->assertDatabaseCount('users', 1);
     }
 
     public function test_check_invitation_endpoint(): void

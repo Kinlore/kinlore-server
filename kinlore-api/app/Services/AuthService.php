@@ -20,7 +20,7 @@ class AuthService
     /**
      * Public setup state for the app's first screen.
      *
-     * @return array{needs_setup: bool, setup_token_required: bool, instance_name: string}
+     * @return array{needs_setup: bool, setup_token_required: bool, instance_name: string, setup_url: string}
      */
     public function setupStatus(): array
     {
@@ -30,6 +30,7 @@ class AuthService
             'needs_setup' => $needsSetup,
             'setup_token_required' => $needsSetup && filled(config('app.setup_token')),
             'instance_name' => config('app.name'),
+            'setup_url' => url('/setup'),
         ];
     }
 
@@ -42,38 +43,51 @@ class AuthService
     }
 
     /**
-     * Register a new user.
+     * Create the instance's first user as admin (web setup page only).
      *
-     * The first user of the instance becomes the admin (with `setup_token` when
-     * SETUP_TOKEN is set). Everyone after that needs a valid invitation token,
-     * and gets the invitation's role and permissions.
+     * @param array{name: string, email: string, password: string, setup_token?: string|null} $data
+     * @throws ValidationException when SETUP_TOKEN is set and does not match, or the instance already has a user
+     */
+    public function createFirstAdmin(array $data): User
+    {
+        // The lock serializes setups, so two parallel first sign-ups cannot both see an empty instance.
+        return Cache::lock('kinlore:register', 10)->block(5, fn () => DB::transaction(function () use ($data) {
+            if (User::exists()) {
+                throw ValidationException::withMessages(['email' => ['This instance is already set up.']]);
+            }
+
+            $this->checkSetupToken($data['setup_token'] ?? null);
+
+            return User::create([
+                'name' => $data['name'],
+                'email' => $data['email'],
+                'password' => Hash::make($data['password']),
+                'role' => 'admin',
+            ]);
+        }));
+    }
+
+    /**
+     * Register an invited user with the invitation's role and permissions.
+     * The first admin is created on the web setup page instead (createFirstAdmin).
      *
-     * @param array{name: string, email: string, password: string, invite_token?: string|null, setup_token?: string|null} $data
+     * @param array{name: string, email: string, password: string, invite_token: string} $data
      * @return array{user: array, token: string, token_type: string}
      * @throws ValidationException
      */
     public function register(array $data): array
     {
-        // The lock serializes registrations, so two parallel first sign-ups cannot both see an empty instance.
+        // Same lock as the setup, so an invitation cannot be claimed twice in parallel.
         $user = Cache::lock('kinlore:register', 10)->block(5, fn () => DB::transaction(function () use ($data) {
-            $isFirstUser = !User::exists();
+            $invitation = $this->claimInvitation($data['invite_token'], $data['email']);
 
-            if ($isFirstUser) {
-                $this->checkSetupToken($data['setup_token'] ?? null);
-                $attributes = ['role' => 'admin'];
-                $invitation = null;
-            } else {
-                $invitation = $this->claimInvitation($data['invite_token'] ?? null, $data['email']);
-                $attributes = $invitation->only(['role', 'can_add_content', 'can_comment', 'can_like', 'can_download']);
-            }
-
-            $user = User::create($attributes + [
+            $user = User::create($invitation->only(['role', 'can_add_content', 'can_comment', 'can_like', 'can_download']) + [
                 'name' => $data['name'],
                 'email' => $data['email'],
                 'password' => Hash::make($data['password']),
             ]);
 
-            $invitation?->update(['accepted_at' => now(), 'accepted_by' => $user->id]);
+            $invitation->update(['accepted_at' => now(), 'accepted_by' => $user->id]);
 
             return $user;
         }));
@@ -106,11 +120,9 @@ class AuthService
      *
      * @throws ValidationException
      */
-    private function claimInvitation(?string $token, string $email): Invitation
+    private function claimInvitation(string $token, string $email): Invitation
     {
-        $invitation = $token
-            ? Invitation::pending()->where('token', $token)->lockForUpdate()->first()
-            : null;
+        $invitation = Invitation::pending()->where('token', $token)->lockForUpdate()->first();
 
         if (!$invitation || ($invitation->email && strcasecmp($invitation->email, $email) !== 0)) {
             throw ValidationException::withMessages([

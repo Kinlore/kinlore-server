@@ -1,0 +1,15 @@
+# Optional reverse proxy with automatic HTTPS (docker compose --profile proxy up -d).
+# Caddy gets a Let's Encrypt certificate for KINLORE_DOMAIN by itself.
+# Use KINLORE_DOMAIN=localhost for a local test with Caddy's own certificate.
+{$KINLORE_DOMAIN} {
+	encode zstd gzip
+
+	# Caddy adds X-Forwarded-For, -Proto and -Host; the API trusts them from the Docker network.
+	reverse_proxy kinlore-api:80 {
+		transport http {
+			# long video uploads and export downloads
+			read_timeout 30m
+			write_timeout 30m
+		}
+	}
+}

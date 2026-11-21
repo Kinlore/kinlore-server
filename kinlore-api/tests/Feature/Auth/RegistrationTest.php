@@ -3,6 +3,7 @@
 namespace Tests\Feature\Auth;
 
 use Tests\TestCase;
+use App\Models\Invitation;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -10,12 +11,28 @@ class RegistrationTest extends TestCase
 {
     use RefreshDatabase;
 
+    private string $inviteToken;
+
+    // Registration is for invited users; the first admin comes from the web setup page.
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->inviteToken = Invitation::create([
+            'token' => 'tok-registration',
+            'role' => 'family',
+            'invited_by' => User::factory()->admin()->create()->id,
+            'expires_at' => now()->addDays(7),
+        ])->token;
+    }
+
     public function test_user_can_register(): void
     {
         $response = $this->postJson('/api/auth/register', [
             'name' => 'Test User',
             'email' => 'test@kinlore.local',
             'password' => 'password123',
+            'invite_token' => $this->inviteToken,
             'password_confirmation' => 'password123',
         ]);
 
@@ -42,6 +59,7 @@ class RegistrationTest extends TestCase
             'name' => 'Test User',
             'email' => 'invalid-email',
             'password' => 'password123',
+            'invite_token' => $this->inviteToken,
             'password_confirmation' => 'password123',
         ]);
 
@@ -55,6 +73,7 @@ class RegistrationTest extends TestCase
             'name' => 'Test User',
             'email' => 'test@kinlore.local',
             'password' => '123',
+            'invite_token' => $this->inviteToken,
             'password_confirmation' => '123',
         ]);
 
@@ -68,6 +87,7 @@ class RegistrationTest extends TestCase
             'name' => 'Test User',
             'email' => 'test@kinlore.local',
             'password' => 'password123',
+            'invite_token' => $this->inviteToken,
             'password_confirmation' => 'different123',
         ]);
 
@@ -83,6 +103,7 @@ class RegistrationTest extends TestCase
             'name' => 'Test User',
             'email' => 'test@kinlore.local',
             'password' => 'password123',
+            'invite_token' => $this->inviteToken,
             'password_confirmation' => 'password123',
         ]);
 
@@ -95,6 +116,7 @@ class RegistrationTest extends TestCase
         $response = $this->postJson('/api/auth/register', [
             'email' => 'test@kinlore.local',
             'password' => 'password123',
+            'invite_token' => $this->inviteToken,
             'password_confirmation' => 'password123',
         ]);
 
@@ -108,6 +130,7 @@ class RegistrationTest extends TestCase
             'name' => 'Test User',
             'email' => 'test@kinlore.local',
             'password' => 'password123',
+            'invite_token' => $this->inviteToken,
             'password_confirmation' => 'password123',
         ]);
 

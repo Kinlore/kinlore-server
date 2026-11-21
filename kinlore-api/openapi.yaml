@@ -48,6 +48,8 @@ servers:
         description: Address of the instance (APP_URL)
 
 tags:
+  - name: Setup
+    description: First-admin setup in a web browser.
   - name: Health
     description: Liveness and component checks
   - name: Auth
@@ -181,16 +183,15 @@ paths:
     post:
       tags: [Auth]
       operationId: register
-      summary: Register a user
+      summary: Register an invited user
       description: |
-        Public. Throttled to 10 requests per minute.
-        - First user of the instance: becomes `admin`. Needs `setup_token` when the server
-          has `SETUP_TOKEN` set.
-        - Everyone after that: needs a valid `invite_token`. When the invitation has an email,
-          `email` must match it (case-insensitive). The user gets the invitation's role and
-          permissions.
+        Public. Throttled to 10 requests per minute. Needs a valid `invite_token`. When the
+        invitation has an email, `email` must match it (case-insensitive). The user gets the
+        invitation's role and permissions.
 
-        Registrations are serialized with a lock, so two first sign-ups cannot both become admin.
+        The first user (the admin) cannot be created here: it is created on the web setup page
+        (`GET /setup`). On an instance with no user this returns `403` with the message
+        "Finish setup in a web browser at {setup_url}".
       security: []
       requestBody:
         required: true
@@ -209,6 +210,12 @@ paths:
                   - properties:
                       data:
                         $ref: '#/components/schemas/AuthResult'
+        '403':
+          description: The instance has no user yet; finish setup in a web browser.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '422':
           $ref: '#/components/responses/ValidationFailed'
         '429':
@@ -572,6 +579,103 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /:
+    servers:
+      - url: '{baseUrl}'
+        variables:
+          baseUrl:
+            default: http://localhost:8088
+    get:
+      tags: [Setup]
+      operationId: homePage
+      summary: Web start page
+      description: |
+        Public HTML page outside `/api`. On an instance with no user it redirects to `/setup`.
+        Otherwise it shows the instance name, the server address for the app and the sign-in
+        steps. It shows no user data.
+      security: []
+      responses:
+        '200':
+          description: Home page
+          content:
+            text/html:
+              schema:
+                type: string
+        '302':
+          description: Redirect to `/setup` while the instance has no user
+  /setup:
+    servers:
+      - url: '{baseUrl}'
+        variables:
+          baseUrl:
+            default: http://localhost:8088
+    get:
+      tags: [Setup]
+      operationId: setupPage
+      summary: First-admin setup form (web)
+      description: |
+        Public HTML form outside `/api`: name, email, password, password confirmation, and a
+        setup token field when the server has `SETUP_TOKEN` set. Redirects to `/` once the
+        instance has a user. Behind a trusted reverse proxy the form uses the public `https`
+        address.
+      security: []
+      responses:
+        '200':
+          description: Setup form
+          content:
+            text/html:
+              schema:
+                type: string
+        '302':
+          description: Already set up; redirect to `/`
+    post:
+      tags: [Setup]
+      operationId: setupSubmit
+      summary: Create the first admin (web form)
+      description: |
+        HTML form post with the CSRF `_token` from the form page. Throttled to 5 per minute.
+        Creates the admin under a lock, so two parallel setups cannot both succeed. Success
+        shows the server address and email to use in the app; the password is never shown.
+        Errors redirect back to the form with messages.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [_token, name, email, password, password_confirmation]
+              properties:
+                _token:
+                  type: string
+                name:
+                  type: string
+                  maxLength: 255
+                email:
+                  type: string
+                  format: email
+                  maxLength: 255
+                password:
+                  type: string
+                  minLength: 8
+                password_confirmation:
+                  type: string
+                setup_token:
+                  type: string
+                  description: Required when `SETUP_TOKEN` is set.
+      responses:
+        '200':
+          description: Admin created; done page
+          content:
+            text/html:
+              schema:
+                type: string
+        '302':
+          description: Validation error (back to the form) or already set up (to `/`)
+        '419':
+          description: Missing or expired CSRF token
+        '429':
+          description: Too many attempts
   /invite/{token}:
     servers:
       - url: '{baseUrl}'
@@ -1998,7 +2102,7 @@ components:
 
     RegisterRequest:
       type: object
-      required: [name, email, password, password_confirmation]
+      required: [name, email, password, password_confirmation, invite_token]
       properties:
         name:
           type: string
@@ -2013,21 +2117,20 @@ components:
         password_confirmation:
           type: string
         invite_token:
-          type: [string, 'null']
+          type: string
           maxLength: 64
-          description: Required when the instance already has users.
-        setup_token:
-          type: [string, 'null']
-          maxLength: 255
-          description: Required for the first user when the server has `SETUP_TOKEN` set.
 
     SetupStatus:
       type: object
-      required: [needs_setup, setup_token_required, instance_name]
+      required: [needs_setup, setup_token_required, instance_name, setup_url]
       properties:
         needs_setup:
           type: boolean
-          description: True when the instance has no user.
+          description: True when the instance has no user. The app then sends the owner to `setup_url` in a web browser.
+        setup_url:
+          type: string
+          format: uri
+          description: The web setup page, `{APP_URL}/setup` (the public https address behind a trusted proxy).
         setup_token_required:
           type: boolean
           description: True only while `needs_setup` is true and `SETUP_TOKEN` is set.

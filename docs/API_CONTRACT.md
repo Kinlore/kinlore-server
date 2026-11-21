@@ -54,8 +54,16 @@ Returned by login, register and `/auth/me` (`/auth/me` adds the count fields):
 
 ## 3. Setup, registration and invitations
 
-- `GET /auth/setup-status` (public): `{ needs_setup: bool, setup_token_required: bool, instance_name: string }`. `needs_setup` is true when the instance has no user.
-- `POST /auth/register`: `name, email, password, password_confirmation`, plus `invite_token` (required when the instance has users) or `setup_token` (required for the first user when the env var `SETUP_TOKEN` is set). The first registration is serialized with a lock, so two parallel first sign-ups cannot both become admin. The registered user gets the role and permissions of the invitation.
+**First admin: web setup only.** The mobile app never creates the admin. After installing the server (Docker or bare metal), the owner opens `APP_URL` in a web browser:
+- `GET /` (web): when the instance has no user, redirects to `/setup`. Otherwise a small status page: "Kinlore is running", the server address to type in the app, and the app's sign-in steps. No user data.
+- `GET /setup` (web): the setup form (name, email, password, password confirmation, and a setup token field when `SETUP_TOKEN` is set). When the instance already has a user: redirect to `/`.
+- `POST /setup` (web, CSRF-protected, throttled 5/min): creates the admin under the same lock as before, so two parallel setups cannot both succeed. Validation errors show on the form. Success shows "Your admin account is ready" with the server address and the email to use in the app. It never shows the password.
+- The seeded admin (`SEED_USER_*`) still works and skips the web setup.
+- Behind a reverse proxy, the pages and form action use the proxy's `https` address (trusted proxies, section 10).
+
+API:
+- `GET /auth/setup-status` (public): `{ needs_setup: bool, setup_token_required: bool, instance_name: string, setup_url: string }`. `setup_url` is `{APP_URL}/setup`. The app uses it to tell the user to finish setup in a browser.
+- `POST /auth/register`: `name, email, password, password_confirmation, invite_token` (required). It only registers invited users and gives them the role and permissions of the invitation. On an instance with no user it returns `403` with the message "Finish setup in a web browser at {setup_url}". `setup_token` is no longer accepted here.
 - `GET /auth/invitations/{token}` (public, throttled 10/min): `200 { valid: true, email: string|null, role, invited_by: { name }, expires_at, instance_name }`, or `404` when unknown, used or expired.
 - Invitation item (admin endpoints): `{ id, email, role, permissions: {...}, invited_by: { id, name }, expires_at, created_at }`.
 - `POST /v1/invitations` (admin): `{ email?, role?: partner|family (default family), permissions?: { add_content?, comment?, like?, download? }, expires_in_days?: 1..30 (default 7) }` → `201` invitation item plus `token`, `invite_link`, `invite_url`:
@@ -136,6 +144,10 @@ Response: `{ changes: { kids: {created, updated, deleted}, moments: {created, up
 
 Response: `{ success: true, data: { kids_created: [{ local_id, id }], moments_created: [{ local_id, id }], rejected: [{ table, id, reason }] } }`. `local_id` equals `id`, because the server keeps client ids.
 
-## 10. Health
+## 10. Reverse proxy
+
+The API trusts `X-Forwarded-Proto`, `X-Forwarded-Host`, `X-Forwarded-Port` and `X-Forwarded-For` from the addresses in `TRUSTED_PROXIES` (default: private networks). Signed links, invite links, the web setup page and redirects then use the public `https` address. Docker ships an optional Caddy proxy with automatic HTTPS (compose profile `proxy`); examples for other proxies are in `docs/SELF_HOSTING.md`.
+
+## 11. Health
 
 `GET /health` (public, no envelope): `{ status, timestamp, service }`. `GET /health/detailed` (auth).
