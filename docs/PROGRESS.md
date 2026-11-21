@@ -81,3 +81,24 @@ The agreement between server and app is [API_CONTRACT.md](API_CONTRACT.md). Chec
 | ⬜ | Old WatermelonDB app data is not migrated | unsynced local items and the old upload queue are lost on upgrade; a full pull restores server data |
 | ⬜ | Unrouted old controllers (Photo, Story, UserMilestone, Video) and in-request video processing in `MediaService::upload` | dead code, remove |
 | ⬜ | Storage URLs in moment payloads point at the internal SeaweedFS host | unused by the app |
+
+## Phase 6: web setup, reverse proxy, simulator test (2026-11-21)
+
+| Status | Item | Notes |
+|---|---|---|
+| ✅ | First admin is created on the web setup page (`/setup`), never in the app | optional `SETUP_TOKEN` |
+| ✅ | App: server address with port, https first then http, sign-in only | invite sign-up stays in the app |
+| ✅ | Bundled Caddy reverse proxy (`--profile proxy`), trusted proxy headers | nginx and Traefik examples in SELF_HOSTING |
+| ✅ | Every feature tested on the iOS simulator against Docker (PostgreSQL, SeaweedFS, Caddy) | see below |
+
+Bugs found in the simulator and fixed: uploads sent a capture date 1000× too large (all videos and EXIF-less photos failed); video durations 1000× too long; comment and description fields lost focus after one character; comment field hidden under the tab bar; hidden upload bar blocked the tab bar; failed uploads were silent and could not be cleared; Settings showed no server and stale storage; due dates in the past were accepted; export dropped files whose ids shared a prefix; splash screen stayed after a reload; keyboard covered Continue; many unlabeled controls for screen readers. Factory Reset is now admin-only.
+
+Open:
+| Status | Item | Notes |
+|---|---|---|
+| ❓ | Keep Factory Reset at all? It soft-deletes every child of the family on the server | owner decision |
+| ⬜ | Child switcher once failed to open after saving a new child (not reproduced) | watch |
+| ⬜ | The first tab tap right after sign-in was sometimes lost | watch |
+| ⬜ | Comment field not visible to XCTest (deep view tree); check with VoiceOver on a device | |
+| ⬜ | Milestone cards do not announce the selected state | minor |
+| ⬜ | Read-only description looks like an input box | minor |
