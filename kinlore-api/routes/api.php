@@ -8,9 +8,6 @@ use App\Http\Controllers\Api\SyncController;
 use App\Http\Controllers\Api\MediaController;
 use App\Http\Controllers\Api\MilestoneController;
 use App\Http\Controllers\Api\MomentInteractionController;
-use App\Http\Controllers\Api\ServerController;
-use App\Http\Controllers\Api\ServerMemberController;
-use App\Http\Controllers\Api\InvitationController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -70,10 +67,6 @@ Route::prefix('v1')->group(function () {
     Route::get('/media/{media}/file/hls', [MediaController::class, 'serveHlsPublic']);
     Route::get('/media/{media}/file/{filename}', [MediaController::class, 'serveHlsFile'])
         ->where('filename', '.*\.(m3u8|ts)$');
-    
-    // Public invitation validation (rate limited)
-    Route::get('/invitations/validate/{token}', [InvitationController::class, 'validate'])
-        ->middleware('throttle:20,1'); // 20 requests per minute
 });
 
 /*
@@ -87,27 +80,6 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::get('/user', function (Request $request) {
         return $request->user();
     });
-
-    /*
-    |--------------------------------------------------------------------------
-    | Server & Invitation Routes
-    |--------------------------------------------------------------------------
-    */
-    // User's servers
-    Route::get('/user/servers', [ServerController::class, 'userServers']);
-    
-    // Server management
-    Route::apiResource('servers', ServerController::class);
-    
-    // Server members
-    Route::get('/servers/{server}/members', [ServerMemberController::class, 'index']);
-    Route::delete('/servers/{server}/members/{member}', [ServerMemberController::class, 'destroy']);
-    
-    // Invitations
-    Route::get('/servers/{server}/invitations', [InvitationController::class, 'index']);
-    Route::post('/servers/{server}/invitations', [InvitationController::class, 'store']);
-    Route::delete('/servers/{server}/invitations/{invitation}', [InvitationController::class, 'destroy']);
-    Route::post('/invitations/accept', [InvitationController::class, 'accept']);
 
     /*
     |--------------------------------------------------------------------------

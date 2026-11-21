@@ -12,50 +12,19 @@ use Illuminate\Validation\ValidationException;
  */
 class AuthService
 {
-    public function __construct(
-        private ServerService $serverService,
-        private InvitationService $invitationService
-    ) {}
     /**
      * Register a new user.
      *
      * @param array{name: string, email: string, password: string} $data
-     * @param string|null $inviteToken Optional invitation token
      * @return array{user: array, token: string, token_type: string}
-     * @throws ValidationException
      */
-    public function register(array $data, ?string $inviteToken = null): array
+    public function register(array $data): array
     {
-        // If invite_token provided, validate it BEFORE creating user
-        $invitation = null;
-        if ($inviteToken) {
-            $validation = $this->invitationService->validateToken($inviteToken);
-            
-            if (!$validation['valid']) {
-                throw ValidationException::withMessages([
-                    'invite_token' => ['Invalid invitation: ' . $validation['reason']],
-                ]);
-            }
-            
-            $invitation = $validation['invitation'];
-        }
-
-        // Create user
         $user = User::create([
             'name' => $data['name'],
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
         ]);
-
-        if ($invitation) {
-            // Join existing server via invitation
-            $this->invitationService->acceptInvitation($inviteToken, $user);
-        } else {
-            // Create default server for new user
-            $this->serverService->createServer($user, [
-                'name' => $user->name . "'s Family",
-            ]);
-        }
 
         $token = $user->createToken('mobile-app', ['*'])->plainTextToken;
 
@@ -134,30 +103,17 @@ class AuthService
         $storageBytesUsed = $user->getStorageUsed();
         $storageBytesAvailable = (int) disk_free_space(storage_path());
 
-        // Get server memberships with role
-        $servers = $user->servers()->withCount(['members', 'kids'])->get()->map(function ($server) {
-            return [
-                'id' => $server->id,
-                'name' => $server->name,
-                'role' => $server->pivot->role,
-                'members_count' => $server->members_count,
-                'kids_count' => $server->kids_count,
-                'joined_at' => $server->pivot->created_at?->toIso8601String(),
-            ];
-        });
-
         return [
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
             'email_verified_at' => $user->email_verified_at,
             'created_at' => $user->created_at->toIso8601String(),
-            'kids_count' => $servers->sum('kids_count'),
+            'kids_count' => $user->kids()->count(),
             'moments_count' => $user->getTotalMomentsCount(),
             'storage_used' => $user->getStorageUsedFormatted(),
             'storage_bytes_used' => $storageBytesUsed,
             'storage_bytes_available' => $storageBytesAvailable,
-            'servers' => $servers->toArray(),
         ];
     }
 

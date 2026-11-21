@@ -20,7 +20,7 @@ class MomentPolicy
      */
     public function view(User $user, Moment $moment): bool
     {
-        return $moment->kid->server->hasMember($user);
+        return $user->id === $moment->kid->user_id;
     }
 
     /**
@@ -36,8 +36,7 @@ class MomentPolicy
      */
     public function update(User $user, Moment $moment): bool
     {
-        $role = $moment->kid->server->getMemberRole($user);
-        return in_array($role, ['owner', 'contributor']);
+        return $user->id === $moment->kid->user_id;
     }
 
     /**
@@ -45,8 +44,7 @@ class MomentPolicy
      */
     public function delete(User $user, Moment $moment): bool
     {
-        $role = $moment->kid->server->getMemberRole($user);
-        return in_array($role, ['owner', 'contributor']);
+        return $user->id === $moment->kid->user_id;
     }
 
     /**
@@ -54,7 +52,7 @@ class MomentPolicy
      */
     public function restore(User $user, Moment $moment): bool
     {
-        return $this->delete($user, $moment);
+        return $user->id === $moment->kid->user_id;
     }
 
     /**
@@ -62,6 +60,6 @@ class MomentPolicy
      */
     public function forceDelete(User $user, Moment $moment): bool
     {
-        return $this->delete($user, $moment);
+        return $user->id === $moment->kid->user_id;
     }
 }

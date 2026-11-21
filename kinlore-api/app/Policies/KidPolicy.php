@@ -10,12 +10,9 @@ class KidPolicy
     /**
      * Determine if the user can view any kids.
      */
-    /**
-     * Determine if the user can view any kids.
-     */
     public function viewAny(User $user): bool
     {
-        return true; // Filtered by service/controller
+        return true; // All authenticated users can view their own kids
     }
 
     /**
@@ -23,7 +20,7 @@ class KidPolicy
      */
     public function view(User $user, Kid $kid): bool
     {
-        return $kid->server->hasMember($user);
+        return $user->id === $kid->user_id;
     }
 
     /**
@@ -31,7 +28,7 @@ class KidPolicy
      */
     public function create(User $user): bool
     {
-        return $user->servers()->exists();
+        return true; // All authenticated users can create kids
     }
 
     /**
@@ -39,20 +36,7 @@ class KidPolicy
      */
     public function update(User $user, Kid $kid): bool
     {
-        $role = $kid->server->getMemberRole($user);
-        
-        // Owner of server can update
-        if ($role === 'owner') {
-             return true;
-        }
-        
-        // Creator of the kid (if they are still a member) can update if they are owner/contributor?
-        // Or strictly owner? Let's say Owner or the Creator (if they have write access).
-        if ($user->id === $kid->user_id && in_array($role, ['owner', 'contributor'])) {
-            return true;
-        }
-
-        return false;
+        return $user->id === $kid->user_id;
     }
 
     /**
@@ -60,14 +44,7 @@ class KidPolicy
      */
     public function delete(User $user, Kid $kid): bool
     {
-        $role = $kid->server->getMemberRole($user);
-        
-        // Only server owner or kid creator can delete
-        if ($role === 'owner') return true;
-        
-        if ($user->id === $kid->user_id && $role === 'contributor') return true;
-        
-        return false;
+        return $user->id === $kid->user_id;
     }
 
     /**
@@ -75,7 +52,7 @@ class KidPolicy
      */
     public function restore(User $user, Kid $kid): bool
     {
-        return $this->delete($user, $kid); // Same permissions as delete
+        return $user->id === $kid->user_id;
     }
 
     /**
@@ -83,6 +60,6 @@ class KidPolicy
      */
     public function forceDelete(User $user, Kid $kid): bool
     {
-        return $this->delete($user, $kid);
+        return $user->id === $kid->user_id;
     }
 }
