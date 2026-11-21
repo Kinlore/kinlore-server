@@ -15,7 +15,7 @@ class DestroyMomentRequest extends FormRequest
         $moment = $this->route('moment');
 
         return $moment instanceof Moment
-            ? $this->user()->can('view', $moment->kid)
+            ? $this->user()->can('update', $moment->kid)
             : false;
     }
 

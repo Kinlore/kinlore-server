@@ -32,7 +32,6 @@ class Kid extends Model
      */
     protected $fillable = [
         'user_id',
-        'server_id',
         'name',
         'date_of_birth',
         'avatar_color',
@@ -61,17 +60,9 @@ class Kid extends Model
      * Relationships
      */
     
-    public function server()
+    public function user()
     {
-        return $this->belongsTo(Server::class);
-    }
-    
-    /**
-     * Get the user who owns the server (convenience method)
-     */
-    public function owner()
-    {
-        return $this->hasOneThrough(User::class, Server::class, 'id', 'id', 'server_id', 'owner_id');
+        return $this->belongsTo(User::class);
     }
 
     public function moments()
@@ -151,9 +142,9 @@ class Kid extends Model
      * Scopes
      */
     
-    public function scopeForServer($query, $serverId)
+    public function scopeForUser($query, $userId)
     {
-        return $query->where('server_id', $serverId);
+        return $query->where('user_id', $userId);
     }
 
     public function scopeWithMomentsCount($query)

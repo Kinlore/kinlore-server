@@ -19,7 +19,7 @@ class UpdateStoryRequest extends FormRequest
         $story = $this->route('story');
 
         return $story instanceof Story
-            ? $this->user()->can('view', $story->kid)
+            ? $this->user()->can('update', $story->kid)
             : false;
     }
 

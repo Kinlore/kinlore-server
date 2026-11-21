@@ -3,91 +3,58 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Api\AcceptInvitationRequest;
-use App\Http\Requests\Api\DestroyInvitationRequest;
-use App\Http\Requests\Api\IndexInvitationRequest;
 use App\Http\Requests\Api\StoreInvitationRequest;
 use App\Http\Responses\ApiResponse;
 use App\Models\Invitation;
-use App\Models\Server;
-use App\Services\InvitationService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Str;
 
+/**
+ * Admin-only invitations. All routes are behind the `can:admin` middleware.
+ */
 class InvitationController extends Controller
 {
-    public function __construct(
-        private InvitationService $invitationService
-    ) {}
-
     /**
-     * List invitations for a server.
+     * List pending invitations.
      */
-    public function index(IndexInvitationRequest $request, Server $server): JsonResponse
+    public function index(): JsonResponse
     {
-        $invitations = $this->invitationService->getPendingInvitations($server);
-
-        return ApiResponse::success($invitations);
+        return ApiResponse::success(Invitation::pending()->latest()->get());
     }
 
     /**
-     * Create a new invitation.
+     * Create an invitation. The token is returned only once, here.
      */
-    public function store(StoreInvitationRequest $request, Server $server): JsonResponse
+    public function store(StoreInvitationRequest $request): JsonResponse
     {
         $validated = $request->validated();
+        $token = Str::random(48);
 
-        $invitation = $this->invitationService->createInvitation(
-            $server, 
-            $request->user(),
-            $validated
-        );
-
-        return ApiResponse::success($invitation->append('invite_link'), status: 201);
-    }
-
-    /**
-     * Validate an invitation token.
-     * Public endpoint.
-     */
-    public function validate(string $token): JsonResponse
-    {
-        $result = $this->invitationService->validateToken($token);
+        $invitation = Invitation::create([
+            'token' => $token,
+            'email' => $validated['email'] ?? null,
+            'invited_by' => $request->user()->id,
+            'expires_at' => now()->addDays($validated['expires_in_days'] ?? 7),
+        ]);
 
         return ApiResponse::success(
-            $result['invitation'],
-            extra: [
-                'valid' => $result['valid'],
-                'reason' => $result['reason'],
-            ]
+            $invitation->toArray() + ['token' => $token, 'invite_link' => "kinlore://invite/{$token}"],
+            'Invitation created',
+            201
         );
     }
 
     /**
-     * Accept an invitation.
+     * Revoke an invitation that was not used yet.
      */
-    public function accept(AcceptInvitationRequest $request): JsonResponse
+    public function destroy(Invitation $invitation): JsonResponse
     {
-        $validated = $request->validated();
-
-        try {
-            $member = $this->invitationService->acceptInvitation(
-                $validated['token'],
-                $request->user()
-            );
-
-            return ApiResponse::success($member, 'Invitation accepted');
-        } catch (\Exception $e) {
-            return ApiResponse::error($e->getMessage(), 422);
+        if ($invitation->accepted_at) {
+            return ApiResponse::error('Invitation was already used', 409);
         }
-    }
 
-    /**
-     * Revoke an invitation.
-     */
-    public function destroy(DestroyInvitationRequest $request, Server $server, Invitation $invitation): JsonResponse
-    {
-        $this->invitationService->revokeInvitation($invitation);
+        $invitation->delete();
 
-        return ApiResponse::success(message: 'Invitation revoked successfully');
+        return ApiResponse::success(null, 'Invitation revoked');
     }
 }

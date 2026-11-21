@@ -40,8 +40,7 @@ class SyncService
      */
     private function getKidsChanges(User $user, ?Carbon $lastPulledAt): array
     {
-        // Get all kids from servers the user is a member of
-        $query = Kid::whereHas('server.members', fn ($q) => $q->where('user_id', $user->id));
+        $query = Kid::query();
         
         if ($lastPulledAt) {
             $query->where('updated_at', '>', $lastPulledAt);
@@ -76,8 +75,7 @@ class SyncService
      */
     private function getMomentsChanges(User $user, ?Carbon $lastPulledAt): array
     {
-        // Get moments from kids in servers the user is a member of
-        $query = Moment::whereHas('kid.server.members', fn ($q) => $q->where('user_id', $user->id));
+        $query = Moment::has('kid');
 
         if ($lastPulledAt) {
             $query->where('updated_at', '>', $lastPulledAt);
@@ -152,7 +150,7 @@ class SyncService
         // Note: Moments are typically created via upload endpoint, not sync
         // But we can handle updates and deletes
 
-        // Sync completed
+        Log::info('Sync push completed', ['user_id' => $user->id]);
     }
 
     /**
@@ -160,51 +158,26 @@ class SyncService
      */
     private function pushKidsChanges(User $user, array $kidsChanges): void
     {
-        // Get the user's primary server (create one if missing, though typically Auth registers it)
-        $server = $user->servers()->first();
-        
-        if (!$server) {
-            // Fallback: If for some reason no server exists, we can't create a Kid properly.
-            // But we can check if they own one? 
-            // Ideally should fail or auto-create.
-            // Let's log error and skip changes, or auto-create?
-            // Auth flow guarantees server.
-            Log::error('Sync push failed: User has no server', ['user_id' => $user->id]);
-            return;
-        }
-
         // Created kids
         if (!empty($kidsChanges['created'])) {
             foreach ($kidsChanges['created'] as $kidData) {
                 $kid = Kid::withTrashed()->find($kidData['id']);
-                
-                $data = [
+
+                // Kid IDs are visible to the whole family: never let a push take over someone else's kid.
+                if ($kid && !$user->can('update', $kid)) {
+                    continue;
+                }
+
+                if (!$kid) {
+                    $kid = new Kid(['user_id' => $user->id]);
+                    $kid->id = $kidData['id'];
+                }
+
+                $kid->fill([
                     'name' => $kidData['name'],
                     'date_of_birth' => Carbon::createFromTimestamp((float)($kidData['date_of_birth'] ?? 0) / 1000),
                     'avatar_color' => $kidData['avatar_color'],
-                    // 'server_id' => $server->id // Should we update server_id? 
-                    // If we move kids between servers? For now let's assume server_id is sticky or set on create.
-                    // If valid move, update it. If accidental, maybe not.
-                    // Let's stick to update mutable fields.
-                ];
-
-                if ($kid) {
-                    // Update existing
-                    if ($kid->trashed()) {
-                        $kid->restore();
-                    }
-                    
-                    // Only update if authorized (server check)
-                    if ($kid->server_id == $server->id || $user->servers->contains('id', $kid->server_id)) {
-                         $kid->update($data);
-                    }
-                } else {
-                    // Create new
-                    $data['id'] = $kidData['id'];
-                    $data['user_id'] = $user->id;
-                    $data['server_id'] = $server->id;
-                    Kid::create($data);
-                }
+                ])->save();
             }
         }
 
@@ -212,32 +185,7 @@ class SyncService
         if (!empty($kidsChanges['updated'])) {
             foreach ($kidsChanges['updated'] as $kidData) {
                 $kid = Kid::find($kidData['id']);
-                // Check if kid belongs to one of user's servers or just the server we picked?
-                // Ideally check 'server_id' matches one of user's servers.
-                // For now, check if user is a member of the kid's server permissions.
-                // Simplified: User can update if they are member of the kid's server.
-                
-                if ($kid && ($kid->server_id /* check membership */)) { 
-                    // To keep it simple and performant, we assume if we found the kid and the user has access via Policy (already checked?), 
-                    // but Sync is controller level. 
-                    // Let's just check if the Kid's server is in user's servers list? Too expensive for loop.
-                    // Or relies on 'server_id' being correct.
-                    // Previous code checked `user_id === user->id`.
-                    // Now we check `user->servers->contains($kid->server_id)`.
-                    
-                    // We can use the helper: $user->can('update', $kid)? No, Sync command doesn't use Policy easily inside loop.
-                    
-                    // Let's check if the kid belongs to the server we picked OR any server user owns.
-                    // Actually, if we just check ownership:
-                }
-                
-                // Better approach:
-                // Just use the server we fetched above? No, Kid might belong to a DIFFERENT server of the user.
-                // But Sync implies User context. 
-                // Let's allow update if the Kid exists. The constraint is handled by model/logic.
-                // But we must respect the new ownership model.
-                
-                if ($kid && ($kid->server_id == $server->id || $user->servers->contains('id', $kid->server_id))) {
+                if ($kid && $user->can('update', $kid)) {
                     $kid->update([
                         'name' => $kidData['name'],
                         'date_of_birth' => Carbon::createFromTimestamp((float)($kidData['date_of_birth'] ?? 0) / 1000),
@@ -251,8 +199,7 @@ class SyncService
         if (!empty($kidsChanges['deleted'])) {
             foreach ($kidsChanges['deleted'] as $kidId) {
                 $kid = Kid::find($kidId);
-                // User can delete if they are owner/contributor of the kid's server
-                if ($kid && $kid->server && in_array($kid->server->getMemberRole($user), ['owner', 'contributor'])) {
+                if ($kid && $user->can('update', $kid)) {
                     $kid->delete();
                 }
             }

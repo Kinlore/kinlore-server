@@ -19,7 +19,7 @@ class UpdateUserMilestoneRequest extends FormRequest
         $userMilestone = $this->route('userMilestone');
 
         return $userMilestone instanceof UserMilestone
-            ? $this->user()->can('view', $userMilestone->kid)
+            ? $this->user()->can('update', $userMilestone->kid)
             : false;
     }
 

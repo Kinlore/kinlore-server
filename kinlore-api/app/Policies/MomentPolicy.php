@@ -5,63 +5,44 @@ namespace App\Policies;
 use App\Models\Moment;
 use App\Models\User;
 
+/**
+ * One family per instance: every user sees and adds moments.
+ * Changing a moment follows the rules for its kid.
+ */
 class MomentPolicy
 {
-    /**
-     * Determine if the user can view any moments.
-     */
     public function viewAny(User $user): bool
     {
         return true;
     }
 
-    /**
-     * Determine if the user can view the moment.
-     */
     public function view(User $user, Moment $moment): bool
     {
-        return $moment->kid->server->hasMember($user);
+        return true;
     }
 
-    /**
-     * Determine if the user can create moments.
-     */
     public function create(User $user): bool
     {
         return true;
     }
 
-    /**
-     * Determine if the user can update the moment.
-     */
     public function update(User $user, Moment $moment): bool
     {
-        $role = $moment->kid->server->getMemberRole($user);
-        return in_array($role, ['owner', 'contributor']);
+        return (new KidPolicy)->update($user, $moment->kid);
     }
 
-    /**
-     * Determine if the user can delete the moment.
-     */
     public function delete(User $user, Moment $moment): bool
     {
-        $role = $moment->kid->server->getMemberRole($user);
-        return in_array($role, ['owner', 'contributor']);
+        return $this->update($user, $moment);
     }
 
-    /**
-     * Determine if the user can restore the moment.
-     */
     public function restore(User $user, Moment $moment): bool
     {
-        return $this->delete($user, $moment);
+        return $this->update($user, $moment);
     }
 
-    /**
-     * Determine if the user can permanently delete the moment.
-     */
     public function forceDelete(User $user, Moment $moment): bool
     {
-        return $this->delete($user, $moment);
+        return $this->update($user, $moment);
     }
 }

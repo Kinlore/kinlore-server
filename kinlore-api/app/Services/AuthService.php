@@ -2,8 +2,10 @@
 
 namespace App\Services;
 
+use App\Models\Invitation;
 use App\Models\User;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
@@ -12,50 +14,35 @@ use Illuminate\Validation\ValidationException;
  */
 class AuthService
 {
-    public function __construct(
-        private ServerService $serverService,
-        private InvitationService $invitationService
-    ) {}
     /**
      * Register a new user.
      *
-     * @param array{name: string, email: string, password: string} $data
-     * @param string|null $inviteToken Optional invitation token
+     * The first user of the instance becomes the admin. Everyone after that
+     * needs a valid invitation token created by the admin.
+     *
+     * @param array{name: string, email: string, password: string, invite_token?: string|null} $data
      * @return array{user: array, token: string, token_type: string}
      * @throws ValidationException
      */
-    public function register(array $data, ?string $inviteToken = null): array
+    public function register(array $data): array
     {
-        // If invite_token provided, validate it BEFORE creating user
-        $invitation = null;
-        if ($inviteToken) {
-            $validation = $this->invitationService->validateToken($inviteToken);
-            
-            if (!$validation['valid']) {
-                throw ValidationException::withMessages([
-                    'invite_token' => ['Invalid invitation: ' . $validation['reason']],
-                ]);
-            }
-            
-            $invitation = $validation['invitation'];
-        }
+        $user = DB::transaction(function () use ($data) {
+            // shortcut: two sign-ups on an empty instance at the same instant could both become admin; add a setup lock if instances ever get exposed before the owner registers.
+            $isFirstUser = !User::exists();
+            $invitation = $isFirstUser ? null : $this->claimInvitation($data['invite_token'] ?? null, $data['email']);
 
-        // Create user
-        $user = User::create([
-            'name' => $data['name'],
-            'email' => $data['email'],
-            'password' => Hash::make($data['password']),
-        ]);
-
-        if ($invitation) {
-            // Join existing server via invitation
-            $this->invitationService->acceptInvitation($inviteToken, $user);
-        } else {
-            // Create default server for new user
-            $this->serverService->createServer($user, [
-                'name' => $user->name . "'s Family",
+            $user = new User([
+                'name' => $data['name'],
+                'email' => $data['email'],
+                'password' => Hash::make($data['password']),
             ]);
-        }
+            $user->is_admin = $isFirstUser;
+            $user->save();
+
+            $invitation?->update(['accepted_at' => now(), 'accepted_by' => $user->id]);
+
+            return $user;
+        });
 
         $token = $user->createToken('mobile-app', ['*'])->plainTextToken;
 
@@ -64,11 +51,32 @@ class AuthService
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
+                'is_admin' => $user->is_admin,
                 'created_at' => $user->created_at->toIso8601String(),
             ],
             'token' => $token,
             'token_type' => 'Bearer',
         ];
+    }
+
+    /**
+     * Lock and return a usable invitation, or fail validation.
+     *
+     * @throws ValidationException
+     */
+    private function claimInvitation(?string $token, string $email): Invitation
+    {
+        $invitation = $token
+            ? Invitation::pending()->where('token', $token)->lockForUpdate()->first()
+            : null;
+
+        if (!$invitation || ($invitation->email && strcasecmp($invitation->email, $email) !== 0)) {
+            throw ValidationException::withMessages([
+                'invite_token' => ['A valid invitation is required to join this instance.'],
+            ]);
+        }
+
+        return $invitation;
     }
 
     /**
@@ -94,6 +102,7 @@ class AuthService
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
+                'is_admin' => $user->is_admin,
             ],
             'token' => $token,
             'token_type' => 'Bearer',
@@ -134,30 +143,18 @@ class AuthService
         $storageBytesUsed = $user->getStorageUsed();
         $storageBytesAvailable = (int) disk_free_space(storage_path());
 
-        // Get server memberships with role
-        $servers = $user->servers()->withCount(['members', 'kids'])->get()->map(function ($server) {
-            return [
-                'id' => $server->id,
-                'name' => $server->name,
-                'role' => $server->pivot->role,
-                'members_count' => $server->members_count,
-                'kids_count' => $server->kids_count,
-                'joined_at' => $server->pivot->created_at?->toIso8601String(),
-            ];
-        });
-
         return [
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
+            'is_admin' => $user->is_admin,
             'email_verified_at' => $user->email_verified_at,
             'created_at' => $user->created_at->toIso8601String(),
-            'kids_count' => $servers->sum('kids_count'),
+            'kids_count' => $user->kids()->count(),
             'moments_count' => $user->getTotalMomentsCount(),
             'storage_used' => $user->getStorageUsedFormatted(),
             'storage_bytes_used' => $storageBytesUsed,
             'storage_bytes_available' => $storageBytesAvailable,
-            'servers' => $servers->toArray(),
         ];
     }
 

@@ -8,10 +8,6 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
 
-use App\Models\Server;
-use App\Models\ServerMember;
-use App\Models\Invitation;
-
 class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable;
@@ -47,6 +43,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_admin' => 'boolean',
         ];
     }
 
@@ -77,28 +74,6 @@ class User extends Authenticatable
     public function interactions()
     {
         return $this->hasMany(MomentInteraction::class);
-    }
-
-    public function serverMemberships()
-    {
-        return $this->hasMany(ServerMember::class);
-    }
-
-    public function servers()
-    {
-        return $this->belongsToMany(Server::class, 'server_members')
-            ->withPivot('role', 'joined_at', 'metadata')
-            ->withTimestamps();
-    }
-
-    public function ownedServers()
-    {
-        return $this->hasMany(Server::class, 'owner_id');
-    }
-
-    public function invitationsSent()
-    {
-        return $this->hasMany(Invitation::class, 'invited_by');
     }
 
     /**

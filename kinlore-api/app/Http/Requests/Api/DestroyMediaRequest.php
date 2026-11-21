@@ -15,7 +15,7 @@ class DestroyMediaRequest extends FormRequest
         $media = $this->route('media');
 
         return $media instanceof Media
-            ? $this->user()->can('view', $media->kid)
+            ? $this->user()->can('update', $media->kid)
             : false;
     }
 

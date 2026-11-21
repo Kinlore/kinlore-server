@@ -24,7 +24,7 @@ class AuthController extends Controller
     {
         $validated = $request->validated();
 
-        $result = $this->authService->register($validated, $validated['invite_token'] ?? null);
+        $result = $this->authService->register($validated);
 
         return ApiResponse::success($result, 'User registered successfully', 201);
     }

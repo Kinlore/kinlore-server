@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Models\Kid;
+use App\Models\User;
 use App\Models\Moment;
 use App\Models\Video;
 use App\Models\CustomMilestone;
@@ -34,10 +35,6 @@ class AuthServiceProvider extends ServiceProvider
     {
         $this->registerPolicies();
 
-        // Additional Gates can be defined here if needed
-        // Example:
-        // Gate::define('admin', function (User $user) {
-        //     return $user->is_admin;
-        // });
+        Gate::define('admin', fn (User $user) => $user->is_admin);
     }
 }
