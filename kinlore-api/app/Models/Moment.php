@@ -33,6 +33,7 @@ class Moment extends Model
      */
     protected $fillable = [
         'kid_id',
+        'user_id',
         'video_id',
         'media_id',
         'moment_type',

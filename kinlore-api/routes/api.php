@@ -9,6 +9,9 @@ use App\Http\Controllers\Api\SyncController;
 use App\Http\Controllers\Api\MediaController;
 use App\Http\Controllers\Api\MilestoneController;
 use App\Http\Controllers\Api\MomentInteractionController;
+use App\Http\Controllers\Api\MemberController;
+use App\Http\Controllers\Api\LookbackController;
+use App\Http\Controllers\Api\ExportController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -35,7 +38,11 @@ Route::get('/health/detailed', [HealthController::class, 'detailed'])
 |--------------------------------------------------------------------------
 */
 Route::prefix('auth')->group(function () {
-    Route::post('/register', [AuthController::class, 'register']);
+    Route::get('/setup-status', [AuthController::class, 'setupStatus']);
+    Route::get('/invitations/{token}', [AuthController::class, 'checkInvitation'])
+        ->middleware('throttle:10,1');
+    Route::post('/register', [AuthController::class, 'register'])
+        ->middleware('throttle:10,1');
     Route::post('/login', [AuthController::class, 'login'])
         ->middleware('throttle:5,1'); // 5 attempts per minute
     
@@ -52,22 +59,27 @@ Route::prefix('auth')->group(function () {
 
 /*
 |--------------------------------------------------------------------------
-| Public HLS Streaming Routes (No Authentication Required)
+| Signed Routes (No Authorization Header)
 |--------------------------------------------------------------------------
-| iOS/Android video players cannot inject auth headers into HLS requests.
-| These routes serve HLS files without authentication for streaming.
+| Video players cannot send auth headers with HLS requests, and a browser
+| download of an export cannot either. These routes need a valid, unexpired
+| signature instead (see docs/API_CONTRACT.md, sections 6 and 8).
 */
-Route::prefix('v1')->group(function () {
-    // HLS master playlist
-    Route::get('/moments/{moment}/file/hls', [MomentController::class, 'serveHlsPublic']);
-    // HLS segment files (variant playlists and .ts segments)
+Route::prefix('v1')->middleware('signed')->group(function () {
+    Route::get('/moments/{moment}/file/hls', [MomentController::class, 'serveHlsPublic'])
+        ->name('moments.hls.master');
     Route::get('/moments/{moment}/file/{filename}', [MomentController::class, 'serveHlsFile'])
-        ->where('filename', '.*\.(m3u8|ts)$');
-    
-    // Media HLS routes
-    Route::get('/media/{media}/file/hls', [MediaController::class, 'serveHlsPublic']);
+        ->where('filename', '.*\.(m3u8|ts)$')
+        ->name('moments.hls.file');
+
+    Route::get('/media/{media}/file/hls', [MediaController::class, 'serveHlsPublic'])
+        ->name('media.hls.master');
     Route::get('/media/{media}/file/{filename}', [MediaController::class, 'serveHlsFile'])
-        ->where('filename', '.*\.(m3u8|ts)$');
+        ->where('filename', '.*\.(m3u8|ts)$')
+        ->name('media.hls.file');
+
+    Route::get('/exports/{export}/download', [ExportController::class, 'download'])
+        ->name('exports.download');
 });
 
 /*
@@ -96,13 +108,17 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     */
     Route::get('moments', [MomentController::class, 'index']);
     Route::post('moments', [MomentController::class, 'store'])
-        ->middleware('throttle:10,1'); // 10 uploads per minute
+        ->middleware('throttle:60,1'); // bulk uploads from the gallery
     Route::get('moments/{moment}', [MomentController::class, 'show']);
     Route::put('moments/{moment}', [MomentController::class, 'update']);
     Route::delete('moments/{moment}', [MomentController::class, 'destroy']);
     Route::get('/moments/{moment}/file/{type}', [MomentController::class, 'serveFile'])
         ->where('type', 'original|medium|thumbnail');
     Route::get('/moments/{moment}/file-status', [MomentController::class, 'checkFileStatus']);
+    Route::get('/moments/{moment}/playback', [MomentController::class, 'playback']);
+
+    // Look-back: on this day, then and now
+    Route::get('/lookback', [LookbackController::class, 'index']);
     
     // Uploaded identifiers per kid (for duplicate detection)
     Route::get('/kids/{kid}/moments/uploaded-identifiers', [MomentController::class, 'uploadedIdentifiers']);
@@ -112,6 +128,13 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         Route::get('/invitations', [InvitationController::class, 'index']);
         Route::post('/invitations', [InvitationController::class, 'store']);
         Route::delete('/invitations/{invitation}', [InvitationController::class, 'destroy']);
+
+        Route::get('/members', [MemberController::class, 'index']);
+        Route::patch('/members/{user}', [MemberController::class, 'update']);
+        Route::delete('/members/{user}', [MemberController::class, 'destroy']);
+
+        Route::get('/exports', [ExportController::class, 'index']);
+        Route::post('/exports', [ExportController::class, 'store']);
     });
 
     // Moment Interactions
@@ -148,7 +171,7 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | Sync Routes (WatermelonDB)
+    | Sync Routes (mobile offline database)
     |--------------------------------------------------------------------------
     */
     Route::post('/sync/pull', [SyncController::class, 'pull'])
