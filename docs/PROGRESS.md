@@ -96,7 +96,7 @@ Bugs found in the simulator and fixed: uploads sent a capture date 1000× too la
 Open:
 | Status | Item | Notes |
 |---|---|---|
-| ❓ | Keep Factory Reset at all? It soft-deletes every child of the family on the server | owner decision |
+| ✅ | Factory Reset deleted every child of the family on the server | decided 2026-11-22: now 'Reset this phone', phone only, signs out; tested |
 | ✅ | Child switcher once failed to open after saving a new child | cause: every sync rebuilt the navigation; fixed |
 | ✅ | The first tab tap right after sign-in was sometimes lost | same cause; fixed |
 | ⬜ | Comment field not visible to XCTest (deep view tree); check with VoiceOver on a device | |
