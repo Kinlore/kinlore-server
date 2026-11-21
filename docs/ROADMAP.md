@@ -1,6 +1,6 @@
 # Kinlore Server Roadmap
 
-Last updated: 2026-11-21. Progress per item is tracked in [PROGRESS.md](PROGRESS.md).
+Last updated: 2026-11-21. Progress per item is tracked in [PROGRESS.md](PROGRESS.md). Decisions the owner must make are in [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md).
 
 ## 1. Direction
 

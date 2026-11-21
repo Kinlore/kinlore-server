@@ -2,7 +2,7 @@
 
 Last updated: 2026-11-21. Item IDs and details are in [ROADMAP.md](ROADMAP.md).
 
-Status: ✅ done · 🔄 in review · ⬜ open · ❓ needs a decision
+Status: ✅ done · 🔄 in review · ⬜ open · ❓ needs a decision (see [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md))
 
 ## Phase 1: single instance (PR #1)
 
@@ -22,13 +22,13 @@ Status: ✅ done · 🔄 in review · ⬜ open · ❓ needs a decision
 | 🔄 | Tests for the new rules | `tests/Feature/InstanceAccessTest.php`, 6 tests passing |
 | ⬜ | Merge PR #1 | |
 | ⬜ | Run the migrations on every deployment | Drops the server tables and `kids.server_id`. |
-| ❓ | Keep or drop the stash "multi-server WIP before revert (2026-11-21)" | |
+| ❓ | Keep or drop the stash "multi-server WIP before revert (2026-11-21)" | Q1 |
 
 ## Phase 2: test suite
 
 | Status | Item | Notes |
 |---|---|---|
-| ⬜ | T1: tests need Redis because of `throttleWithRedis()` | |
+| ❓ | T1: tests need Redis because of `throttleWithRedis()` | Q6 |
 | ⬜ | T2: old tests call routes outside `/api/v1` | |
 | ⬜ | T3: milestone factory writes the missing `icon_image_id` column | |
 | ⬜ | T4: `HealthTest` has no `RefreshDatabase` | |
@@ -53,7 +53,7 @@ Current numbers: 71 failing, 27 passing on PR #1. On `main`: 98 failing, 5 passi
 | ⬜ | Hand the admin role to another user | |
 | ⬜ | Public endpoint to check an invitation | |
 | ⬜ | Cleanup of expired invitations | |
-| ⬜ | Record who uploaded each moment | So invited users can delete their own uploads. |
-| ⬜ | S3: setup lock for the first admin | |
-| ❓ | S4: confirm the HLS public endpoints may skip login | |
-| ❓ | B4: family-wide or per-user counts in `/auth/me` | |
+| ❓ | Record who uploaded each moment | Q5 |
+| ❓ | S3: setup lock for the first admin | Q4 |
+| ❓ | S4: confirm the HLS public endpoints may skip login | Q2 |
+| ❓ | B4: family-wide or per-user counts in `/auth/me` | Q3 |
