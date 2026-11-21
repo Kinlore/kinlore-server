@@ -11,7 +11,7 @@ class MomentFactory extends Factory
     public function definition(): array
     {
         return [
-            'id' => Str::uuid(),
+            'id' => (string) Str::uuid(),
             'kid_id' => Kid::factory(),
             'title' => fake()->sentence(3),
             'description' => fake()->paragraph(),

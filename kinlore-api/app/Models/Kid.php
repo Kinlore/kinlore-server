@@ -83,7 +83,7 @@ class Kid extends Model
         $now = Carbon::now();
         $dob = Carbon::parse($this->date_of_birth);
         
-        return $dob->diffInYears($now);
+        return (int) $dob->diffInYears($now);
     }
 
     public function getAgeInMonthsAttribute()
@@ -92,7 +92,7 @@ class Kid extends Model
             return null;
         }
 
-        return Carbon::parse($this->date_of_birth)->diffInMonths(Carbon::now());
+        return (int) Carbon::parse($this->date_of_birth)->diffInMonths(Carbon::now());
     }
 
     public function getAgeDetailedAttribute()
@@ -104,8 +104,9 @@ class Kid extends Model
         $now = Carbon::now();
         $dob = Carbon::parse($this->date_of_birth);
         
-        $years = $dob->diffInYears($now);
-        $months = $dob->copy()->addYears($years)->diffInMonths($now);
+        // Carbon 3 returns floats; whole numbers only
+        $years = (int) $dob->diffInYears($now);
+        $months = (int) $dob->copy()->addYears($years)->diffInMonths($now);
         
         if ($years > 0) {
             return $years . ' year' . ($years > 1 ? 's' : '') . 

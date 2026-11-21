@@ -21,7 +21,7 @@ class SyncTest extends TestCase
         
         Sanctum::actingAs($user);
 
-        $response = $this->postJson('/api/sync/pull', [
+        $response = $this->postJson('/api/v1/sync/pull', [
             'lastPulledAt' => null,
             'schemaVersion' => 1,
         ]);
@@ -52,7 +52,7 @@ class SyncTest extends TestCase
         // Create moment after lastPulledAt
         Moment::factory()->create(['kid_id' => $kid->id]);
 
-        $response = $this->postJson('/api/sync/pull', [
+        $response = $this->postJson('/api/v1/sync/pull', [
             'lastPulledAt' => $lastPulledAt,
             'schemaVersion' => 1,
         ]);
@@ -67,7 +67,7 @@ class SyncTest extends TestCase
         
         Sanctum::actingAs($user);
 
-        $response = $this->postJson('/api/sync/push', [
+        $response = $this->postJson('/api/v1/sync/push', [
             'changes' => [
                 'kids' => [
                     'created' => [
@@ -92,6 +92,7 @@ class SyncTest extends TestCase
 
         $response->assertStatus(200);
         $this->assertDatabaseHas('kids', [
+            'id' => '123e4567-e89b-12d3-a456-426614174000',
             'name' => 'Emma',
             'user_id' => $user->id,
         ]);
@@ -102,7 +103,7 @@ class SyncTest extends TestCase
         $user = User::factory()->create();
         Sanctum::actingAs($user);
 
-        $response = $this->postJson('/api/sync/pull', [
+        $response = $this->postJson('/api/v1/sync/pull', [
             'lastPulledAt' => null,
         ]);
 
@@ -112,7 +113,7 @@ class SyncTest extends TestCase
 
     public function test_unauthenticated_user_cannot_sync(): void
     {
-        $response = $this->postJson('/api/sync/pull', [
+        $response = $this->postJson('/api/v1/sync/pull', [
             'lastPulledAt' => null,
             'schemaVersion' => 1,
         ]);

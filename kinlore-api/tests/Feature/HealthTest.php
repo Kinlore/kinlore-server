@@ -2,12 +2,16 @@
 
 namespace Tests\Feature;
 
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 use App\Models\User;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 
 class HealthTest extends TestCase
 {
+    use RefreshDatabase;
+
     public function test_health_endpoint_returns_success(): void
     {
         $response = $this->getJson('/api/health');
@@ -32,6 +36,7 @@ class HealthTest extends TestCase
 
     public function test_authenticated_user_can_access_detailed_health(): void
     {
+        Storage::fake(config('filesystems.default'));
         $user = User::factory()->create();
         Sanctum::actingAs($user);
 

@@ -691,7 +691,7 @@ class MomentService
     public function getMomentsForUser(User $user, array $filters = []): LengthAwarePaginator
     {
         $query = Moment::has('kid')
-            ->with(['media', 'story', 'userMilestone', 'userMilestone.predefinedMilestone'])
+            ->with(['media', 'milestone'])
             ->orderBy('created_at', $filters['sort_direction'] ?? 'desc');
 
         if (!empty($filters['kid_id'])) {
@@ -715,7 +715,7 @@ class MomentService
     public function getMomentsForKid(Kid $kid, array $filters = []): LengthAwarePaginator
     {
         $query = $kid->moments()
-            ->with(['media', 'story', 'userMilestone', 'userMilestone.predefinedMilestone'])
+            ->with(['media', 'milestone'])
             ->orderBy('created_at', $filters['sort_direction'] ?? 'desc');
 
         if (!empty($filters['moment_type'])) {
@@ -738,7 +738,7 @@ class MomentService
      */
     public function getMoment(Moment $moment): array
     {
-        $moment->load(['media', 'story', 'userMilestone', 'userMilestone.predefinedMilestone']);
+        $moment->load(['media', 'milestone']);
         
         return $moment->toArray();
     }
@@ -773,7 +773,7 @@ class MomentService
             }
         });
 
-        return $moment->fresh(['media', 'story', 'userMilestone']);
+        return $moment->fresh(['media', 'milestone']);
     }
 
     /**

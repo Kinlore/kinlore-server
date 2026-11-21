@@ -19,7 +19,7 @@ class KidTest extends TestCase
         
         Sanctum::actingAs($user);
 
-        $response = $this->getJson('/api/kids');
+        $response = $this->getJson('/api/v1/kids');
 
         $response->assertStatus(200);
         $response->assertJsonCount(3, 'data');
@@ -33,7 +33,7 @@ class KidTest extends TestCase
 
     public function test_unauthenticated_user_cannot_list_kids(): void
     {
-        $response = $this->getJson('/api/kids');
+        $response = $this->getJson('/api/v1/kids');
 
         $response->assertStatus(401);
     }
@@ -43,7 +43,7 @@ class KidTest extends TestCase
         $user = User::factory()->create();
         Sanctum::actingAs($user);
 
-        $response = $this->postJson('/api/kids', [
+        $response = $this->postJson('/api/v1/kids', [
             'name' => 'Emma',
             'date_of_birth' => '2019-03-15',
             'avatar_color' => '#FF6B6B',
@@ -64,7 +64,7 @@ class KidTest extends TestCase
         $user = User::factory()->create();
         Sanctum::actingAs($user);
 
-        $response = $this->postJson('/api/kids', [
+        $response = $this->postJson('/api/v1/kids', [
             'date_of_birth' => '2019-03-15',
         ]);
 
@@ -77,7 +77,7 @@ class KidTest extends TestCase
         $user = User::factory()->create();
         Sanctum::actingAs($user);
 
-        $response = $this->postJson('/api/kids', [
+        $response = $this->postJson('/api/v1/kids', [
             'name' => 'Emma',
         ]);
 
@@ -90,7 +90,7 @@ class KidTest extends TestCase
         $user = User::factory()->create();
         Sanctum::actingAs($user);
 
-        $response = $this->postJson('/api/kids', [
+        $response = $this->postJson('/api/v1/kids', [
             'name' => 'Emma',
             'date_of_birth' => now()->addDays(1)->format('Y-m-d'),
         ]);
@@ -104,7 +104,7 @@ class KidTest extends TestCase
         $user = User::factory()->create();
         Sanctum::actingAs($user);
 
-        $response = $this->postJson('/api/kids', [
+        $response = $this->postJson('/api/v1/kids', [
             'name' => 'Emma',
             'date_of_birth' => '2019-03-15',
         ]);
@@ -123,14 +123,14 @@ class KidTest extends TestCase
         
         Sanctum::actingAs($user);
 
-        $response = $this->getJson("/api/kids/{$kid->id}");
+        $response = $this->getJson("/api/v1/kids/{$kid->id}");
 
         $response->assertStatus(200);
         $response->assertJsonPath('data.id', $kid->id);
         $response->assertJsonPath('data.name', $kid->name);
     }
 
-    public function test_user_cannot_view_another_users_kid(): void
+    public function test_user_can_view_another_users_kid(): void
     {
         $user = User::factory()->create();
         $otherUser = User::factory()->create();
@@ -138,9 +138,35 @@ class KidTest extends TestCase
         
         Sanctum::actingAs($user);
 
-        $response = $this->getJson("/api/kids/{$kid->id}");
+        $response = $this->getJson("/api/v1/kids/{$kid->id}");
 
-        $response->assertStatus(403);
+        $response->assertStatus(200);
+        $response->assertJsonPath('data.id', $kid->id);
+    }
+
+    public function test_user_sees_kids_of_all_family_members(): void
+    {
+        $user = User::factory()->create();
+        $otherUser = User::factory()->create();
+        Kid::factory()->create(['user_id' => $user->id]);
+        Kid::factory()->create(['user_id' => $otherUser->id]);
+
+        Sanctum::actingAs($user);
+
+        $this->getJson('/api/v1/kids')->assertOk()->assertJsonCount(2, 'data');
+    }
+
+    public function test_admin_can_update_another_users_kid(): void
+    {
+        $admin = User::factory()->create(['is_admin' => true]);
+        $otherUser = User::factory()->create();
+        $kid = Kid::factory()->create(['user_id' => $otherUser->id]);
+
+        Sanctum::actingAs($admin);
+
+        $this->putJson("/api/v1/kids/{$kid->id}", ['name' => 'Renamed'])
+            ->assertOk()
+            ->assertJsonPath('data.name', 'Renamed');
     }
 
     public function test_user_can_update_their_own_kid(): void
@@ -150,7 +176,7 @@ class KidTest extends TestCase
         
         Sanctum::actingAs($user);
 
-        $response = $this->putJson("/api/kids/{$kid->id}", [
+        $response = $this->putJson("/api/v1/kids/{$kid->id}", [
             'name' => 'Emma Rose',
         ]);
 
@@ -171,7 +197,7 @@ class KidTest extends TestCase
         
         Sanctum::actingAs($user);
 
-        $response = $this->putJson("/api/kids/{$kid->id}", [
+        $response = $this->putJson("/api/v1/kids/{$kid->id}", [
             'name' => 'Hacked',
         ]);
 
@@ -185,7 +211,7 @@ class KidTest extends TestCase
         
         Sanctum::actingAs($user);
 
-        $response = $this->deleteJson("/api/kids/{$kid->id}");
+        $response = $this->deleteJson("/api/v1/kids/{$kid->id}");
 
         $response->assertStatus(200);
         $this->assertSoftDeleted('kids', ['id' => $kid->id]);
@@ -199,7 +225,7 @@ class KidTest extends TestCase
         
         Sanctum::actingAs($user);
 
-        $response = $this->deleteJson("/api/kids/{$kid->id}");
+        $response = $this->deleteJson("/api/v1/kids/{$kid->id}");
 
         $response->assertStatus(403);
         $this->assertDatabaseHas('kids', ['id' => $kid->id]);

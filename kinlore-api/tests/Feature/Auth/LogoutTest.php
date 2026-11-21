@@ -52,11 +52,11 @@ class LogoutTest extends TestCase
     public function test_user_can_refresh_token(): void
     {
         $user = User::factory()->create();
-        Sanctum::actingAs($user);
+        $oldToken = $user->createToken('mobile-app');
 
         $oldTokenCount = $user->tokens()->count();
 
-        $response = $this->postJson('/api/auth/refresh');
+        $response = $this->withToken($oldToken->plainTextToken)->postJson('/api/auth/refresh');
 
         $response->assertStatus(200);
         $response->assertJsonStructure([
@@ -66,6 +66,7 @@ class LogoutTest extends TestCase
         
         // Old token should be deleted, new one created
         $this->assertEquals($oldTokenCount, $user->tokens()->count());
+        $this->assertNull($user->tokens()->find($oldToken->accessToken->id));
     }
 
     public function test_user_can_get_active_sessions(): void

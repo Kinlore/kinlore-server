@@ -49,7 +49,11 @@ return [
 
 // ⭐ SeaweedFS S3 Configuration
         'seaweedfs' => [
-            'driver' => 's3',
+            // SEAWEEDFS_DRIVER=local stores media on the server's own disk (bare metal, no SeaweedFS)
+            'driver' => env('SEAWEEDFS_DRIVER', 's3'),
+            // the S3 driver treats 'root' as a key prefix, so set it only for local storage
+            'root' => env('SEAWEEDFS_DRIVER', 's3') === 'local' ? env('MEDIA_ROOT', storage_path('app/media')) : '',
+            'serve' => true,
             'key' => env('SEAWEEDFS_KEY', 'admin'),
             'secret' => env('SEAWEEDFS_SECRET', 'admin'),
             'region' => env('SEAWEEDFS_REGION', 'us-east-1'),

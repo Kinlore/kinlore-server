@@ -11,7 +11,8 @@ services:
       POSTGRES_USER: ${DB_USERNAME:-kinlore_user}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-kinlore_password}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      # Postgres 18+ keeps its data in a versioned subfolder of this mount
+      - postgres_data:/var/lib/postgresql
     healthcheck:
       test:
         [
@@ -31,9 +32,6 @@ services:
     container_name: kinlore-seaweedfs-master
     restart: unless-stopped
     command: master -ip=seaweedfs-master -ip.bind=0.0.0.0 -metricsPort=9324
-    ports:
-      - "9333:9333"
-      - "19333:19333"
     volumes:
       - seaweedfs_master:/data
     networks:
@@ -44,9 +42,6 @@ services:
     container_name: kinlore-seaweedfs-volume
     restart: unless-stopped
     command: volume -mserver="seaweedfs-master:9333" -ip.bind=0.0.0.0 -port=8080 -metricsPort=9325
-    ports:
-      - "8080:8080"
-      - "18080:18080"
     volumes:
       - seaweedfs_volume:/data
     depends_on:
@@ -60,9 +55,8 @@ services:
     restart: unless-stopped
     command: filer -master="seaweedfs-master:9333" -ip.bind=0.0.0.0 -s3 -s3.config=/etc/seaweedfs/s3.json -s3.port=8333
     ports:
-      - "8888:8888"
-      - "8333:8333"
-      - "18888:18888"
+      # S3 API, for a bare-metal API that uses this SeaweedFS
+      - "${SEAWEEDFS_S3_PORT:-8333}:8333"
     volumes:
       - seaweedfs_filer:/data
       - ./kinlore-api/docker/s3.json:/etc/seaweedfs/s3.json:ro
@@ -86,17 +80,19 @@ services:
     container_name: kinlore-api
     restart: unless-stopped
     ports:
-      - "80:80"
-      - "443:443"
+      - "${APP_PORT:-80}:80"
+      - "${APP_SSL_PORT:-443}:443"
     env_file:
-      - ./kinlore-api/.env
+      - path: ${API_ENV_FILE:-./kinlore-api/.env}
+        required: false
     environment:
       # App Configuration
       APP_NAME: ${APP_NAME:-Kinlore}
       APP_ENV: ${APP_ENV:-local}
       APP_KEY: ${APP_KEY}
       APP_DEBUG: ${APP_DEBUG:-true}
-      APP_URL: ${APP_URL:-http://localhost:8000}
+      APP_URL: ${APP_URL:-http://localhost}
+      SERVER_NAME: ${SERVER_NAME:-}
 
       # Database Configuration
       DB_CONNECTION: ${DB_CONNECTION:-pgsql}
@@ -113,12 +109,17 @@ services:
       SEAWEEDFS_SECRET: ${SEAWEEDFS_SECRET:-admin}
       SEAWEEDFS_BUCKET: ${SEAWEEDFS_BUCKET:-kinlore}
       SEAWEEDFS_USE_PATH_STYLE_ENDPOINT: "true"
-      SEAWEEDFS_URL: ${SEAWEEDFS_URL:-https://elyess.kinlore.app/media}
+      SEAWEEDFS_URL: ${SEAWEEDFS_URL:-http://localhost:8333}
 
       # Cache & Session
-      CACHE_DRIVER: ${CACHE_DRIVER:-file}
+      CACHE_STORE: ${CACHE_STORE:-redis}
       SESSION_DRIVER: ${SESSION_DRIVER:-file}
-      QUEUE_CONNECTION: ${QUEUE_CONNECTION:-sync}
+      # "database" lets the queue worker in the container process videos in the background
+      QUEUE_CONNECTION: ${QUEUE_CONNECTION:-database}
+      REDIS_CLIENT: predis
+      REDIS_HOST: kinlore-redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: null
 
       # Sanctum
       SANCTUM_STATEFUL_DOMAINS: ${SANCTUM_STATEFUL_DOMAINS:-localhost,localhost:8081}
@@ -173,7 +174,7 @@ services:
     container_name: kinlore-redis
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "${REDIS_FORWARD_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
     networks:

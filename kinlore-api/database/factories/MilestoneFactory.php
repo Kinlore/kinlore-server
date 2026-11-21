@@ -26,7 +26,6 @@ class MilestoneFactory extends Factory
             'stage_key' => $stage['key'],
             'stage_label' => $stage['label'],
             'sort_order' => $this->faker->numberBetween(0, 20),
-            'icon_image_id' => null,
         ];
     }
 }

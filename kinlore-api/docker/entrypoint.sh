@@ -60,6 +60,15 @@ if [ "$APP_ENV" = "local" ]; then
   php artisan view:clear
 fi
 
+# Use the TLS server config only when a certificate for this host exists
+SERVER_NAME="${SERVER_NAME:-$(echo "$APP_URL" | sed -E 's#^https?://([^/:]+).*#\1#')}"
+if [ -n "$SERVER_NAME" ] && [ -f "/etc/letsencrypt/live/$SERVER_NAME/fullchain.pem" ]; then
+  echo "🔒 Certificate found for $SERVER_NAME, enabling HTTPS"
+  sed "s/__SERVER_NAME__/$SERVER_NAME/g" /etc/nginx/kinlore-api-ssl.conf > /etc/nginx/http.d/default.conf
+else
+  echo "🌐 No certificate for '$SERVER_NAME', serving plain HTTP on port 80"
+fi
+
 echo "✅ Initialization complete, starting Nginx + PHP-FPM..."
 
 # Start Supervisor (manages both Nginx and PHP-FPM)

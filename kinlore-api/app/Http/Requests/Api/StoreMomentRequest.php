@@ -60,7 +60,7 @@ class StoreMomentRequest extends FormRequest
         }
 
         if ($momentType === 'milestone') {
-            $rules['milestone_id'] = 'required|string|exists:predefined_milestones,id';
+            $rules['milestone_id'] = 'required|string|exists:milestones,id';
             $rules['description'] = 'nullable|string|max:5000';
         }
 

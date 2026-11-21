@@ -21,9 +21,6 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // Add throttling with Redis
-        $middleware->throttleWithRedis();
-
         // run CORS before everything else
         $middleware->prepend(HandleCors::class);
         

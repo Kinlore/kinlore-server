@@ -54,6 +54,7 @@ WORKDIR /var/www/html
 # Copy Nginx configuration
 COPY ./docker/nginx.conf /etc/nginx/nginx.conf
 COPY ./docker/kinlore-api.conf /etc/nginx/http.d/default.conf
+COPY ./docker/kinlore-api-ssl.conf /etc/nginx/kinlore-api-ssl.conf
 
 # Copy Supervisor configuration
 COPY ./docker/supervisord.conf /etc/supervisord.conf
@@ -81,9 +82,8 @@ COPY . .
 # Install PHP dependencies
 RUN /usr/bin/composer install --no-dev --optimize-autoloader --no-interaction
 
-# Optimize Laravel
-RUN php artisan config:cache && \
-    php artisan route:cache && \
+# Config is cached by the entrypoint at run time, so the image holds no environment values
+RUN php artisan route:cache && \
     php artisan view:cache
 
 # Set permissions

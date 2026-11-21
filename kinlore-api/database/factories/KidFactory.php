@@ -11,7 +11,7 @@ class KidFactory extends Factory
     public function definition(): array
     {
         return [
-            'id' => Str::uuid(),
+            'id' => (string) Str::uuid(),
             'user_id' => User::factory(),
             'name' => fake()->firstName(),
             'date_of_birth' => fake()->dateTimeBetween('-10 years', '-1 year'),

@@ -27,7 +27,7 @@ class KidTest extends TestCase
             'date_of_birth' => Carbon::now()->subYears(5)->subMonths(3),
         ]);
 
-        $this->assertEquals(5, $kid->age);
+        $this->assertSame(5, $kid->age);
     }
 
     public function test_kid_calculates_age_in_months_correctly(): void
@@ -36,7 +36,7 @@ class KidTest extends TestCase
             'date_of_birth' => Carbon::now()->subMonths(18),
         ]);
 
-        $this->assertEquals(18, $kid->age_in_months);
+        $this->assertSame(18, $kid->age_in_months);
     }
 
     public function test_kid_generates_detailed_age_string(): void
@@ -45,8 +45,7 @@ class KidTest extends TestCase
             'date_of_birth' => Carbon::now()->subYears(3)->subMonths(6),
         ]);
 
-        $this->assertStringContainsString('3 year', $kid->age_detailed);
-        $this->assertStringContainsString('6 month', $kid->age_detailed);
+        $this->assertSame('3 years, 6 months', $kid->age_detailed);
     }
 
     public function test_kid_generates_random_avatar_color_on_creation(): void
