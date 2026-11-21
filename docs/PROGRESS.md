@@ -97,8 +97,8 @@ Open:
 | Status | Item | Notes |
 |---|---|---|
 | ❓ | Keep Factory Reset at all? It soft-deletes every child of the family on the server | owner decision |
-| ⬜ | Child switcher once failed to open after saving a new child (not reproduced) | watch |
-| ⬜ | The first tab tap right after sign-in was sometimes lost | watch |
+| ✅ | Child switcher once failed to open after saving a new child | cause: every sync rebuilt the navigation; fixed |
+| ✅ | The first tab tap right after sign-in was sometimes lost | same cause; fixed |
 | ⬜ | Comment field not visible to XCTest (deep view tree); check with VoiceOver on a device | |
-| ⬜ | Milestone cards do not announce the selected state | minor |
-| ⬜ | Read-only description looks like an input box | minor |
+| ✅ | Milestone cards do not announce the selected state | fixed |
+| ✅ | Read-only description looks like an input box | fixed |
