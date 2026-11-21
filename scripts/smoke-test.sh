@@ -2,7 +2,7 @@
 # End-to-end check of a running Kinlore API against docs/API_CONTRACT.md.
 # Usage: scripts/smoke-test.sh <base url> <admin email> <admin password>
 #   e.g. scripts/smoke-test.sh http://localhost:8088 admin@example.test 'TestPassword123!'
-# Needs: curl, jq. Optional: ffmpeg (video checks are skipped without it).
+# Needs: curl, jq. Video checks need ffmpeg, or a test video in SMOKE_VIDEO=/path/to/file.mp4.
 # It creates test data (kids, moments, one invited user). Use it on a test instance only.
 set -uo pipefail
 
@@ -18,7 +18,7 @@ check() { if echo "$3" | jq -e "$2" >/dev/null 2>&1; then ok "$1"; else bad "$1"
 req() {
   local m="$1" p="$2" t="${3:-}"; shift 3 2>/dev/null || shift $#
   local auth=(); [ -n "$t" ] && auth=(-H "Authorization: Bearer $t")
-  curl -s -o "$WORK/body" -w '%{http_code}' -X "$m" -H 'Accept: application/json' "${auth[@]}" "$@" "$API$p" > "$WORK/code"
+  curl -s -o "$WORK/body" -w '%{http_code}' -X "$m" -H 'Accept: application/json' ${auth[@]+"${auth[@]}"} "$@" "$API$p" > "$WORK/code"
   echo "$(cat "$WORK/code") $(cat "$WORK/body")"
 }
 status() { echo "${1%% *}"; }
@@ -27,7 +27,7 @@ TODAY=$(date +%F)
 
 echo "== Health and setup"
 r=$(req GET /health); check "health ok" '.status=="ok"' "$(body "$r")"
-r=$(req GET /auth/setup-status); check "setup-status shape" 'has("needs_setup") and has("setup_token_required")' "$(body "$r")"
+r=$(req GET /auth/setup-status); check "setup-status shape" '.data|has("needs_setup") and has("setup_token_required")' "$(body "$r")"
 
 echo "== Admin login"
 r=$(req POST /auth/login "" -H 'Content-Type: application/json' -d "{\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\"}")
@@ -65,8 +65,9 @@ r=$(req GET "/v1/moments?liked=true" "$ADMIN"); check "liked filter" '(.data|map
 r=$(req GET "/v1/moments/$PHOTO" "$ADMIN"); check "moment counts" '.data.likes_count==1 and .data.is_liked==true' "$(body "$r")"
 r=$(req GET "/v1/moments/$PHOTO/file/thumbnail" "$ADMIN"); [ "$(status "$r")" = "200" ] && ok "thumbnail served" || bad "thumbnail served" "$(status "$r")"
 
-if command -v ffmpeg >/dev/null; then
-  ffmpeg -loglevel error -f lavfi -i testsrc=duration=2:size=320x240:rate=15 -pix_fmt yuv420p "$WORK/v.mp4"
+if [ -n "${SMOKE_VIDEO:-}" ] || command -v ffmpeg >/dev/null; then
+  if [ -n "${SMOKE_VIDEO:-}" ]; then cp "$SMOKE_VIDEO" "$WORK/v.mp4"
+  else ffmpeg -loglevel error -f lavfi -i testsrc=duration=2:size=320x240:rate=15 -pix_fmt yuv420p "$WORK/v.mp4"; fi
   r=$(req POST /v1/moments "$ADMIN" -F "kid_id=$KID" -F "file=@$WORK/v.mp4;type=video/mp4")
   VIDEO=$(body "$r" | jq -r '.data.moment.id // empty')
   check "video upload returns at once" '.data.moment.video_status=="processing" or .data.moment.video_status=="ready"' "$(body "$r")"

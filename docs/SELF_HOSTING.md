@@ -80,7 +80,9 @@ Settings you can put in a `.env` file next to `docker-compose.yml`:
    ```
    With `QUEUE_CONNECTION=sync` no worker is needed, but uploads of long videos then wait for the conversion.
 
-For a quick local test without a web server: `php artisan serve --host 0.0.0.0 --port 8000`, and run `php artisan queue:work` in a second terminal.
+For a quick local test without a web server: `php artisan serve --host 0.0.0.0 --port 8000`, and run `php artisan queue:work` in a second terminal. Put the settings in `.env`: `artisan serve` does not pass most shell environment variables on to its workers.
+
+Check any running instance with the end-to-end script (it creates test data, so use a test instance): `scripts/smoke-test.sh http://localhost:8000 <admin email> <admin password>`.
 
 ## First admin
 
