@@ -846,7 +846,7 @@ class MediaService
      */
     public function getMediaForUser(User $user, array $filters = []): LengthAwarePaginator
     {
-        $query = Media::forUser($user->id)->orderBy('created_at', 'desc');
+        $query = Media::has('kid')->orderBy('created_at', 'desc');
 
         if (!empty($filters['kid_id'])) {
             $query->forKid($filters['kid_id']);

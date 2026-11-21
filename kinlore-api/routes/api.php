@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\InvitationController;
 use App\Http\Controllers\Api\KidController;
 use App\Http\Controllers\Api\MomentController;
 use App\Http\Controllers\Api\SyncController;
@@ -106,6 +107,13 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     // Uploaded identifiers per kid (for duplicate detection)
     Route::get('/kids/{kid}/moments/uploaded-identifiers', [MomentController::class, 'uploadedIdentifiers']);
     
+    // Invitations (instance admin only)
+    Route::middleware('can:admin')->group(function () {
+        Route::get('/invitations', [InvitationController::class, 'index']);
+        Route::post('/invitations', [InvitationController::class, 'store']);
+        Route::delete('/invitations/{invitation}', [InvitationController::class, 'destroy']);
+    });
+
     // Moment Interactions
     Route::post('/moments/{moment}/like', [MomentInteractionController::class, 'like']);
     Route::delete('/moments/{moment}/like', [MomentInteractionController::class, 'unlike']);

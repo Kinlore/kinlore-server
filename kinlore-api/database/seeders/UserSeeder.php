@@ -27,12 +27,14 @@ class UserSeeder extends Seeder
             return;
         }
 
-        User::create([
+        $user = new User([
             'name' => env('SEED_USER_NAME', 'Admin User'),
             'email' => $email,
             'password' => Hash::make($password),
-            'email_verified_at' => now(),
         ]);
+        $user->email_verified_at = now();
+        $user->is_admin = !User::exists(); // the instance's first user is its admin
+        $user->save();
 
         $this->command->info("User {$email} created successfully.");
     }

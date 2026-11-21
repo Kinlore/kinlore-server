@@ -16,8 +16,7 @@ class KidService
      */
     public function getKidsForUser(User $user): Collection
     {
-        return $user->kids()
-            ->withCount('moments')
+        return Kid::withCount('moments')
             ->orderBy('created_at', 'asc')
             ->get()
             ->map(fn (Kid $kid) => $this->formatKid($kid));

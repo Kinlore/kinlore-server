@@ -40,7 +40,7 @@ class SyncService
      */
     private function getKidsChanges(User $user, ?Carbon $lastPulledAt): array
     {
-        $query = Kid::where('user_id', $user->id);
+        $query = Kid::query();
         
         if ($lastPulledAt) {
             $query->where('updated_at', '>', $lastPulledAt);
@@ -75,7 +75,7 @@ class SyncService
      */
     private function getMomentsChanges(User $user, ?Carbon $lastPulledAt): array
     {
-        $query = Moment::whereHas('kid', fn ($q) => $q->where('user_id', $user->id));
+        $query = Moment::has('kid');
 
         if ($lastPulledAt) {
             $query->where('updated_at', '>', $lastPulledAt);
@@ -161,15 +161,23 @@ class SyncService
         // Created kids
         if (!empty($kidsChanges['created'])) {
             foreach ($kidsChanges['created'] as $kidData) {
-                Kid::updateOrCreate(
-                    ['id' => $kidData['id']],
-                    [
-                        'user_id' => $user->id,
-                        'name' => $kidData['name'],
-                        'date_of_birth' => Carbon::createFromTimestamp((float)($kidData['date_of_birth'] ?? 0) / 1000),
-                        'avatar_color' => $kidData['avatar_color'],
-                    ]
-                );
+                $kid = Kid::withTrashed()->find($kidData['id']);
+
+                // Kid IDs are visible to the whole family: never let a push take over someone else's kid.
+                if ($kid && !$user->can('update', $kid)) {
+                    continue;
+                }
+
+                if (!$kid) {
+                    $kid = new Kid(['user_id' => $user->id]);
+                    $kid->id = $kidData['id'];
+                }
+
+                $kid->fill([
+                    'name' => $kidData['name'],
+                    'date_of_birth' => Carbon::createFromTimestamp((float)($kidData['date_of_birth'] ?? 0) / 1000),
+                    'avatar_color' => $kidData['avatar_color'],
+                ])->save();
             }
         }
 
@@ -177,7 +185,7 @@ class SyncService
         if (!empty($kidsChanges['updated'])) {
             foreach ($kidsChanges['updated'] as $kidData) {
                 $kid = Kid::find($kidData['id']);
-                if ($kid && $kid->user_id === $user->id) {
+                if ($kid && $user->can('update', $kid)) {
                     $kid->update([
                         'name' => $kidData['name'],
                         'date_of_birth' => Carbon::createFromTimestamp((float)($kidData['date_of_birth'] ?? 0) / 1000),
@@ -191,7 +199,7 @@ class SyncService
         if (!empty($kidsChanges['deleted'])) {
             foreach ($kidsChanges['deleted'] as $kidId) {
                 $kid = Kid::find($kidId);
-                if ($kid && $kid->user_id === $user->id) {
+                if ($kid && $user->can('update', $kid)) {
                     $kid->delete();
                 }
             }

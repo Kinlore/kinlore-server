@@ -23,7 +23,7 @@ class StoryService
     public function getStoriesForUser(User $user, array $filters = []): LengthAwarePaginator
     {
         $query = Story::with(['iconImage', 'moment', 'kid'])
-            ->whereHas('kid', fn ($q) => $q->where('user_id', $user->id))
+            ->has('kid')
             ->orderBy('created_at', 'desc');
 
         if (!empty($filters['kid_id'])) {

@@ -690,7 +690,7 @@ class MomentService
      */
     public function getMomentsForUser(User $user, array $filters = []): LengthAwarePaginator
     {
-        $query = Moment::whereHas('kid', fn($q) => $q->where('user_id', $user->id))
+        $query = Moment::has('kid')
             ->with(['media', 'story', 'userMilestone', 'userMilestone.predefinedMilestone'])
             ->orderBy('created_at', $filters['sort_direction'] ?? 'desc');
 
