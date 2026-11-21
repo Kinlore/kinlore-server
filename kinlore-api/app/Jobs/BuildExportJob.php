@@ -159,7 +159,8 @@ class BuildExportJob implements ShouldQueue
     /** Kid name made safe for a folder; a second kid with the same name gets its id appended. */
     private function folderName(Kid $kid, array &$folders): string
     {
-        $name = trim(preg_replace('/[\/\\\\:*?"<>|]+/', '-', $kid->name)) ?: 'Kid';
+        // leading dots are dropped so a kid named "." or ".." cannot make a path that leaves the archive root
+        $name = ltrim(trim(preg_replace('/[\/\\\\:*?"<>|]+/', '-', $kid->name)), '.') ?: 'Kid';
 
         if (in_array($name, $folders, true)) {
             $name .= ' ' . substr($kid->id, 0, 8);

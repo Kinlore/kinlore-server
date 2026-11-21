@@ -5,11 +5,12 @@ services:
     container_name: kinlore-postgres
     restart: unless-stopped
     ports:
-      - "${DB_PORT:-5432}:5432"
+      # Internal services listen on localhost only. Set BIND_ADDRESS=0.0.0.0 to reach them from other machines.
+      - "${BIND_ADDRESS:-127.0.0.1}:${DB_PORT:-5432}:5432"
     environment:
       POSTGRES_DB: ${DB_DATABASE:-kinlore_db}
       POSTGRES_USER: ${DB_USERNAME:-kinlore_user}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-kinlore_password}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in the .env file next to docker-compose.yml}
     volumes:
       # Postgres 18+ keeps its data in a versioned subfolder of this mount
       - postgres_data:/var/lib/postgresql
@@ -56,7 +57,7 @@ services:
     command: filer -master="seaweedfs-master:9333" -ip.bind=0.0.0.0 -s3 -s3.config=/etc/seaweedfs/s3.json -s3.port=8333
     ports:
       # S3 API, for a bare-metal API that uses this SeaweedFS
-      - "${SEAWEEDFS_S3_PORT:-8333}:8333"
+      - "${BIND_ADDRESS:-127.0.0.1}:${SEAWEEDFS_S3_PORT:-8333}:8333"
     volumes:
       - seaweedfs_filer:/data
       - ./kinlore-api/docker/s3.json:/etc/seaweedfs/s3.json:ro
@@ -88,11 +89,13 @@ services:
     environment:
       # App Configuration
       APP_NAME: ${APP_NAME:-Kinlore}
-      APP_ENV: ${APP_ENV:-local}
-      APP_KEY: ${APP_KEY}
-      APP_DEBUG: ${APP_DEBUG:-true}
+      APP_ENV: ${APP_ENV:-production}
+      APP_KEY: ${APP_KEY:?Set APP_KEY in the .env file next to docker-compose.yml}
+      APP_DEBUG: ${APP_DEBUG:-false}
       APP_URL: ${APP_URL:-http://localhost}
       SERVER_NAME: ${SERVER_NAME:-}
+      SETUP_TOKEN: ${SETUP_TOKEN:-}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
 
       # Database Configuration
       DB_CONNECTION: ${DB_CONNECTION:-pgsql}
@@ -100,7 +103,7 @@ services:
       DB_PORT: 5432
       DB_DATABASE: ${DB_DATABASE:-kinlore_db}
       DB_USERNAME: ${DB_USERNAME:-kinlore_user}
-      DB_PASSWORD: ${DB_PASSWORD:-kinlore_password}
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in the .env file next to docker-compose.yml}
 
       # SeaweedFS S3 Configuration
       FILESYSTEM_DISK: ${FILESYSTEM_DISK:-seaweedfs}
@@ -126,7 +129,7 @@ services:
 
       # Logging
       LOG_CHANNEL: ${LOG_CHANNEL:-stack}
-      LOG_LEVEL: ${LOG_LEVEL:-debug}
+      LOG_LEVEL: ${LOG_LEVEL:-warning}
 
       # Initial User Seeding (only used on first run)
       SEED_USER_NAME: ${SEED_USER_NAME:-Admin}
@@ -174,7 +177,7 @@ services:
     container_name: kinlore-redis
     restart: unless-stopped
     ports:
-      - "${REDIS_FORWARD_PORT:-6379}:6379"
+      - "${BIND_ADDRESS:-127.0.0.1}:${REDIS_FORWARD_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
     networks:

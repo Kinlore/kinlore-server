@@ -1,596 +1,226 @@
-openapi: 3.0.3
+openapi: 3.1.0
 info:
   title: Kinlore API
-  description: Family moments and milestones tracking API
-  version: 1.0.0
-  contact:
-    name: Kinlore
+  version: 2.0.0
+  description: |
+    API of one self-hosted Kinlore instance. One instance holds one family.
+
+    This file describes the code in `kinlore-api` (routes, controllers, form requests,
+    services and model payloads). The agreement between server and app is
+    `docs/API_CONTRACT.md`; where the two differ, this file follows the code.
+
+    ## Conventions
+    - Base path `/api`. The public invitation page `/invite/{token}` is outside `/api`.
+    - Authentication: `Authorization: Bearer <token>` (Laravel Sanctum). Video streams and
+      export downloads use signed URLs (`expires` and `signature` query parameters) instead.
+    - Send `Accept: application/json`. Without it, errors can come back as HTML.
+    - JSON envelope: `{ success, message?, data?, meta?, errors? }`. Exceptions with no envelope:
+      `GET /health`, `GET /health/detailed`, `GET /v1/user` and `POST /v1/sync/pull`.
+    - REST dates: ISO 8601 date-time strings (`2026-11-21T10:00:00+00:00`); calendar dates are
+      `YYYY-MM-DD`. Comment rows use Laravel's default format (`2026-11-21T10:00:00.000000Z`).
+    - Sync payloads: every time is integer milliseconds since the epoch (UTC), or `null`.
+      Calendar dates in sync are milliseconds at UTC midnight.
+    - Ids: kids, moments, media, invitations and exports are UUID strings. Users,
+      comments (interactions) and sessions (tokens) are integers. Milestone ids are strings.
+    - Rate limits: 60 requests per minute per user on all `/api` routes (`throttle:api`),
+      except sync (300 per minute). Extra limits: login 5/min, register and invitation check
+      10/min, `POST /v1/moments` 60/min, `/invite/{token}` 10/min. Over the limit: `429`.
+
+    ## Roles and permissions
+    `users.role` is `admin`, `partner` or `family`. Exactly one admin at all times.
+    - `admin`: everything. Only role that manages members, invitations and exports.
+    - `partner`: add, edit and delete any kid and any content. Like, comment, download.
+    - `family`: view everything. Add content, like, comment and download only when the
+      matching permission is on. Edit or delete only own moments and own comments.
+      Cannot create kids; can edit or delete only kids they created.
+
+    Permissions `add_content`, `comment`, `like`, `download` limit only `family` users; for
+    `admin` and `partner` they are always `true`. A failed check returns `403`.
+  license:
+    name: Proprietary
+    identifier: LicenseRef-Proprietary
+
 servers:
-  - url: http://localhost:8000/api
-    description: Local development
-  - url: https://api.kinlore.com/api
-    description: Production
+  - url: '{baseUrl}/api'
+    variables:
+      baseUrl:
+        default: http://localhost:8088
+        description: Address of the instance (APP_URL)
 
 tags:
-  - name: Auth
-    description: Authentication endpoints
-  - name: Kids
-    description: Child profile management
-  - name: Invitations
-    description: Admin-only invitations to join this instance
-  - name: Moments
-    description: Unified moments (photo, video, story, milestone)
-  - name: Media
-    description: Raw media file management
-  - name: Milestones
-    description: Predefined milestone library
-  - name: Interactions
-    description: Moment likes and comments
-  - name: Sync
-    description: WatermelonDB synchronization
   - name: Health
-    description: Health check endpoints
+    description: Liveness and component checks
+  - name: Auth
+    description: Setup, registration, login, sessions
+  - name: Members
+    description: Admin only
+  - name: Invitations
+    description: Admin only, plus the public check and the public page
+  - name: Kids
+    description: Child profiles, born or expecting
+  - name: Moments
+    description: Photo, video, story, milestone and growth moments
+  - name: Interactions
+    description: Likes and comments
+  - name: Lookback
+    description: On this day, then and now
+  - name: Exports
+    description: Admin only
+  - name: Media
+    description: Raw media records behind photo and video moments
+  - name: Milestones
+    description: Predefined milestone list (read only)
+  - name: Sync
+    description: WatermelonDB sync (times in milliseconds)
 
-components:
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: token
-
-  schemas:
-    User:
-      type: object
-      properties:
-        id:
-          type: integer
-        name:
-          type: string
-        email:
-          type: string
-          format: email
-        is_admin:
-          type: boolean
-          description: True for the instance admin (the first user who registered)
-        created_at:
-          type: string
-          format: date-time
-
-    Invitation:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-        email:
-          type: string
-          format: email
-          nullable: true
-          description: When set, only this email can use the invitation
-        invited_by:
-          type: integer
-        expires_at:
-          type: string
-          format: date-time
-        accepted_at:
-          type: string
-          format: date-time
-          nullable: true
-        created_at:
-          type: string
-          format: date-time
-
-    Kid:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-        name:
-          type: string
-        date_of_birth:
-          type: string
-          format: date
-        avatar_color:
-          type: string
-          pattern: "^#[0-9A-Fa-f]{6}$"
-        age:
-          type: string
-        age_detailed:
-          type: string
-        moments_count:
-          type: integer
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
-
-    Moment:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-        kid_id:
-          type: string
-          format: uuid
-        moment_type:
-          type: string
-          enum: [photo, video, story, milestone]
-        title:
-          type: string
-          nullable: true
-        description:
-          type: string
-          nullable: true
-          description: Required for story type, optional for milestone type
-        milestone_id:
-          type: string
-          nullable: true
-          description: Reference to milestones.id (required for milestone type)
-        photo_url:
-          type: string
-          nullable: true
-        thumbnail_url:
-          type: string
-          nullable: true
-        medium_url:
-          type: string
-          nullable: true
-        file_size:
-          type: integer
-          nullable: true
-        mime_type:
-          type: string
-          nullable: true
-        latitude:
-          type: number
-          nullable: true
-        longitude:
-          type: number
-          nullable: true
-        exif_date:
-          type: string
-          format: date-time
-          nullable: true
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
-
-    Media:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-        kid_id:
-          type: string
-          format: uuid
-        type:
-          type: string
-          enum: [photo, video]
-        status:
-          type: string
-          enum: [uploading, processing, completed, failed]
-        original_filename:
-          type: string
-        file_size:
-          type: integer
-        mime_type:
-          type: string
-        thumbnail_url:
-          type: string
-          nullable: true
-        medium_url:
-          type: string
-          nullable: true
-        created_at:
-          type: string
-          format: date-time
-
-    Story:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-        kid_id:
-          type: string
-          format: uuid
-        title:
-          type: string
-        text:
-          type: string
-        icon_image_id:
-          type: string
-          format: uuid
-          nullable: true
-        created_at:
-          type: string
-          format: date-time
-
-    Milestone:
-      type: object
-      properties:
-        id:
-          type: string
-        title:
-          type: string
-        description:
-          type: string
-        stage_key:
-          type: string
-        stage_label:
-          type: string
-        age_min_months:
-          type: integer
-        age_max_months:
-          type: integer
-        category:
-          type: string
-        sort_order:
-          type: integer
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
-
-    UserMilestone:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-        kid_id:
-          type: string
-          format: uuid
-        milestone_id:
-          type: string
-          nullable: true
-        custom_title:
-          type: string
-          nullable: true
-        custom_description:
-          type: string
-          nullable: true
-        milestone_date:
-          type: string
-          format: date
-        notes:
-          type: string
-          nullable: true
-        created_at:
-          type: string
-          format: date-time
-
-    Comment:
-      type: object
-      properties:
-        id:
-          type: integer
-        user_id:
-          type: integer
-        moment_id:
-          type: string
-          format: uuid
-        type:
-          type: string
-          enum: [comment]
-        content:
-          type: string
-        user:
-          $ref: "#/components/schemas/User"
-        created_at:
-          type: string
-          format: date-time
-
-    SuccessResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-          example: true
-        message:
-          type: string
-          nullable: true
-      required:
-        - success
-
-    ErrorResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-          example: false
-        message:
-          type: string
-        errors:
-          type: object
-          nullable: true
-          additionalProperties:
-            type: array
-            items:
-              type: string
-        error:
-          type: string
-          nullable: true
-      required:
-        - success
-        - message
-
-    ValidationError:
-      allOf:
-        - $ref: "#/components/schemas/ErrorResponse"
-        - type: object
-          properties:
-            errors:
-              type: object
-              additionalProperties:
-                type: array
-                items:
-                  type: string
-          required:
-            - errors
-
-    PaginationMeta:
-      type: object
-      properties:
-        current_page:
-          type: integer
-        last_page:
-          type: integer
-        per_page:
-          type: integer
-        total:
-          type: integer
-
-    SyncChanges:
-      type: object
-      properties:
-        created:
-          type: array
-          items:
-            type: object
-        updated:
-          type: array
-          items:
-            type: object
-        deleted:
-          type: array
-          items:
-            type: string
-            description: IDs of deleted records
-
-    SyncMoment:
-      type: object
-      description: Moment data as returned by sync endpoint (timestamps in milliseconds)
-      properties:
-        id:
-          type: string
-          format: uuid
-        kid_id:
-          type: string
-          format: uuid
-        moment_type:
-          type: string
-          enum: [photo, video, story, milestone]
-        milestone_id:
-          type: string
-          nullable: true
-        title:
-          type: string
-          nullable: true
-        description:
-          type: string
-          nullable: true
-        photo_url:
-          type: string
-          nullable: true
-        medium_url:
-          type: string
-          nullable: true
-        thumbnail_url:
-          type: string
-          nullable: true
-        file_size:
-          type: integer
-          nullable: true
-        mime_type:
-          type: string
-          nullable: true
-        exif_date:
-          type: integer
-          nullable: true
-          description: Timestamp in milliseconds
-        latitude:
-          type: number
-          nullable: true
-        longitude:
-          type: number
-          nullable: true
-        created_at:
-          type: integer
-          description: Timestamp in milliseconds
-        updated_at:
-          type: integer
-          description: Timestamp in milliseconds
-
-    SyncMilestone:
-      type: object
-      description: Milestone data as returned by sync endpoint (timestamps in milliseconds)
-      properties:
-        id:
-          type: string
-        title:
-          type: string
-        description:
-          type: string
-          nullable: true
-        category:
-          type: string
-          nullable: true
-        stage_key:
-          type: string
-        stage_label:
-          type: string
-        age_min_months:
-          type: integer
-          nullable: true
-        age_max_months:
-          type: integer
-          nullable: true
-        sort_order:
-          type: integer
-        created_at:
-          type: integer
-          description: Timestamp in milliseconds
-        updated_at:
-          type: integer
-          description: Timestamp in milliseconds
-
-    SyncKid:
-      type: object
-      description: Kid data as returned by sync endpoint (timestamps in milliseconds)
-      properties:
-        id:
-          type: string
-          format: uuid
-        name:
-          type: string
-        date_of_birth:
-          type: integer
-          description: Timestamp in milliseconds
-        avatar_color:
-          type: string
-        created_at:
-          type: integer
-          description: Timestamp in milliseconds
-        updated_at:
-          type: integer
-          description: Timestamp in milliseconds
+security:
+  - bearerAuth: []
 
 paths:
-  # ============================================================================
-  # HEALTH
-  # ============================================================================
   /health:
     get:
       tags: [Health]
+      operationId: health
       summary: Basic health check
+      description: Public. No envelope.
+      security: []
       responses:
-        "200":
-          description: Service is healthy
+        '200':
+          description: The API is up
           content:
             application/json:
               schema:
                 type: object
+                required: [status, timestamp, service]
                 properties:
                   status:
                     type: string
-                    example: ok
+                    const: ok
                   timestamp:
                     type: string
                     format: date-time
                   service:
                     type: string
-                    example: kinlore-api
+                    const: kinlore-api
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
 
   /health/detailed:
     get:
       tags: [Health]
+      operationId: healthDetailed
       summary: Detailed health check
-      security:
-        - bearerAuth: []
+      description: Any signed-in user. No envelope. `503` when a check is not healthy.
       responses:
-        "200":
-          description: Detailed health information
+        '200':
+          description: All checks healthy
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                  database:
-                    type: object
-                  storage:
-                    type: object
-                  queue:
-                    type: object
+                $ref: '#/components/schemas/HealthDetailed'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '503':
+          description: Database unhealthy, or storage or cache degraded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthDetailed'
 
-  # ============================================================================
-  # AUTHENTICATION
-  # ============================================================================
+  /auth/setup-status:
+    get:
+      tags: [Auth]
+      operationId: setupStatus
+      summary: Does this instance still need its first user?
+      description: Public.
+      security: []
+      responses:
+        '200':
+          description: Setup state
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/SetupStatus'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /auth/invitations/{token}:
+    get:
+      tags: [Auth, Invitations]
+      operationId: checkInvitation
+      summary: Check an invitation token before sign-up
+      description: Public. Throttled to 10 requests per minute.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/InviteToken'
+      responses:
+        '200':
+          description: The invitation can be used
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/InvitationCheck'
+        '404':
+          description: Unknown, already used or expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
   /auth/register:
     post:
       tags: [Auth]
-      summary: Register new user
+      operationId: register
+      summary: Register a user
       description: |
-        The first user to register becomes the instance admin and needs no invitation.
-        Every later user must send a valid `invite_token` created by the admin.
+        Public. Throttled to 10 requests per minute.
+        - First user of the instance: becomes `admin`. Needs `setup_token` when the server
+          has `SETUP_TOKEN` set.
+        - Everyone after that: needs a valid `invite_token`. When the invitation has an email,
+          `email` must match it (case-insensitive). The user gets the invitation's role and
+          permissions.
+
+        Registrations are serialized with a lock, so two first sign-ups cannot both become admin.
+      security: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required: [name, email, password, password_confirmation]
-              properties:
-                name:
-                  type: string
-                  example: John Doe
-                email:
-                  type: string
-                  format: email
-                  example: john@example.com
-                password:
-                  type: string
-                  minLength: 8
-                password_confirmation:
-                  type: string
-                invite_token:
-                  type: string
-                  description: Required for everyone except the first user
+              $ref: '#/components/schemas/RegisterRequest'
       responses:
-        "201":
-          description: User registered
+        '201':
+          description: Registered and signed in
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  message:
-                    type: string
-                  data:
-                    type: object
-                    properties:
-                      user:
-                        $ref: "#/components/schemas/User"
-                      token:
-                        type: string
-                      token_type:
-                        type: string
-                        example: Bearer
-        "422":
-          description: Validation error, including a missing, used, expired or wrong-email invite_token
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ValidationError"
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/AuthResult'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
 
   /auth/login:
     post:
       tags: [Auth]
-      summary: Login user
+      operationId: login
+      summary: Sign in and get a token
+      description: Public. Throttled to 5 requests per minute. Wrong credentials give `422` on `email`.
+      security: []
       requestBody:
         required: true
         content:
@@ -605,169 +235,120 @@ paths:
                 password:
                   type: string
       responses:
-        "200":
-          description: Login successful
+        '200':
+          description: Signed in
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  message:
-                    type: string
-                  data:
-                    type: object
-                    properties:
-                      user:
-                        $ref: "#/components/schemas/User"
-                      token:
-                        type: string
-                      token_type:
-                        type: string
-        "422":
-          description: Invalid credentials
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ValidationError"
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/AuthResult'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
 
   /auth/logout:
     post:
       tags: [Auth]
-      summary: Logout (revoke current token)
-      security:
-        - bearerAuth: []
+      operationId: logout
+      summary: Revoke the current token
+      description: Any signed-in user.
       responses:
-        "200":
-          description: Logged out
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/SuccessResponse"
+        '200':
+          $ref: '#/components/responses/MessageOnly'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
 
   /auth/logout-all:
     post:
       tags: [Auth]
-      summary: Logout from all devices
-      security:
-        - bearerAuth: []
+      operationId: logoutAll
+      summary: Revoke all tokens of the caller
+      description: Any signed-in user.
       responses:
-        "200":
-          description: Logged out from all devices
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/SuccessResponse"
-
-  /auth/me:
-    get:
-      tags: [Auth]
-      summary: Get current user info
-      security:
-        - bearerAuth: []
-      responses:
-        "200":
-          description: User info
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  data:
-                    type: object
-                    properties:
-                      id:
-                        type: integer
-                      name:
-                        type: string
-                      email:
-                        type: string
-                      is_admin:
-                        type: boolean
-                      email_verified_at:
-                        type: string
-                        format: date-time
-                        nullable: true
-                      created_at:
-                        type: string
-                        format: date-time
-                      kids_count:
-                        type: integer
-                      moments_count:
-                        type: integer
-                      storage_used:
-                        type: string
-                      storage_bytes_used:
-                        type: integer
-                      storage_bytes_available:
-                        type: integer
+        '200':
+          $ref: '#/components/responses/MessageOnly'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
 
   /auth/refresh:
     post:
       tags: [Auth]
-      summary: Refresh token
-      security:
-        - bearerAuth: []
+      operationId: refreshToken
+      summary: Replace the current token with a new one
+      description: Any signed-in user. The old token is revoked.
       responses:
-        "200":
-          description: Token refreshed
+        '200':
+          description: New token
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  message:
-                    type: string
-                  data:
-                    type: object
-                    properties:
-                      token:
-                        type: string
-                      token_type:
-                        type: string
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        type: object
+                        required: [token, token_type]
+                        properties:
+                          token:
+                            type: string
+                          token_type:
+                            type: string
+                            const: Bearer
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      operationId: me
+      summary: The caller, with family-wide counts and storage
+      description: Any signed-in user.
+      responses:
+        '200':
+          description: User payload with counts
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/UserInfo'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
 
   /auth/sessions:
     get:
       tags: [Auth]
-      summary: List active sessions
-      security:
-        - bearerAuth: []
+      operationId: listSessions
+      summary: Active tokens of the caller
+      description: Any signed-in user.
       responses:
-        "200":
-          description: Sessions list
+        '200':
+          description: Sessions
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  data:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        id:
-                          type: integer
-                        name:
-                          type: string
-                        is_current:
-                          type: boolean
-                        last_used_at:
-                          type: string
-                          format: date-time
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Session'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
 
   /auth/sessions/{tokenId}:
     delete:
       tags: [Auth]
-      summary: Revoke specific session
-      security:
-        - bearerAuth: []
+      operationId: revokeSession
+      summary: Revoke one token of the caller
+      description: Any signed-in user, for own tokens only.
       parameters:
         - name: tokenId
           in: path
@@ -775,177 +356,423 @@ paths:
           schema:
             type: integer
       responses:
-        "200":
-          description: Session revoked
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "404":
-          description: Token not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+        '200':
+          $ref: '#/components/responses/MessageOnly'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
-  # ============================================================================
-  # KIDS
-  # ============================================================================
-  /v1/kids:
+  /v1/user:
     get:
-      tags: [Kids]
-      summary: List kids
-      security:
-        - bearerAuth: []
+      tags: [Auth]
+      operationId: currentUserRaw
+      summary: The caller as a raw database record
+      description: |
+        Any signed-in user. **No envelope.** Returns the Eloquent `User` model with its
+        columns (`can_*` booleans instead of `permissions`, no `is_admin`). Prefer `GET /auth/me`.
       responses:
-        "200":
-          description: Kids list
+        '200':
+          description: Raw user record
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  data:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/Kid"
+                $ref: '#/components/schemas/UserRecord'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
 
-    post:
-      tags: [Kids]
-      summary: Create kid
-      security:
-        - bearerAuth: []
+  /v1/members:
+    get:
+      tags: [Members]
+      operationId: listMembers
+      summary: All users of the instance
+      description: Admin only (`can:admin`). Ordered by id.
+      responses:
+        '200':
+          description: Members
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Member'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /v1/members/{user}:
+    parameters:
+      - name: user
+        in: path
+        required: true
+        schema:
+          type: integer
+    patch:
+      tags: [Members]
+      operationId: updateMember
+      summary: Change a member's role or permissions
+      description: |
+        Admin only. `role=admin` on another user transfers the admin role: the caller becomes
+        `partner`. The admin cannot set any other role on themself (`422`). Permissions are
+        stored for any role but only limit `family` users.
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [name, date_of_birth]
               properties:
-                name:
-                  type: string
-                  example: Emma
-                date_of_birth:
-                  type: string
-                  format: date
-                  example: "2022-03-15"
-                avatar_color:
-                  type: string
-                  pattern: "^#[0-9A-Fa-f]{6}$"
-                  example: "#FF6B6B"
+                role:
+                  $ref: '#/components/schemas/Role'
+                permissions:
+                  $ref: '#/components/schemas/PermissionsInput'
       responses:
-        "201":
-          description: Kid created
+        '200':
+          description: Member updated
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  message:
-                    type: string
-                  data:
-                    $ref: "#/components/schemas/Kid"
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/Member'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+    delete:
+      tags: [Members]
+      operationId: removeMember
+      summary: Remove a member
+      description: |
+        Admin only. The admin cannot remove themself (`422`). Kids the member created move to
+        the admin; their moments stay with `user_id = null`; their likes, comments and tokens
+        are deleted. `data` is `null`.
+      responses:
+        '200':
+          $ref: '#/components/responses/NullData'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: The admin tried to remove themself
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
-  /v1/kids/{kid}:
+  /v1/invitations:
     get:
-      tags: [Kids]
-      summary: Get kid details
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: kid
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+      tags: [Invitations]
+      operationId: listInvitations
+      summary: Pending invitations (not used, not expired)
+      description: Admin only. Newest first.
       responses:
-        "200":
-          description: Kid details
+        '200':
+          description: Invitations
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  data:
-                    $ref: "#/components/schemas/Kid"
-
-    put:
-      tags: [Kids]
-      summary: Update kid
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: kid
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Invitation'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [Invitations]
+      operationId: createInvitation
+      summary: Create an invitation
+      description: Admin only. The token is returned only here, once.
       requestBody:
+        required: false
         content:
           application/json:
             schema:
               type: object
               properties:
-                name:
-                  type: string
-                date_of_birth:
-                  type: string
-                  format: date
-                avatar_color:
-                  type: string
+                email:
+                  type: [string, 'null']
+                  format: email
+                  maxLength: 255
+                  description: When set, only this email can register. Must not belong to an existing user.
+                role:
+                  type: [string, 'null']
+                  enum: [partner, family, null]
+                  default: family
+                permissions:
+                  $ref: '#/components/schemas/PermissionsInput'
+                expires_in_days:
+                  type: [integer, 'null']
+                  minimum: 1
+                  maximum: 30
+                  default: 7
       responses:
-        "200":
-          description: Kid updated
+        '201':
+          description: Invitation created
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  message:
-                    type: string
-                  data:
-                    $ref: "#/components/schemas/Kid"
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/InvitationCreated'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
 
+  /v1/invitations/{invitation}:
     delete:
-      tags: [Kids]
-      summary: Delete kid
-      security:
-        - bearerAuth: []
+      tags: [Invitations]
+      operationId: revokeInvitation
+      summary: Revoke an invitation that was not used yet
+      description: Admin only. `data` is `null`.
       parameters:
-        - name: kid
+        - name: invitation
           in: path
           required: true
           schema:
             type: string
             format: uuid
       responses:
-        "200":
-          description: Kid deleted
+        '200':
+          $ref: '#/components/responses/NullData'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: The invitation was already used
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
+                $ref: '#/components/schemas/Error'
 
-  # ============================================================================
-  # UNIFIED MOMENTS
-  # ============================================================================
+  /invite/{token}:
+    servers:
+      - url: '{baseUrl}'
+        variables:
+          baseUrl:
+            default: http://localhost:8088
+    get:
+      tags: [Invitations]
+      operationId: invitePage
+      summary: Public HTML page behind `invite_url`
+      description: |
+        Public, outside `/api`. Throttled to 10 requests per minute. Shows the instance name,
+        an "Open in Kinlore" button (the `invite_link`), the server address and the token.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/InviteToken'
+      responses:
+        '200':
+          description: The invitation is pending
+          content:
+            text/html:
+              schema:
+                type: string
+        '404':
+          description: Unknown, used or expired (HTML page)
+          content:
+            text/html:
+              schema:
+                type: string
+        '429':
+          description: Too many requests
+          content:
+            text/html:
+              schema:
+                type: string
+
+  /v1/kids:
+    get:
+      tags: [Kids]
+      operationId: listKids
+      summary: All kids of the family
+      description: Any signed-in user. Oldest record first.
+      responses:
+        '200':
+          description: Kids
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Kid'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+    post:
+      tags: [Kids]
+      operationId: createKid
+      summary: Create a kid
+      description: |
+        Role `admin` or `partner`. At least one of `date_of_birth` and `due_date` is required.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KidCreateRequest'
+      responses:
+        '201':
+          description: Kid created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/Kid'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+
+  /v1/kids/{kid}:
+    parameters:
+      - $ref: '#/components/parameters/KidId'
+    get:
+      tags: [Kids]
+      operationId: getKid
+      summary: One kid, with first and latest moment dates
+      description: Any signed-in user.
+      responses:
+        '200':
+          description: Kid
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/KidDetails'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Kids]
+      operationId: updateKid
+      summary: Update a kid
+      description: |
+        Role `admin` or `partner`, or the kid's creator (`kids.user_id`). After the update the
+        kid must still have a `date_of_birth` or a `due_date`. `PATCH` does the same.
+      requestBody:
+        $ref: '#/components/requestBodies/KidUpdate'
+      responses:
+        '200':
+          $ref: '#/components/responses/KidUpdated'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+    patch:
+      tags: [Kids]
+      operationId: patchKid
+      summary: Update a kid (same as PUT)
+      description: Role `admin` or `partner`, or the kid's creator.
+      requestBody:
+        $ref: '#/components/requestBodies/KidUpdate'
+      responses:
+        '200':
+          $ref: '#/components/responses/KidUpdated'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+    delete:
+      tags: [Kids]
+      operationId: deleteKid
+      summary: Delete a kid (soft delete)
+      description: Role `admin` or `partner`, or the kid's creator. Sync reports its moments as deleted.
+      responses:
+        '200':
+          $ref: '#/components/responses/MessageOnly'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/kids/{kid}/moments/uploaded-identifiers:
+    get:
+      tags: [Moments]
+      operationId: momentUploadedIdentifiers
+      summary: Device identifiers of uploaded photos and videos (duplicate detection)
+      description: Any signed-in user.
+      parameters:
+        - $ref: '#/components/parameters/KidId'
+      responses:
+        '200':
+          $ref: '#/components/responses/UploadedIdentifiers'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/kids/{kid}/media/uploaded-identifiers:
+    get:
+      tags: [Media]
+      operationId: mediaUploadedIdentifiers
+      summary: Device identifiers of media records (duplicate detection)
+      description: Any signed-in user.
+      parameters:
+        - $ref: '#/components/parameters/KidId'
+      responses:
+        '200':
+          $ref: '#/components/responses/UploadedIdentifiers'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /v1/moments:
     get:
       tags: [Moments]
+      operationId: listMoments
       summary: List moments
-      security:
-        - bearerAuth: []
+      description: Any signed-in user. Sorted by display date, newest first. `meta` has the pagination.
       parameters:
         - name: kid_id
           in: query
@@ -954,539 +781,376 @@ paths:
             format: uuid
         - name: moment_type
           in: query
+          description: One type or a comma list, e.g. `photo,video`.
           schema:
             type: string
-            enum: [photo, video, story, milestone]
-        - name: start_date
+            pattern: '^(photo|video|story|milestone|growth)(,(photo|video|story|milestone|growth))*$'
+        - name: liked
           in: query
+          description: '`true` or `1`: only moments the caller liked.'
+          schema:
+            type: string
+            enum: ['true', 'false', '1', '0']
+        - name: from
+          in: query
+          description: First day (inclusive) of the display date, `YYYY-MM-DD`.
           schema:
             type: string
             format: date
-        - name: end_date
+        - name: to
           in: query
+          description: Last day (inclusive) of the display date, `YYYY-MM-DD`. Must not be before `from`.
           schema:
             type: string
             format: date
-        - name: sort_direction
+        - name: page
           in: query
           schema:
-            type: string
-            enum: [asc, desc]
+            type: integer
+            minimum: 1
+            default: 1
         - name: per_page
           in: query
           schema:
             type: integer
             minimum: 1
             maximum: 100
+            default: 20
       responses:
-        "200":
-          description: Moments list
+        '200':
+          description: One page of moments
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  data:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/Moment"
-                  meta:
-                    $ref: "#/components/schemas/PaginationMeta"
-
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - required: [data, meta]
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Moment'
+                      meta:
+                        $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
     post:
       tags: [Moments]
-      summary: Create moment (unified - photo, video, story, or milestone)
-      security:
-        - bearerAuth: []
+      operationId: createMoment
+      summary: Create a moment of any type
+      description: |
+        Needs permission `add_content`. Throttled to 60 requests per minute.
+        `moments.user_id` is set to the caller.
+        - photo/video: `multipart/form-data` with `file`. The type comes from the file.
+          A video is stored and the response returns at once with `video_status=processing`;
+          a queued job makes the HLS stream and sets `ready` or `failed`.
+        - story, milestone, growth: JSON with `moment_type`.
+
+        `500` responses carry an extra `error` string.
       requestBody:
         required: true
         content:
           multipart/form-data:
             schema:
-              type: object
-              required: [kid_id]
-              properties:
-                kid_id:
-                  type: string
-                  format: uuid
-                moment_type:
-                  type: string
-                  enum: [photo, video, story, milestone]
-                  description: Auto-detected for file uploads
-                file:
-                  type: string
-                  format: binary
-                  description: Required for photo/video types
-                title:
-                  type: string
-                description:
-                  type: string
-                  description: Required for story type, optional for milestone type
-                milestone_id:
-                  type: string
-                  description: Required for milestone type (references milestones.id)
-                device_asset_id:
-                  type: string
-                exif_date:
-                  type: string
-                  format: date-time
-                latitude:
-                  type: number
-                  minimum: -90
-                  maximum: 90
-                longitude:
-                  type: number
-                  minimum: -180
-                  maximum: 180
-                camera_make:
-                  type: string
-                camera_model:
-                  type: string
-                orientation:
-                  type: integer
-                  minimum: 1
-                  maximum: 8
+              $ref: '#/components/schemas/MomentUploadRequest'
+            encoding:
+              file:
+                contentType: image/*, video/*
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/StoryCreateRequest'
+                - $ref: '#/components/schemas/MilestoneMomentCreateRequest'
+                - $ref: '#/components/schemas/GrowthCreateRequest'
+              discriminator:
+                propertyName: moment_type
+                mapping:
+                  story: '#/components/schemas/StoryCreateRequest'
+                  milestone: '#/components/schemas/MilestoneMomentCreateRequest'
+                  growth: '#/components/schemas/GrowthCreateRequest'
       responses:
-        "201":
+        '201':
           description: Moment created
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  message:
-                    type: string
-                  data:
-                    type: object
-                    properties:
-                      moment:
-                        $ref: "#/components/schemas/Moment"
-                      media:
-                        $ref: "#/components/schemas/Media"
-                        description: Only included for photo/video types
-        "422":
-          description: Validation error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ValidationError"
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/MomentCreated'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/ServerError'
 
   /v1/moments/{moment}:
+    parameters:
+      - $ref: '#/components/parameters/MomentId'
     get:
       tags: [Moments]
-      summary: Get moment details
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: moment
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+      operationId: getMoment
+      summary: One moment
+      description: Any signed-in user.
       responses:
-        "200":
-          description: Moment details
+        '200':
+          description: Moment
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  data:
-                    $ref: "#/components/schemas/Moment"
-
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/Moment'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
     put:
       tags: [Moments]
-      summary: Update moment
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: moment
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+      operationId: updateMoment
+      summary: Update a moment
+      description: |
+        Role `admin` or `partner`, the uploader (`moments.user_id`), or the creator of the
+        moment's kid. Accepted fields depend on the moment type: `milestone_id` only for
+        milestones, the growth fields only for growth (where `exif_date` cannot be cleared).
+        Other fields are ignored. Aliases: `milestone_date` for `exif_date`, `notes` for `description`.
       requestBody:
+        required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                title:
-                  type: string
-                description:
-                  type: string
-                text:
-                  type: string
-                  description: For story type
-                custom_title:
-                  type: string
-                  description: For milestone type
-                milestone_date:
-                  type: string
-                  format: date
-                notes:
-                  type: string
+              $ref: '#/components/schemas/MomentUpdateRequest'
       responses:
-        "200":
+        '200':
           description: Moment updated
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  message:
-                    type: string
-                  data:
-                    $ref: "#/components/schemas/Moment"
-
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/Moment'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '500':
+          $ref: '#/components/responses/ServerError'
     delete:
       tags: [Moments]
-      summary: Delete moment
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: moment
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+      operationId: deleteMoment
+      summary: Delete a moment (soft delete, files are removed)
+      description: Role `admin` or `partner`, the uploader, or the creator of the moment's kid.
       responses:
-        "200":
-          description: Moment deleted
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/SuccessResponse"
+        '200':
+          $ref: '#/components/responses/MessageOnly'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
 
-  /v1/moments/{moment}/file/{type}:
+  /v1/moments/{moment}/file/{file}:
     get:
       tags: [Moments]
-      summary: Serve moment file (authenticated)
+      operationId: getMomentFile
+      summary: A moment file (image proxy or signed HLS part)
       description: |
-        Serves moment files with authentication. For streaming video via HLS, use `/file/hls` instead (no auth required).
+        This path covers two routes:
+        - `file` = `original`, `medium` or `thumbnail`: bearer token. `original` needs
+          permission `download`; `medium` and `thumbnail` need no extra permission. `medium`
+          and `thumbnail` are `image/jpeg`; `original` has the moment's MIME type.
+        - `file` = a variant playlist or segment name (`[A-Za-z0-9_-]+.(m3u8|ts)`): signed URL,
+          no header. These URLs come from the rewritten master playlist of `/playback`.
+          A bad name gives `400`; an unsigned or expired URL gives `403`.
       security:
         - bearerAuth: []
+        - signedUrl: []
       parameters:
-        - name: moment
+        - $ref: '#/components/parameters/MomentId'
+        - name: file
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
-        - name: type
-          in: path
-          required: true
-          schema:
-            type: string
-            enum: [original, medium, thumbnail]
-          description: |
-            - `original`: Original uploaded file (photo/video) - requires auth
-            - `medium`: Medium resolution image (1200px width) - requires auth
-            - `thumbnail`: Thumbnail image (300x300) - requires auth
+            anyOf:
+              - type: string
+                enum: [original, medium, thumbnail]
+              - type: string
+                pattern: '^[a-zA-Z0-9_-]+\.(m3u8|ts)$'
+        - $ref: '#/components/parameters/SignedExpires'
+        - $ref: '#/components/parameters/SignedSignature'
       responses:
-        "200":
-          description: File content
-          content:
-            image/jpeg:
-              schema:
-                type: string
-                format: binary
-            video/mp4:
-              schema:
-                type: string
-                format: binary
-        "400":
-          description: Invalid file type
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "404":
-          description: File not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+        '200':
+          $ref: '#/components/responses/BinaryFile'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /v1/moments/{moment}/file/hls:
     get:
       tags: [Moments]
-      summary: Serve HLS master playlist (public, no auth)
+      operationId: getMomentHlsMaster
+      summary: HLS master playlist (signed URL)
       description: |
-        Serves the HLS master playlist for video streaming. **No authentication required.**
-        iOS/Android video players cannot inject auth headers, so HLS streaming is public.
-      security: [] # No authentication required
+        Signed URL from `GET /v1/moments/{moment}/playback`, no header. Every line of the
+        playlist is rewritten to a signed URL with the same expiry. Unsigned or expired: `403`.
+      security:
+        - signedUrl: []
       parameters:
-        - name: moment
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+        - $ref: '#/components/parameters/MomentId'
+        - $ref: '#/components/parameters/SignedExpiresRequired'
+        - $ref: '#/components/parameters/SignedSignatureRequired'
       responses:
-        "200":
-          description: HLS master playlist
-          headers:
-            Access-Control-Allow-Origin:
-              schema:
-                type: string
-                example: "*"
-          content:
-            application/vnd.apple.mpegurl:
-              schema:
-                type: string
-                description: HLS master playlist content
-              example: |
-                #EXTM3U
-                #EXT-X-VERSION:3
-                #EXT-X-STREAM-INF:BANDWIDTH=2500000,RESOLUTION=1280x720
-                playlist_0_2500.m3u8
-                #EXT-X-STREAM-INF:BANDWIDTH=1000000,RESOLUTION=854x480
-                playlist_1_1000.m3u8
-        "404":
-          description: HLS not available
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+        '200':
+          $ref: '#/components/responses/HlsPlaylist'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
-  /v1/moments/{moment}/file/{filename}:
+  /v1/moments/{moment}/playback:
     get:
       tags: [Moments]
-      summary: Serve HLS segment file (public, no auth)
+      operationId: getMomentPlayback
+      summary: Signed HLS URL for the video player
       description: |
-        Serves individual HLS variant playlists and segment files. **No authentication required.**
-        This endpoint is called by HLS video players after loading the master playlist.
-
-        **Filename patterns:**
-        - Variant playlists: `playlist_0_2500.m3u8`, `playlist_1_1000.m3u8`
-        - Segment files: `playlist_0_00001.ts`, `playlist_1_00002.ts`
-      security: [] # No authentication required
+        Any signed-in user. The URL is valid for 6 hours and needs no header. Call it each time
+        a video starts. `404` when the moment is not a video, `409` while the video is not ready.
       parameters:
-        - name: moment
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-        - name: filename
-          in: path
-          required: true
-          schema:
-            type: string
-            pattern: '.*\.(m3u8|ts)$'
-          examples:
-            variant_playlist:
-              value: "playlist_0_2500.m3u8"
-              summary: Variant playlist for 720p quality
-            segment:
-              value: "playlist_0_00001.ts"
-              summary: Video segment file
+        - $ref: '#/components/parameters/MomentId'
       responses:
-        "200":
-          description: HLS file content
-          content:
-            application/vnd.apple.mpegurl:
-              schema:
-                type: string
-                description: Variant playlist content (.m3u8)
-              example: |
-                #EXTM3U
-                #EXT-X-VERSION:3
-                #EXT-X-TARGETDURATION:10
-                #EXTINF:10.0,
-                playlist_0_00001.ts
-                #EXTINF:10.0,
-                playlist_0_00002.ts
-            video/MP2T:
-              schema:
-                type: string
-                format: binary
-                description: Video segment file (.ts)
-        "404":
-          description: HLS file not found
+        '200':
+          description: Signed playback URL
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/Playback'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: The video is not ready yet
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
   /v1/moments/{moment}/file-status:
     get:
       tags: [Moments]
-      summary: Check file status (diagnostic)
-      security:
-        - bearerAuth: []
+      operationId: getMomentFileStatus
+      summary: Diagnostic - which stored files of a moment exist
+      description: Any signed-in user.
       parameters:
-        - name: moment
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+        - $ref: '#/components/parameters/MomentId'
       responses:
-        "200":
+        '200':
           description: File status
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  data:
-                    type: object
-                    properties:
-                      moment_id:
-                        type: string
-                      paths:
-                        type: object
-                      exists:
-                        type: object
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/FileStatus'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
-  /v1/kids/{kid}/moments/uploaded-identifiers:
-    get:
-      tags: [Moments]
-      summary: Get uploaded identifiers for duplicate detection
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: kid
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      responses:
-        "200":
-          description: Uploaded identifiers
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  data:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        device_asset_id:
-                          type: string
-                        device_fingerprint:
-                          type: string
-                        file_size:
-                          type: integer
-                        filename:
-                          type: string
-
-  # ============================================================================
-  # INTERACTIONS
-  # ============================================================================
   /v1/moments/{moment}/like:
+    parameters:
+      - $ref: '#/components/parameters/MomentId'
     post:
       tags: [Interactions]
+      operationId: likeMoment
       summary: Like a moment
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: moment
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+      description: Needs permission `like`. `201` when liked now, `200` "Already liked". No `data`.
       responses:
-        "201":
-          description: Moment liked
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "200":
-          description: Already liked
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/SuccessResponse"
-
+        '200':
+          $ref: '#/components/responses/MessageOnly'
+        '201':
+          $ref: '#/components/responses/MessageOnly'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
     delete:
       tags: [Interactions]
-      summary: Unlike a moment
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: moment
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+      operationId: unlikeMoment
+      summary: Remove the caller's like
+      description: Needs permission `like`. `404` "Not liked yet" when there is no like.
       responses:
-        "200":
-          description: Moment unliked
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "404":
-          description: Not liked yet
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+        '200':
+          $ref: '#/components/responses/MessageOnly'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /v1/moments/{moment}/comments:
+    parameters:
+      - $ref: '#/components/parameters/MomentId'
     get:
       tags: [Interactions]
-      summary: Get comments for moment
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: moment
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+      operationId: listComments
+      summary: Comments of a moment, oldest first
+      description: Any signed-in user.
       responses:
-        "200":
-          description: Comments list
+        '200':
+          description: Comments
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  data:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/Comment"
-
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Comment'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
     post:
       tags: [Interactions]
-      summary: Add comment to moment
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: moment
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+      operationId: postComment
+      summary: Comment on a moment
+      description: Needs permission `comment`.
       requestBody:
         required: true
         content:
@@ -1499,26 +1163,31 @@ paths:
                   type: string
                   maxLength: 1000
       responses:
-        "201":
-          description: Comment added
+        '201':
+          description: Comment posted
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  message:
-                    type: string
-                  data:
-                    $ref: "#/components/schemas/Comment"
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/Comment'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
 
   /v1/interactions/{interaction}:
     delete:
       tags: [Interactions]
-      summary: Delete comment
-      security:
-        - bearerAuth: []
+      operationId: deleteComment
+      summary: Delete a comment
+      description: The comment's author or the admin. `400` when the id is a like, not a comment.
       parameters:
         - name: interaction
           in: path
@@ -1526,40 +1195,137 @@ paths:
           schema:
             type: integer
       responses:
-        "200":
-          description: Comment deleted
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "400":
-          description: Invalid interaction
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "403":
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "404":
-          description: Comment not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+        '200':
+          $ref: '#/components/responses/MessageOnly'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
-  # ============================================================================
-  # MEDIA (Raw file management)
-  # ============================================================================
+  /v1/lookback:
+    get:
+      tags: [Lookback]
+      operationId: getLookback
+      summary: On this day, then and now
+      description: Any signed-in user.
+      parameters:
+        - name: date
+          in: query
+          description: The app's local date, `YYYY-MM-DD`. Default is today on the server.
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Look-back
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/Lookback'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+
+  /v1/exports:
+    get:
+      tags: [Exports]
+      operationId: listExports
+      summary: Library exports, newest first
+      description: Admin only.
+      responses:
+        '200':
+          description: Exports
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Export'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [Exports]
+      operationId: startExport
+      summary: Start a ZIP export of the whole library
+      description: |
+        Admin only. A queued job builds the ZIP on the server's disk. Only one export can be
+        pending or processing at a time (`409`). The server keeps the 3 newest exports.
+      responses:
+        '202':
+          description: Export started
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/Export'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: An export is already running
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /v1/exports/{export}/download:
+    get:
+      tags: [Exports]
+      operationId: downloadExport
+      summary: Download an export ZIP (signed URL)
+      description: |
+        Signed URL from `Export.download_url` (valid 24 hours), no header. `403` when the
+        signature is missing or expired, or when the export's creator no longer has
+        permission `download`. `404` when the export is not ready or the file is gone.
+      security:
+        - signedUrl: []
+      parameters:
+        - name: export
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/SignedExpiresRequired'
+        - $ref: '#/components/parameters/SignedSignatureRequired'
+      responses:
+        '200':
+          description: The ZIP file (`kinlore-export-YYYY-MM-DD.zip`)
+          content:
+            application/zip:
+              schema:
+                type: string
+                contentMediaType: application/zip
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /v1/media:
     get:
       tags: [Media]
-      summary: List media files
-      security:
-        - bearerAuth: []
+      operationId: listMedia
+      summary: List media records
+      description: Any signed-in user. `meta` has the pagination.
       parameters:
         - name: kid_id
           in: query
@@ -1580,255 +1346,188 @@ paths:
           in: query
           schema:
             type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
       responses:
-        "200":
-          description: Media list
+        '200':
+          description: One page of media
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  data:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/Media"
-                  meta:
-                    $ref: "#/components/schemas/PaginationMeta"
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - required: [data, meta]
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Media'
+                      meta:
+                        $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
 
   /v1/media/{media}:
+    parameters:
+      - $ref: '#/components/parameters/MediaId'
     get:
       tags: [Media]
-      summary: Get media details
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: media
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+      operationId: getMedia
+      summary: One media record
+      description: Any signed-in user.
       responses:
-        "200":
-          description: Media details
+        '200':
+          description: Media
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  data:
-                    $ref: "#/components/schemas/Media"
-
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/Media'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
     delete:
       tags: [Media]
-      summary: Delete media
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: media
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+      operationId: deleteMedia
+      summary: Delete a media record and its files
+      description: Same rule as kid update - role `admin` or `partner`, or the creator of the media's kid.
       responses:
-        "200":
-          description: Media deleted
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "404":
-          description: Media not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+        '200':
+          $ref: '#/components/responses/MessageOnly'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
 
-  /v1/media/{media}/file/{type}:
+  /v1/media/{media}/file/{file}:
     get:
       tags: [Media]
-      summary: Serve media file (authenticated)
+      operationId: getMediaFile
+      summary: A media file (image proxy or signed HLS part)
       description: |
-        Serves media files with authentication. For HLS streaming, use `/file/hls` (no auth required).
+        Same rules as `GET /v1/moments/{moment}/file/{file}`:
+        `original` (needs permission `download`), `medium`, `thumbnail` with bearer token, or
+        an `.m3u8`/`.ts` name with a signed URL.
       security:
         - bearerAuth: []
+        - signedUrl: []
       parameters:
-        - name: media
+        - $ref: '#/components/parameters/MediaId'
+        - name: file
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
-        - name: type
-          in: path
-          required: true
-          schema:
-            type: string
-            enum: [original, medium, thumbnail]
+            anyOf:
+              - type: string
+                enum: [original, medium, thumbnail]
+              - type: string
+                pattern: '^[a-zA-Z0-9_-]+\.(m3u8|ts)$'
+        - $ref: '#/components/parameters/SignedExpires'
+        - $ref: '#/components/parameters/SignedSignature'
       responses:
-        "200":
-          description: File content
-        "400":
-          description: Invalid file type
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "404":
-          description: File not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+        '200':
+          $ref: '#/components/responses/BinaryFile'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /v1/media/{media}/file/hls:
     get:
       tags: [Media]
-      summary: Serve HLS master playlist (public, no auth)
-      description: |
-        Serves the HLS master playlist for video streaming. **No authentication required.**
-      security: []
-      parameters:
-        - name: media
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      responses:
-        "200":
-          description: HLS master playlist
-          content:
-            application/vnd.apple.mpegurl:
-              schema:
-                type: string
-        "404":
-          description: HLS not available
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-
-  /v1/media/{media}/file/{filename}:
-    get:
-      tags: [Media]
-      summary: Serve HLS segment file (public, no auth)
-      description: |
-        Serves HLS variant playlists and segment files. **No authentication required.**
-      security: []
-      parameters:
-        - name: media
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-        - name: filename
-          in: path
-          required: true
-          schema:
-            type: string
-            pattern: '.*\.(m3u8|ts)$'
-      responses:
-        "200":
-          description: HLS file content
-        "404":
-          description: HLS file not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-
-  /v1/kids/{kid}/media/uploaded-identifiers:
-    get:
-      tags: [Media]
-      summary: Get uploaded media identifiers for duplicate detection
+      operationId: getMediaHlsMaster
+      summary: HLS master playlist of a media record (signed URL)
+      description: Signed URL, no header. No API route hands out this URL today.
       security:
-        - bearerAuth: []
+        - signedUrl: []
       parameters:
-        - name: kid
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+        - $ref: '#/components/parameters/MediaId'
+        - $ref: '#/components/parameters/SignedExpiresRequired'
+        - $ref: '#/components/parameters/SignedSignatureRequired'
       responses:
-        "200":
-          description: Uploaded identifiers
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  data:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        device_asset_id:
-                          type: string
-                        device_fingerprint:
-                          type: string
-                        file_size:
-                          type: integer
-                        filename:
-                          type: string
+        '200':
+          $ref: '#/components/responses/HlsPlaylist'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
-  # ============================================================================
-  # PREDEFINED MILESTONES
-  # ============================================================================
   /v1/milestones:
     get:
       tags: [Milestones]
-      summary: List all milestones
-      security:
-        - bearerAuth: []
+      operationId: listMilestones
+      summary: The predefined milestone list
+      description: |
+        Any signed-in user. Without `group_by` and without `flat`: grouped by stage.
+        `group_by=category`: grouped by category. `flat=1` (or any other `group_by`): a flat
+        list, which `category` and `stage_key` can filter.
       parameters:
         - name: group_by
           in: query
           schema:
             type: string
             enum: [stage, category]
-        - name: category
-          in: query
-          schema:
-            type: string
-        - name: stage_key
-          in: query
-          schema:
-            type: string
         - name: flat
           in: query
           schema:
             type: boolean
+        - name: category
+          in: query
+          description: Only for the flat list.
+          schema:
+            type: string
+        - name: stage_key
+          in: query
+          description: Only for the flat list.
+          schema:
+            type: string
       responses:
-        "200":
-          description: Milestones list
+        '200':
+          description: Milestones
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  data:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/Milestone"
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        oneOf:
+                          - type: array
+                            title: Grouped by stage
+                            items:
+                              $ref: '#/components/schemas/MilestoneStageGroup'
+                          - type: array
+                            title: Grouped by category
+                            items:
+                              $ref: '#/components/schemas/MilestoneCategoryGroup'
+                          - type: array
+                            title: Flat
+                            items:
+                              $ref: '#/components/schemas/Milestone'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
 
   /v1/milestones/{id}:
     get:
       tags: [Milestones]
-      summary: Get milestone details
-      security:
-        - bearerAuth: []
+      operationId: getMilestone
+      summary: One milestone
+      description: Any signed-in user.
       parameters:
         - name: id
           in: path
@@ -1836,209 +1535,1646 @@ paths:
           schema:
             type: string
       responses:
-        "200":
-          description: Milestone details
+        '200':
+          description: Milestone
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  data:
-                    $ref: "#/components/schemas/Milestone"
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/Milestone'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
-  # ============================================================================
-  # INVITATIONS (admin only)
-  # ============================================================================
-  /v1/invitations:
-    get:
-      tags: [Invitations]
-      summary: List pending invitations
-      security:
-        - bearerAuth: []
-      responses:
-        "200":
-          description: Pending (unused, unexpired) invitations
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  data:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/Invitation"
-        "403":
-          description: Not the instance admin
-    post:
-      tags: [Invitations]
-      summary: Create an invitation
-      security:
-        - bearerAuth: []
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                email:
-                  type: string
-                  format: email
-                  description: Optional. Locks the invitation to this email.
-                expires_in_days:
-                  type: integer
-                  minimum: 1
-                  maximum: 30
-                  default: 7
-      responses:
-        "201":
-          description: Invitation created. The token is shown only in this response.
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  message:
-                    type: string
-                  data:
-                    allOf:
-                      - $ref: "#/components/schemas/Invitation"
-                      - type: object
-                        properties:
-                          token:
-                            type: string
-                          invite_link:
-                            type: string
-                            example: kinlore://invite/abc123
-        "403":
-          description: Not the instance admin
-        "422":
-          description: Validation error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ValidationError"
-
-  /v1/invitations/{invitation}:
-    delete:
-      tags: [Invitations]
-      summary: Revoke an unused invitation
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: invitation
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      responses:
-        "200":
-          description: Invitation revoked
-        "403":
-          description: Not the instance admin
-        "409":
-          description: Invitation was already used
-
-  # ============================================================================
-  # USER
-  # ============================================================================
-  /v1/user:
-    get:
-      tags: [Auth]
-      summary: Get current authenticated user
-      security:
-        - bearerAuth: []
-      responses:
-        "200":
-          description: Current user
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/User"
-
-  # ============================================================================
-  # SYNC (WatermelonDB)
-  # ============================================================================
   /v1/sync/pull:
     post:
       tags: [Sync]
-      summary: Pull changes from server
-      security:
-        - bearerAuth: []
+      operationId: syncPull
+      summary: Pull changes since the last pull
+      description: |
+        Any signed-in user. Throttle `sync` (300 per minute). **No envelope.**
+        The server returns rows with `updated_at >= lastPulledAt - 1000`, so rows can come
+        again: the client must upsert every row in `created` and `updated`.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required: [schemaVersion]
-              properties:
-                lastPulledAt:
-                  type: integer
-                  description: Timestamp in milliseconds
-                schemaVersion:
-                  type: integer
-                migration:
-                  type: object
+              $ref: '#/components/schemas/SyncPullRequest'
       responses:
-        "200":
-          description: Changes since last pull
+        '200':
+          description: Changes
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  changes:
-                    type: object
-                    properties:
-                      kids:
-                        $ref: "#/components/schemas/SyncChanges"
-                      moments:
-                        $ref: "#/components/schemas/SyncChanges"
-                      milestones:
-                        $ref: "#/components/schemas/SyncChanges"
-                  timestamp:
-                    type: integer
-                    description: Server timestamp in milliseconds
+                $ref: '#/components/schemas/SyncPullResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
 
   /v1/sync/push:
     post:
       tags: [Sync]
-      summary: Push changes to server
-      security:
-        - bearerAuth: []
+      operationId: syncPush
+      summary: Push local changes
+      description: |
+        Any signed-in user. Throttle `sync` (300 per minute). Enveloped. Every change goes
+        through the same permission rules as REST (kid create: `admin`/`partner`; moment
+        create: `add_content`; update/delete: owner rules). A change that fails goes into
+        `rejected`; the others still apply. The server keeps client ids.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required: [changes]
-              properties:
-                changes:
-                  type: object
-                  properties:
-                    kids:
-                      type: object
-                      properties:
-                        created:
-                          type: array
-                        updated:
-                          type: array
-                        deleted:
-                          type: array
-                lastPulledAt:
-                  type: integer
+              $ref: '#/components/schemas/SyncPushRequest'
       responses:
-        "200":
-          description: Changes applied
+        '200':
+          description: Push result
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
+                $ref: '#/components/schemas/SyncPushResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Sanctum personal access token from login, register or refresh.
+    signedUrl:
+      type: apiKey
+      in: query
+      name: signature
+      description: Laravel signed URL. Use the URL exactly as the server returned it (with `expires` and `signature`).
+
+  parameters:
+    KidId:
+      name: kid
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    MomentId:
+      name: moment
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    MediaId:
+      name: media
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    InviteToken:
+      name: token
+      in: path
+      required: true
+      schema:
+        type: string
+    SignedExpires:
+      name: expires
+      in: query
+      description: Unix time in seconds. Only for signed URLs.
+      schema:
+        type: integer
+    SignedSignature:
+      name: signature
+      in: query
+      description: Only for signed URLs.
+      schema:
+        type: string
+    SignedExpiresRequired:
+      name: expires
+      in: query
+      required: true
+      description: Unix time in seconds.
+      schema:
+        type: integer
+    SignedSignatureRequired:
+      name: signature
+      in: query
+      required: true
+      schema:
+        type: string
+
+  requestBodies:
+    KidUpdate:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/KidUpdateRequest'
+
+  responses:
+    MessageOnly:
+      description: Success with a message and no `data`
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Envelope'
+    NullData:
+      description: Success with a message and `data` = `null`
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/Envelope'
+              - properties:
+                  data:
+                    type: 'null'
+    KidUpdated:
+      description: Kid updated
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/Envelope'
+              - properties:
+                  data:
+                    $ref: '#/components/schemas/Kid'
+    UploadedIdentifiers:
+      description: Identifiers
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/Envelope'
+              - properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UploadedIdentifier'
+    BinaryFile:
+      description: File content. `Cache-Control private, max-age=3600`.
+      content:
+        image/jpeg:
+          schema:
+            type: string
+            contentMediaType: image/jpeg
+        application/vnd.apple.mpegurl:
+          schema:
+            type: string
+        video/MP2T:
+          schema:
+            type: string
+            contentMediaType: video/MP2T
+        application/octet-stream:
+          schema:
+            type: string
+            contentMediaType: application/octet-stream
+    HlsPlaylist:
+      description: Master playlist with signed references
+      content:
+        application/vnd.apple.mpegurl:
+          schema:
+            type: string
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthenticated:
+      description: Missing or invalid bearer token (`Unauthenticated.`)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Role or permission check failed, or invalid or expired signature
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Not found (`Resource not found`, `Route not found` or a specific message)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ValidationFailed:
+      description: Validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationError'
+    TooManyRequests:
+      description: Rate limit hit (`Too Many Attempts.`). See the `Retry-After` header.
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ServerError:
+      description: Server error. Some routes add an `error` string.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+    Envelope:
+      type: object
+      description: Response envelope used by almost every route.
+      required: [success]
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          description: Route-specific payload. Absent on message-only responses.
+        meta:
+          type: object
+        errors:
+          type: object
+
+    Error:
+      type: object
+      required: [success, message]
+      properties:
+        success:
+          type: boolean
+          const: false
+        message:
+          type: string
+        errors:
+          type: object
+        error:
+          type: string
+          description: Only on some `500` responses; the exception text when `APP_DEBUG` is on.
+
+    ValidationError:
+      type: object
+      required: [success, message, errors]
+      properties:
+        success:
+          type: boolean
+          const: false
+        message:
+          type: string
+          const: Validation failed
+        errors:
+          type: object
+          description: Field name to a list of messages.
+          additionalProperties:
+            type: array
+            items:
+              type: string
+
+    PaginationMeta:
+      type: object
+      required: [current_page, last_page, per_page, total]
+      properties:
+        current_page:
+          type: integer
+        last_page:
+          type: integer
+        per_page:
+          type: integer
+        total:
+          type: integer
+
+    Role:
+      type: string
+      enum: [admin, partner, family]
+
+    Permissions:
+      type: object
+      description: Effective permissions. Always all `true` for `admin` and `partner`.
+      required: [add_content, comment, like, download]
+      properties:
+        add_content:
+          type: boolean
+        comment:
+          type: boolean
+        like:
+          type: boolean
+        download:
+          type: boolean
+
+    PermissionsInput:
+      type: [object, 'null']
+      description: Any subset. Missing keys default to `true` on create and stay unchanged on update.
+      properties:
+        add_content:
+          type: boolean
+        comment:
+          type: boolean
+        like:
+          type: boolean
+        download:
+          type: boolean
+
+    User:
+      type: object
+      description: User payload of login, register and `/auth/me`.
+      required: [id, name, email, role, is_admin, permissions, created_at, email_verified_at]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          $ref: '#/components/schemas/Role'
+        is_admin:
+          type: boolean
+          description: Derived, `role === 'admin'`.
+        permissions:
+          $ref: '#/components/schemas/Permissions'
+        created_at:
+          type: [string, 'null']
+          format: date-time
+        email_verified_at:
+          type: [string, 'null']
+          format: date-time
+
+    UserInfo:
+      description: '`/auth/me`: the user payload plus counts. Counts and storage are family-wide, except `my_moments_count`.'
+      allOf:
+        - $ref: '#/components/schemas/User'
+        - type: object
+          required: [kids_count, moments_count, my_moments_count, storage_used, storage_bytes_used, storage_bytes_available]
+          properties:
+            kids_count:
+              type: integer
+            moments_count:
+              type: integer
+            my_moments_count:
+              type: integer
+              description: Moments the caller uploaded.
+            storage_used:
+              type: string
+              description: Formatted, e.g. `1.20 GB`.
+            storage_bytes_used:
+              type: integer
+            storage_bytes_available:
+              type: integer
+              description: Free disk space on the API server.
+
+    UserRecord:
+      type: object
+      description: Raw `User` model of `GET /v1/user` (no envelope).
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        email_verified_at:
+          type: [string, 'null']
+        role:
+          $ref: '#/components/schemas/Role'
+        can_add_content:
+          type: boolean
+        can_comment:
+          type: boolean
+        can_like:
+          type: boolean
+        can_download:
+          type: boolean
+        created_at:
+          type: string
+        updated_at:
+          type: string
+
+    AuthResult:
+      type: object
+      required: [user, token, token_type]
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        token:
+          type: string
+        token_type:
+          type: string
+          const: Bearer
+
+    Session:
+      type: object
+      required: [id, name, abilities, last_used_at, created_at, is_current]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        abilities:
+          type: array
+          items:
+            type: string
+        last_used_at:
+          type: [string, 'null']
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        is_current:
+          type: boolean
+
+    RegisterRequest:
+      type: object
+      required: [name, email, password, password_confirmation]
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        email:
+          type: string
+          format: email
+          maxLength: 255
+        password:
+          type: string
+          minLength: 8
+        password_confirmation:
+          type: string
+        invite_token:
+          type: [string, 'null']
+          maxLength: 64
+          description: Required when the instance already has users.
+        setup_token:
+          type: [string, 'null']
+          maxLength: 255
+          description: Required for the first user when the server has `SETUP_TOKEN` set.
+
+    SetupStatus:
+      type: object
+      required: [needs_setup, setup_token_required, instance_name]
+      properties:
+        needs_setup:
+          type: boolean
+          description: True when the instance has no user.
+        setup_token_required:
+          type: boolean
+          description: True only while `needs_setup` is true and `SETUP_TOKEN` is set.
+        instance_name:
+          type: string
+
+    InvitationCheck:
+      type: object
+      required: [valid, email, role, invited_by, expires_at, instance_name]
+      properties:
+        valid:
+          type: boolean
+          const: true
+        email:
+          type: [string, 'null']
+          format: email
+        role:
+          type: string
+          enum: [partner, family]
+        invited_by:
+          type: object
+          required: [name]
+          properties:
+            name:
+              type: [string, 'null']
+        expires_at:
+          type: string
+          format: date-time
+        instance_name:
+          type: string
+
+    Invitation:
+      type: object
+      required: [id, email, role, permissions, invited_by, expires_at, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: [string, 'null']
+          format: email
+        role:
+          type: string
+          enum: [partner, family]
+        permissions:
+          $ref: '#/components/schemas/Permissions'
+        invited_by:
+          type: [object, 'null']
+          required: [id, name]
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+        expires_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+
+    InvitationCreated:
+      allOf:
+        - $ref: '#/components/schemas/Invitation'
+        - type: object
+          required: [token, invite_link, invite_url]
+          properties:
+            token:
+              type: string
+              description: 48 characters. Returned only once.
+            invite_link:
+              type: string
+              description: '`kinlore://invite/{token}?server={urlencoded APP_URL}`'
+            invite_url:
+              type: string
+              format: uri
+              description: '`{APP_URL}/invite/{token}`, the public HTML page.'
+
+    Member:
+      type: object
+      description: User payload plus `moments_count` (moments this user uploaded). No `email_verified_at`.
+      required: [id, name, email, role, is_admin, permissions, created_at, moments_count]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          $ref: '#/components/schemas/Role'
+        is_admin:
+          type: boolean
+        permissions:
+          $ref: '#/components/schemas/Permissions'
+        created_at:
+          type: [string, 'null']
+          format: date-time
+        moments_count:
+          type: integer
+
+    Kid:
+      type: object
+      required: [id, user_id, name, date_of_birth, due_date, avatar_color, age, age_months, is_expecting, age_detailed, moments_count, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: integer
+          description: The kid's creator.
+        name:
+          type: string
+        date_of_birth:
+          type: [string, 'null']
+          format: date
+        due_date:
+          type: [string, 'null']
+          format: date
+        avatar_color:
+          type: string
+          pattern: '^#[0-9A-Fa-f]{6}$'
+        age:
+          type: [integer, 'null']
+          description: Whole years. `null` when not born.
+        age_months:
+          type: [integer, 'null']
+          description: Whole months. `null` when not born.
+        is_expecting:
+          type: boolean
+          description: True when `date_of_birth` is null.
+        age_detailed:
+          type: [string, 'null']
+          description: E.g. `2 years, 3 months`.
+        moments_count:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    KidDetails:
+      allOf:
+        - $ref: '#/components/schemas/Kid'
+        - type: object
+          required: [first_moment, latest_moment]
+          properties:
+            first_moment:
+              type: [string, 'null']
+              format: date-time
+              description: Display date of the earliest moment (by `exif_date`).
+            latest_moment:
+              type: [string, 'null']
+              format: date-time
+
+    KidCreateRequest:
+      type: object
+      required: [name]
+      description: At least one of `date_of_birth` and `due_date`.
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        date_of_birth:
+          type: [string, 'null']
+          format: date
+          description: Today or earlier.
+        due_date:
+          type: [string, 'null']
+          format: date
+        avatar_color:
+          type: [string, 'null']
+          pattern: '^#[0-9A-Fa-f]{6}$'
+          description: Random color when missing.
+
+    KidUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        date_of_birth:
+          type: [string, 'null']
+          format: date
+        due_date:
+          type: [string, 'null']
+          format: date
+        avatar_color:
+          type: string
+          pattern: '^#[0-9A-Fa-f]{6}$'
+
+    MomentType:
+      type: string
+      enum: [photo, video, story, milestone, growth]
+
+    Moment:
+      type: object
+      description: |
+        Moment payload of REST routes (list, show, update, `data.moment` on create, look-back).
+        `display_date` is `exif_date`, or `created_at` when there is none.
+        `photo_url`, `medium_url`, `thumbnail_url` and `hls_url` are temporary storage URLs
+        (60 minutes); the app uses `/file/{type}` and `/playback` instead.
+      required: [id, kid_id, user_id, uploader_name, moment_type, title, description, display_date, likes_count, comments_count, is_liked, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        kid_id:
+          type: string
+          format: uuid
+        user_id:
+          type: [integer, 'null']
+          description: Uploader. `null` after the uploader was removed.
+        uploader_name:
+          type: [string, 'null']
+        video_id:
+          type: [string, 'null']
+          description: Legacy.
+        moment_type:
+          $ref: '#/components/schemas/MomentType'
+        milestone_id:
+          type: [string, 'null']
+        custom_milestone_id:
+          type: [string, 'null']
+          description: Legacy, always null for new moments.
+        title:
+          type: [string, 'null']
+        description:
+          type: [string, 'null']
+        story_text:
+          type: [string, 'null']
+          description: Legacy.
+        photo_url:
+          type: [string, 'null']
+        medium_url:
+          type: [string, 'null']
+        thumbnail_url:
+          type: [string, 'null']
+        hls_url:
+          type: [string, 'null']
+          description: Only set for videos.
+        file_size:
+          type: [integer, 'null']
+          description: Bytes.
+        file_size_formatted:
+          type: string
+        mime_type:
+          type: [string, 'null']
+        original_filename:
+          type: [string, 'null']
+        device_asset_id:
+          type: [string, 'null']
+        exif_date:
+          type: [string, 'null']
+          format: date-time
+          description: Taken on, or the milestone date, or the growth measurement date.
+        display_date:
+          type: string
+          format: date-time
+        latitude:
+          type: [number, 'null']
+          minimum: -90
+          maximum: 90
+        longitude:
+          type: [number, 'null']
+          minimum: -180
+          maximum: 180
+        has_location:
+          type: boolean
+        orientation:
+          type: [integer, 'null']
+          minimum: 1
+          maximum: 8
+        camera_make:
+          type: [string, 'null']
+        camera_model:
+          type: [string, 'null']
+        duration:
+          type: [number, 'null']
+          description: Video length in seconds.
+        video_status:
+          type: [string, 'null']
+          enum: [processing, ready, failed, null]
+        height_cm:
+          type: [number, 'null']
+        weight_kg:
+          type: [number, 'null']
+        head_circumference_cm:
+          type: [number, 'null']
+        likes_count:
+          type: integer
+        comments_count:
+          type: integer
+        is_liked:
+          type: boolean
+          description: Liked by the caller.
+        tags:
+          type: [array, 'null']
+          items:
+            type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        milestone:
+          $ref: '#/components/schemas/Milestone'
+          description: Present when `milestone_id` is set.
+
+    MomentCreated:
+      type: object
+      required: [moment]
+      properties:
+        moment:
+          $ref: '#/components/schemas/Moment'
+        media:
+          $ref: '#/components/schemas/Media'
+          description: Only for photo and video.
+
+    MomentUploadRequest:
+      type: object
+      description: Photo or video upload. The other fields of `Moment` are read from EXIF when missing.
+      required: [kid_id, file]
+      properties:
+        kid_id:
+          type: string
+          format: uuid
+        file:
+          type: string
+          contentMediaType: application/octet-stream
+          description: 'Max 500 MB. jpeg, jpg, png, gif, webp, heic, heif, mp4, mov, avi, webm, mkv, m4v.'
+        moment_type:
+          type: string
+          enum: [photo, video]
+          description: Optional; the server decides from the file.
+        title:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+          maxLength: 5000
+        device_asset_id:
+          type: string
+          maxLength: 255
+        exif_date:
+          type: string
+          format: date-time
+        latitude:
+          type: number
+          minimum: -90
+          maximum: 90
+        longitude:
+          type: number
+          minimum: -180
+          maximum: 180
+        camera_make:
+          type: string
+          maxLength: 255
+        camera_model:
+          type: string
+          maxLength: 255
+        orientation:
+          type: integer
+          minimum: 1
+          maximum: 8
+
+    StoryCreateRequest:
+      type: object
+      required: [kid_id, moment_type, description]
+      properties:
+        kid_id:
+          type: string
+          format: uuid
+        moment_type:
+          type: string
+          const: story
+        title:
+          type: [string, 'null']
+          maxLength: 255
+        description:
+          type: string
+          maxLength: 5000
+        exif_date:
+          type: [string, 'null']
+          format: date-time
+
+    MilestoneMomentCreateRequest:
+      type: object
+      required: [kid_id, moment_type, milestone_id]
+      properties:
+        kid_id:
+          type: string
+          format: uuid
+        moment_type:
+          type: string
+          const: milestone
+        milestone_id:
+          type: string
+          description: Id of a predefined milestone.
+        title:
+          type: [string, 'null']
+          maxLength: 255
+        description:
+          type: [string, 'null']
+          maxLength: 5000
+        exif_date:
+          type: [string, 'null']
+          format: date-time
+          description: Date the milestone happened.
+
+    GrowthCreateRequest:
+      type: object
+      required: [kid_id, moment_type, exif_date]
+      description: At least one of `height_cm`, `weight_kg`, `head_circumference_cm`.
+      properties:
+        kid_id:
+          type: string
+          format: uuid
+        moment_type:
+          type: string
+          const: growth
+        exif_date:
+          type: string
+          format: date-time
+          description: Measured on (a date or date-time).
+        height_cm:
+          type: [number, 'null']
+          minimum: 1
+          maximum: 250
+        weight_kg:
+          type: [number, 'null']
+          minimum: 0.1
+          maximum: 200
+        head_circumference_cm:
+          type: [number, 'null']
+          minimum: 1
+          maximum: 100
+        title:
+          type: [string, 'null']
+          maxLength: 255
+        description:
+          type: [string, 'null']
+          maxLength: 5000
+
+    MomentUpdateRequest:
+      type: object
+      properties:
+        title:
+          type: [string, 'null']
+          maxLength: 255
+        description:
+          type: [string, 'null']
+          maxLength: 5000
+        exif_date:
+          type: [string, 'null']
+          format: date-time
+        milestone_id:
+          type: string
+          description: Milestone moments only.
+        height_cm:
+          type: [number, 'null']
+          minimum: 1
+          maximum: 250
+          description: Growth moments only.
+        weight_kg:
+          type: [number, 'null']
+          minimum: 0.1
+          maximum: 200
+          description: Growth moments only.
+        head_circumference_cm:
+          type: [number, 'null']
+          minimum: 1
+          maximum: 100
+          description: Growth moments only.
+        milestone_date:
+          type: string
+          description: Alias of `exif_date`.
+          deprecated: true
+        notes:
+          type: string
+          description: Alias of `description`.
+          deprecated: true
+
+    Media:
+      type: object
+      description: Raw media record. Photo-only and video-only fields appear by `type`.
+      required: [id, kid_id, user_id, type, file_size, mime_type, status, is_ready, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        kid_id:
+          type: string
+          format: uuid
+        user_id:
+          type: [integer, 'null']
+        type:
+          type: string
+          enum: [photo, video]
+        original_filename:
+          type: [string, 'null']
+        file_size:
+          type: [integer, 'null']
+        file_size_formatted:
+          type: string
+        mime_type:
+          type: [string, 'null']
+        status:
+          type: string
+          enum: [uploading, processing, completed, failed]
+        is_ready:
+          type: boolean
+        thumbnail_url:
+          type: [string, 'null']
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        medium_url:
+          type: [string, 'null']
+          description: Photo only.
+        exif_data:
+          type: [object, 'null']
+          description: Photo only.
+        latitude:
+          type: [number, 'null']
+          description: Photo only.
+        longitude:
+          type: [number, 'null']
+          description: Photo only.
+        has_location:
+          type: boolean
+          description: Photo only.
+        camera_make:
+          type: [string, 'null']
+        camera_model:
+          type: [string, 'null']
+        exif_date:
+          type: [string, 'null']
+          format: date-time
+          description: Photo only.
+        hls_url:
+          type: [string, 'null']
+          description: Video only.
+        video_metadata:
+          type: [object, 'null']
+          description: Video only.
+        duration:
+          type: [number, 'null']
+          description: Video only, seconds.
+        duration_formatted:
+          type: [string, 'null']
+        width:
+          type: [integer, 'null']
+        height:
+          type: [integer, 'null']
+        processing_error:
+          type: [string, 'null']
+          description: Only when `status=failed`.
+
+    UploadedIdentifier:
+      type: object
+      required: [device_asset_id, device_fingerprint, file_size, filename]
+      properties:
+        device_asset_id:
+          type: [string, 'null']
+        device_fingerprint:
+          type: [string, 'null']
+        file_size:
+          type: [integer, 'null']
+        filename:
+          type: [string, 'null']
+
+    FileStatus:
+      type: object
+      required: [moment_id, moment_type, paths, exists]
+      properties:
+        moment_id:
+          type: string
+          format: uuid
+        moment_type:
+          $ref: '#/components/schemas/MomentType'
+        paths:
+          type: object
+          properties:
+            photoUrl:
+              type: [string, 'null']
+            mediumUrl:
+              type: [string, 'null']
+            thumbnailUrl:
+              type: [string, 'null']
+        exists:
+          type: object
+          properties:
+            photo:
+              type: boolean
+            medium:
+              type: boolean
+            thumbnail:
+              type: boolean
+
+    Playback:
+      type: object
+      required: [hls_url, expires_at]
+      properties:
+        hls_url:
+          type: string
+          format: uri
+          description: Signed URL of `GET /v1/moments/{moment}/file/hls`, valid 6 hours, no header.
+        expires_at:
+          type: string
+          format: date-time
+
+    Comment:
+      type: object
+      description: |
+        A `moment_interactions` row of type `comment` (default Laravel serialization, dates like
+        `2026-11-21T10:00:00.000000Z`). In the list, `user` has `id`, `name`, `email`. After
+        `POST`, `user` is the full user record (see `UserRecord`).
+      required: [id, moment_id, user_id, type, content, created_at, updated_at, user]
+      properties:
+        id:
+          type: integer
+        moment_id:
+          type: string
+          format: uuid
+        user_id:
+          type: integer
+        type:
+          type: string
+          const: comment
+        content:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        user:
+          type: [object, 'null']
+          required: [id, name]
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+            email:
+              type: string
+
+    Milestone:
+      type: object
+      required: [id, title, description, category, stage_key, stage_label, age_min_months, age_max_months, sort_order, created_at, updated_at]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        description:
+          type: [string, 'null']
+        category:
+          type: [string, 'null']
+        stage_key:
+          type: string
+        stage_label:
+          type: string
+        age_min_months:
+          type: [integer, 'null']
+        age_max_months:
+          type: [integer, 'null']
+        sort_order:
+          type: [integer, 'null']
+        created_at:
+          type: [string, 'null']
+          format: date-time
+        updated_at:
+          type: [string, 'null']
+          format: date-time
+
+    MilestoneStageGroup:
+      type: object
+      required: [stage_key, stage_label, milestones]
+      properties:
+        stage_key:
+          type: string
+        stage_label:
+          type: string
+        milestones:
+          type: array
+          items:
+            $ref: '#/components/schemas/Milestone'
+
+    MilestoneCategoryGroup:
+      type: object
+      required: [category, milestones]
+      properties:
+        category:
+          type: [string, 'null']
+        milestones:
+          type: array
+          items:
+            $ref: '#/components/schemas/Milestone'
+
+    Lookback:
+      type: object
+      required: [on_this_day, then_and_now]
+      properties:
+        on_this_day:
+          type: array
+          description: Photo, video and story moments with the same month and day in an earlier year. Newest year first.
+          items:
+            type: object
+            required: [years_ago, date, moments]
+            properties:
+              years_ago:
+                type: integer
+              date:
+                type: string
+                format: date
+              moments:
+                type: array
+                maxItems: 10
+                items:
+                  $ref: '#/components/schemas/Moment'
+        then_and_now:
+          type: array
+          description: Per kid, the earliest and the latest photo, when they are at least 6 months apart.
+          items:
+            type: object
+            required: [kid_id, kid_name, then, now]
+            properties:
+              kid_id:
+                type: string
+                format: uuid
+              kid_name:
+                type: string
+              then:
+                $ref: '#/components/schemas/Moment'
+              now:
+                $ref: '#/components/schemas/Moment'
+
+    Export:
+      type: object
+      required: [id, status, size_bytes, error, created_at, completed_at, download_url]
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending, processing, ready, failed]
+        size_bytes:
+          type: [integer, 'null']
+        error:
+          type: [string, 'null']
+        created_at:
+          type: [string, 'null']
+          format: date-time
+        completed_at:
+          type: [string, 'null']
+          format: date-time
+        download_url:
+          type: [string, 'null']
+          format: uri
+          description: Signed URL valid 24 hours from this response. Set only when `ready`.
+
+    HealthDetailed:
+      type: object
+      required: [status, timestamp, checks]
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded, unhealthy]
+        timestamp:
+          type: string
+          format: date-time
+        checks:
+          type: object
+          properties:
+            database:
+              type: object
+            storage:
+              type: object
+            cache:
+              type: object
+            disk_space:
+              type: object
+            memory:
+              type: object
+            php:
+              type: object
+        user:
+          type: array
+          maxItems: 0
+
+    SyncChangeSet:
+      type: object
+      required: [created, updated, deleted]
+      properties:
+        created:
+          type: array
+          items: {}
+        updated:
+          type: array
+          items: {}
+        deleted:
+          type: array
+          items:
+            type: string
+
+    SyncKidRow:
+      type: object
+      description: All times in milliseconds. Dates are milliseconds at UTC midnight.
+      required: [id, user_id, name, date_of_birth, due_date, avatar_color, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: integer
+        name:
+          type: string
+        date_of_birth:
+          type: [integer, 'null']
+          description: Milliseconds at UTC midnight.
+        due_date:
+          type: [integer, 'null']
+          description: Milliseconds at UTC midnight.
+        avatar_color:
+          type: string
+        created_at:
+          type: integer
+          description: Milliseconds.
+        updated_at:
+          type: integer
+          description: Milliseconds.
+
+    SyncMomentRow:
+      type: object
+      description: All times in milliseconds. File fields are raw storage paths.
+      required: [id, kid_id, user_id, uploader_name, moment_type, title, description, milestone_id, exif_date, latitude, longitude, orientation, duration, video_status, height_cm, weight_kg, head_circumference_cm, likes_count, comments_count, is_liked, photo_url, medium_url, thumbnail_url, file_size, mime_type, device_asset_id, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        kid_id:
+          type: string
+          format: uuid
+        user_id:
+          type: [integer, 'null']
+        uploader_name:
+          type: [string, 'null']
+        moment_type:
+          $ref: '#/components/schemas/MomentType'
+        title:
+          type: [string, 'null']
+        description:
+          type: [string, 'null']
+        milestone_id:
+          type: [string, 'null']
+        exif_date:
+          type: [integer, 'null']
+          description: Milliseconds.
+        latitude:
+          type: [number, 'null']
+        longitude:
+          type: [number, 'null']
+        orientation:
+          type: [integer, 'null']
+        duration:
+          type: [number, 'null']
+          description: Seconds.
+        video_status:
+          type: [string, 'null']
+          enum: [processing, ready, failed, null]
+        height_cm:
+          type: [number, 'null']
+        weight_kg:
+          type: [number, 'null']
+        head_circumference_cm:
+          type: [number, 'null']
+        likes_count:
+          type: integer
+        comments_count:
+          type: integer
+        is_liked:
+          type: boolean
+          description: Liked by the caller.
+        photo_url:
+          type: [string, 'null']
+          description: Storage path, not a URL.
+        medium_url:
+          type: [string, 'null']
+          description: Storage path, not a URL.
+        thumbnail_url:
+          type: [string, 'null']
+          description: Storage path, not a URL.
+        file_size:
+          type: [integer, 'null']
+        mime_type:
+          type: [string, 'null']
+        device_asset_id:
+          type: [string, 'null']
+        created_at:
+          type: integer
+          description: Milliseconds.
+        updated_at:
+          type: integer
+          description: Milliseconds.
+
+    SyncMilestoneRow:
+      type: object
+      required: [id, title, description, category, stage_key, stage_label, age_min_months, age_max_months, sort_order, created_at, updated_at]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        description:
+          type: [string, 'null']
+        category:
+          type: [string, 'null']
+        stage_key:
+          type: string
+        stage_label:
+          type: string
+        age_min_months:
+          type: [integer, 'null']
+        age_max_months:
+          type: [integer, 'null']
+        sort_order:
+          type: [integer, 'null']
+        created_at:
+          type: [integer, 'null']
+          description: Milliseconds.
+        updated_at:
+          type: [integer, 'null']
+          description: Milliseconds.
+
+    SyncPullRequest:
+      type: object
+      required: [schemaVersion]
+      properties:
+        lastPulledAt:
+          type: [integer, 'null']
+          description: Milliseconds; the `timestamp` of the previous pull, or null for a full pull.
+        schemaVersion:
+          type: integer
+          description: The app's local schema version (currently 2). Any integer is accepted.
+        migration:
+          description: WatermelonDB migration info. Ignored.
+
+    SyncPullResponse:
+      type: object
+      description: No envelope.
+      required: [changes, timestamp]
+      properties:
+        changes:
+          type: object
+          required: [kids, moments, milestones]
+          properties:
+            kids:
+              allOf:
+                - $ref: '#/components/schemas/SyncChangeSet'
+                - properties:
+                    created:
+                      items:
+                        $ref: '#/components/schemas/SyncKidRow'
+                    updated:
+                      items:
+                        $ref: '#/components/schemas/SyncKidRow'
+                    deleted:
+                      description: Ids of soft-deleted kids.
+            moments:
+              allOf:
+                - $ref: '#/components/schemas/SyncChangeSet'
+                - properties:
+                    created:
+                      items:
+                        $ref: '#/components/schemas/SyncMomentRow'
+                    updated:
+                      items:
+                        $ref: '#/components/schemas/SyncMomentRow'
+                    deleted:
+                      description: Ids of soft-deleted moments, including the moments of deleted kids.
+            milestones:
+              allOf:
+                - $ref: '#/components/schemas/SyncChangeSet'
+                - properties:
+                    created:
+                      items:
+                        $ref: '#/components/schemas/SyncMilestoneRow'
+                    updated:
+                      items:
+                        $ref: '#/components/schemas/SyncMilestoneRow'
+                    deleted:
+                      maxItems: 0
+        timestamp:
+          type: integer
+          description: Server time in milliseconds at the start of the pull. Send it as the next `lastPulledAt`.
+
+    SyncPushKid:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Client id; the server keeps it.
+        name:
+          type: string
+        date_of_birth:
+          type: [integer, 'null']
+          description: Milliseconds at UTC midnight.
+        due_date:
+          type: [integer, 'null']
+          description: Milliseconds at UTC midnight.
+        avatar_color:
+          type: string
+      additionalProperties: true
+
+    SyncPushMoment:
+      type: object
+      description: |
+        New rows must be `story`, `milestone` or `growth`. For existing photo and video rows only
+        `title`, `description` and `exif_date` are applied.
+      required: [id]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Client id; the server keeps it.
+        kid_id:
+          type: string
+          format: uuid
+        moment_type:
+          type: string
+          enum: [story, milestone, growth]
+        title:
+          type: [string, 'null']
+        description:
+          type: [string, 'null']
+        milestone_id:
+          type: [string, 'null']
+        exif_date:
+          type: [integer, 'null']
+          description: Milliseconds.
+        height_cm:
+          type: [number, 'null']
+        weight_kg:
+          type: [number, 'null']
+        head_circumference_cm:
+          type: [number, 'null']
+      additionalProperties: true
+
+    SyncPushRequest:
+      type: object
+      required: [changes]
+      properties:
+        changes:
+          type: object
+          properties:
+            kids:
+              type: object
+              properties:
+                created:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/SyncPushKid'
+                updated:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/SyncPushKid'
+                deleted:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+            moments:
+              type: object
+              properties:
+                created:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/SyncPushMoment'
+                updated:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/SyncPushMoment'
+                deleted:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+        lastPulledAt:
+          type: [integer, 'null']
+          description: Milliseconds. Not used by the server today.
+
+    SyncPushResponse:
+      type: object
+      description: Enveloped.
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: object
+          required: [kids_created, moments_created, rejected]
+          properties:
+            kids_created:
+              type: array
+              items:
+                $ref: '#/components/schemas/SyncCreatedId'
+            moments_created:
+              type: array
+              items:
+                $ref: '#/components/schemas/SyncCreatedId'
+            rejected:
+              type: array
+              items:
+                type: object
+                required: [table, id, reason]
+                properties:
+                  table:
+                    type: string
+                    enum: [kids, moments]
+                  id:
+                    type: [string, 'null']
+                  reason:
+                    type: string
+                    enum: [forbidden, invalid, deleted]
+
+    SyncCreatedId:
+      type: object
+      required: [local_id, id]
+      properties:
+        local_id:
+          type: string
+          format: uuid
+        id:
+          type: string
+          format: uuid
+          description: Equals `local_id`.

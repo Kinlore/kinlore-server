@@ -4,7 +4,7 @@ This file is the agreement between `kinlore-api` and `kinlore-mobile`. When the 
 
 Conventions:
 - Base path `/api`. Authenticated routes use `Authorization: Bearer <token>` (Sanctum).
-- JSON envelope: `{ success: bool, message?: string, data?: any, meta?: object, errors?: object }`. Exceptions: `GET /api/health` and `POST /api/v1/sync/*` have no envelope.
+- JSON envelope: `{ success: bool, message?: string, data?: any, meta?: object, errors?: object }`. Exceptions: `GET /api/health` and `POST /api/v1/sync/pull` have no envelope (`sync/push` uses it).
 - Dates in REST bodies: ISO 8601 strings. Calendar dates: `YYYY-MM-DD`. **In sync payloads every time is integer milliseconds since the epoch, or `null`.** Never `0` for "no value".
 - Ids: kids, moments, invitations and exports are UUID strings. Users are integers.
 
@@ -97,7 +97,7 @@ Moment payload (REST and the inside of `data.moment`):
 - `GET /v1/moments/{id}`.
 - `GET /v1/moments/{id}/file/{original|medium|thumbnail}` (auth header). `original` needs `download`.
 - `GET /v1/moments/{id}/playback` → `{ hls_url, expires_at }`. `hls_url` is a signed URL that is valid for 6 hours and needs no header. The master playlist and the variant playlists are rewritten so every line they reference is also a signed URL. Unsigned or expired HLS requests get `403`. The app calls `playback` each time it starts a video.
-- Likes: `POST|DELETE /v1/moments/{id}/like`. Comments: `GET|POST /v1/moments/{id}/comments`, `DELETE /v1/interactions/{id}`.
+- Likes: `POST|DELETE /v1/moments/{id}/like`. Comments: `GET|POST /v1/moments/{id}/comments`, `DELETE /v1/interactions/{id}`. A comment is `{ id, moment_id, user_id, type: "comment", content, created_at, updated_at, user: { id, name } }`; authors' email addresses are not shown to the family.
 
 ## 7. Look-back
 

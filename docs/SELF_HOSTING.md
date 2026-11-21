@@ -15,11 +15,11 @@ You can run the Kinlore API in Docker (recommended) or directly on a server ("ba
 
 ## Option 1: Docker
 
-1. Copy the settings and fill them in:
+1. Copy the settings and fill them in. Docker Compose reads the `.env` file **next to `docker-compose.yml`**:
    ```sh
-   cp kinlore-api/.env.example kinlore-api/.env
+   cp .env.example .env
    ```
-   Set at least `APP_KEY` (make one with `php artisan key:generate --show`, or `echo "base64:$(openssl rand -base64 32)"`), `APP_URL` (the address the phones use, for example `https://photos.example.com`), and a strong `DB_PASSWORD`.
+   Set at least `APP_KEY` (`echo "base64:$(openssl rand -base64 32)"`), `APP_URL` (the address the phones use, for example `https://photos.example.com`) and a strong `DB_PASSWORD`. Compose stops with a clear message when `APP_KEY` or `DB_PASSWORD` is missing. The containers run with `APP_ENV=production` and `APP_DEBUG=false` unless you change that. `kinlore-api/.env` is optional in Docker; it can hold extra Laravel settings (mail, for example).
 2. Choose how the first admin is made (see "First admin" below).
 3. Start everything:
    ```sh
@@ -36,10 +36,14 @@ Settings you can put in a `.env` file next to `docker-compose.yml`:
 | `REDIS_FORWARD_PORT` | `6379` | Host port of Redis. |
 | `SEAWEEDFS_S3_PORT` | `8333` | Host port of the SeaweedFS S3 API. |
 | `API_ENV_FILE` | `./kinlore-api/.env` | Settings file for the API container. It may be missing. |
+| `BIND_ADDRESS` | `127.0.0.1` | Host address for the PostgreSQL, Redis and S3 ports. They are reachable only from this machine by default. |
+| `TRUSTED_PROXIES` | private networks | Reverse proxies whose `X-Forwarded-*` headers are trusted, so links use `https`. |
 
 **HTTPS.** The container serves plain HTTP on port 80. You have two choices:
-- Put your own reverse proxy (Caddy, Traefik, nginx) in front, which handles the certificate. This is the simplest.
+- Put your own reverse proxy (Caddy, Traefik, nginx) in front, which handles the certificate. This is the simplest. The proxy must send `X-Forwarded-Proto`. Proxies on a private network are trusted by default; for a proxy on a public address, set `TRUSTED_PROXIES` to its IP. Without this, video and export links use `http`, and iPhones refuse them.
 - Or use the bundled certbot: get a certificate for your host name into the `letsencrypt` volume. When `/etc/letsencrypt/live/<host of APP_URL>/fullchain.pem` exists, the container switches to HTTPS by itself at the next start. Set `SERVER_NAME` if the host differs from `APP_URL`.
+
+**Security defaults.** PostgreSQL, Redis and the SeaweedFS S3 port listen only on `127.0.0.1`. Change the SeaweedFS keys in `kinlore-api/docker/s3.json` together with `SEAWEEDFS_KEY` and `SEAWEEDFS_SECRET` before you set `BIND_ADDRESS=0.0.0.0`.
 
 **Upgrading from PostgreSQL 17 or older.** The PostgreSQL 18 image keeps its data in `/var/lib/postgresql/18/...`. An old data volume does not start with it. Back up with `pg_dump`, start a fresh volume and restore. Do not delete the old volume before the restore works.
 

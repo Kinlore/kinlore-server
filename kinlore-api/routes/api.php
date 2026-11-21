@@ -65,7 +65,8 @@ Route::prefix('auth')->group(function () {
 | download of an export cannot either. These routes need a valid, unexpired
 | signature instead (see docs/API_CONTRACT.md, sections 6 and 8).
 */
-Route::prefix('v1')->middleware('signed')->group(function () {
+// No per-minute API limit here: a video player fetches many segments, and the signature already limits access.
+Route::prefix('v1')->middleware('signed')->withoutMiddleware('throttle:api')->group(function () {
     Route::get('/moments/{moment}/file/hls', [MomentController::class, 'serveHlsPublic'])
         ->name('moments.hls.master');
     Route::get('/moments/{moment}/file/{filename}', [MomentController::class, 'serveHlsFile'])
@@ -112,8 +113,10 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::get('moments/{moment}', [MomentController::class, 'show']);
     Route::put('moments/{moment}', [MomentController::class, 'update']);
     Route::delete('moments/{moment}', [MomentController::class, 'destroy']);
+    // A timeline loads many thumbnails at once, so image files skip the per-minute API limit.
     Route::get('/moments/{moment}/file/{type}', [MomentController::class, 'serveFile'])
-        ->where('type', 'original|medium|thumbnail');
+        ->where('type', 'original|medium|thumbnail')
+        ->withoutMiddleware('throttle:api');
     Route::get('/moments/{moment}/file-status', [MomentController::class, 'checkFileStatus']);
     Route::get('/moments/{moment}/playback', [MomentController::class, 'playback']);
 
@@ -154,7 +157,8 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         Route::get('/{media}', [MediaController::class, 'show']);
         Route::delete('/{media}', [MediaController::class, 'destroy']);
         Route::get('/{media}/file/{type}', [MediaController::class, 'serveFile'])
-            ->where('type', 'original|medium|thumbnail');
+            ->where('type', 'original|medium|thumbnail')
+            ->withoutMiddleware('throttle:api');
     });
     
     Route::get('/kids/{kid}/media/uploaded-identifiers', [MediaController::class, 'uploadedIdentifiers']);

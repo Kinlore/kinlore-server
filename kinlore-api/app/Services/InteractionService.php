@@ -42,7 +42,13 @@ class InteractionService
      */
     public function unlike(User $user, Moment $moment): bool
     {
-        return (bool) $moment->likes()->where('user_id', $user->id)->delete();
+        $deleted = (bool) $moment->likes()->where('user_id', $user->id)->delete();
+
+        if ($deleted) {
+            $moment->touch(); // a query delete fires no model events, so bump the moment for sync by hand
+        }
+
+        return $deleted;
     }
 
     /**
@@ -66,7 +72,7 @@ class InteractionService
         ]);
 
         $interaction->save();
-        $interaction->load('user');
+        $interaction->load('user:id,name');
 
         return $interaction;
     }
@@ -95,7 +101,7 @@ class InteractionService
     public function getComments(Moment $moment): Collection
     {
         return $moment->comments()
-            ->with('user:id,name,email')
+            ->with('user:id,name') // family members see names, not email addresses
             ->orderBy('created_at', 'asc')
             ->get();
     }

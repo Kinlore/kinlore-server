@@ -9,6 +9,9 @@ class MomentInteraction extends Model
 {
     use HasFactory;
 
+    // a like or comment bumps the moment, so the next sync pull sends the new counts to every phone
+    protected $touches = ['moment'];
+
     protected $fillable = [
         'moment_id',
         'user_id',

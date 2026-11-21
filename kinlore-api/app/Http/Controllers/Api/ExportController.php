@@ -25,6 +25,11 @@ class ExportController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        // shortcut: a worker that died leaves its export stuck; after 6 hours it counts as failed. Add a heartbeat if exports ever take longer.
+        Export::whereIn('status', [Export::STATUS_PENDING, Export::STATUS_PROCESSING])
+            ->where('updated_at', '<', now()->subHours(6))
+            ->update(['status' => Export::STATUS_FAILED, 'error' => 'The export did not finish in time. Is the queue worker running?']);
+
         if (Export::whereIn('status', [Export::STATUS_PENDING, Export::STATUS_PROCESSING])->exists()) {
             return ApiResponse::error('An export is already running', 409);
         }

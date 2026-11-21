@@ -250,6 +250,18 @@ class SyncService
             }
         }
 
+        // Same rules as REST (StoreMomentRequest): a story needs text; growth needs a date and one measurement.
+        if ($moment->moment_type === 'story' && blank($moment->description)) {
+            return 'invalid';
+        }
+        if ($moment->moment_type === 'growth' && (!$moment->exif_date
+            || ($moment->height_cm === null && $moment->weight_kg === null && $moment->head_circumference_cm === null))) {
+            return 'invalid';
+        }
+        if ($moment->moment_type === 'milestone' && blank($moment->milestone_id)) {
+            return 'invalid';
+        }
+
         $moment->save();
 
         return null;

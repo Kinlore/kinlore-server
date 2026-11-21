@@ -21,6 +21,12 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Behind a TLS reverse proxy, trust its X-Forwarded-* headers so signed links use https.
+        // Default: private networks (Docker bridge, LAN). Set TRUSTED_PROXIES=* or a list of IPs to change it.
+        $middleware->trustProxies(
+            at: env('TRUSTED_PROXIES', '127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16'),
+        );
+
         // run CORS before everything else
         $middleware->prepend(HandleCors::class);
         
