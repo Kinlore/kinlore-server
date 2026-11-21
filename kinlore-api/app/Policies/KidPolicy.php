@@ -7,7 +7,7 @@ use App\Models\User;
 
 /**
  * One family per instance: every user sees every kid.
- * Only the admin or the user who added the kid can change it.
+ * Admin and partner add and change any kid; the kid's creator can change it too.
  */
 class KidPolicy
 {
@@ -23,12 +23,12 @@ class KidPolicy
 
     public function create(User $user): bool
     {
-        return true;
+        return $user->canManageContent();
     }
 
     public function update(User $user, Kid $kid): bool
     {
-        return $user->is_admin || $user->id === $kid->user_id;
+        return $user->canManageContent() || $user->id === (int) $kid->user_id;
     }
 
     public function delete(User $user, Kid $kid): bool

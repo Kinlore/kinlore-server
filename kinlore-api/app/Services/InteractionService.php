@@ -74,7 +74,7 @@ class InteractionService
     /**
      * Delete a comment.
      * @throws \InvalidArgumentException if not a comment
-     * @throws \RuntimeException if user doesn't own the comment
+     * @throws \RuntimeException if the user is neither the author nor the admin
      */
     public function deleteComment(User $user, MomentInteraction $interaction): void
     {
@@ -82,8 +82,8 @@ class InteractionService
             throw new \InvalidArgumentException('Invalid interaction type');
         }
 
-        if ($interaction->user_id !== $user->id) {
-            throw new \RuntimeException('Unauthorized');
+        if ((int) $interaction->user_id !== $user->id && !$user->is_admin) {
+            throw new \RuntimeException('You can only delete your own comments.');
         }
 
         $interaction->delete();

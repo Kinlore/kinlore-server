@@ -34,6 +34,7 @@ class Kid extends Model
         'user_id',
         'name',
         'date_of_birth',
+        'due_date',
         'avatar_color',
         'synced_at',
     ];
@@ -43,6 +44,7 @@ class Kid extends Model
      */
     protected $casts = [
         'date_of_birth' => 'date',
+        'due_date' => 'date',
         'synced_at' => 'integer',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
@@ -202,17 +204,26 @@ class Kid extends Model
         return $colors[array_rand($colors)];
     }
 
+    public function getIsExpectingAttribute(): bool
+    {
+        return $this->date_of_birth === null;
+    }
+
     /**
-     * API Resource formatting
+     * API Resource formatting (docs/API_CONTRACT.md section 5)
      */
     public function toArray()
     {
         return [
             'id' => $this->id,
+            'user_id' => $this->user_id,
             'name' => $this->name,
-            'date_of_birth' => $this->date_of_birth->format('Y-m-d'),
+            'date_of_birth' => $this->date_of_birth?->format('Y-m-d'),
+            'due_date' => $this->due_date?->format('Y-m-d'),
             'avatar_color' => $this->avatar_color,
             'age' => $this->age,
+            'age_months' => $this->age_in_months,
+            'is_expecting' => $this->is_expecting,
             'age_detailed' => $this->age_detailed,
             'moments_count' => $this->moments_count ?? $this->getMomentsCount(),
             'created_at' => $this->created_at->toIso8601String(),

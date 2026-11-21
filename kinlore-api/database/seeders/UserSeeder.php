@@ -33,7 +33,9 @@ class UserSeeder extends Seeder
             'password' => Hash::make($password),
         ]);
         $user->email_verified_at = now();
-        $user->is_admin = !User::exists(); // the instance's first user is its admin
+        if (!User::exists()) {
+            $user->role = 'admin'; // the instance's first user is its admin
+        }
         $user->save();
 
         $this->command->info("User {$email} created successfully.");

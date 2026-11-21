@@ -69,7 +69,7 @@ class MomentInteractionController extends Controller
      */
     public function deleteComment(Request $request, MomentInteraction $interaction): JsonResponse
     {
-        // User can only delete their own comments
+        // Only the author or the admin can delete a comment
         try {
             $this->interactionService->deleteComment($request->user(), $interaction);
             

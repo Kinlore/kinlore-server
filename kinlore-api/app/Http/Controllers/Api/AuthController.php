@@ -18,6 +18,35 @@ class AuthController extends Controller
     ) {}
 
     /**
+     * Public: does this instance still need its first user?
+     */
+    public function setupStatus(): JsonResponse
+    {
+        return ApiResponse::success($this->authService->setupStatus());
+    }
+
+    /**
+     * Public: check an invitation token before showing the sign-up form.
+     */
+    public function checkInvitation(string $token): JsonResponse
+    {
+        $invitation = $this->authService->findPendingInvitation($token);
+
+        if (!$invitation) {
+            return ApiResponse::error('Invitation not found, already used or expired', 404);
+        }
+
+        return ApiResponse::success([
+            'valid' => true,
+            'email' => $invitation->email,
+            'role' => $invitation->role,
+            'invited_by' => ['name' => $invitation->inviter?->name],
+            'expires_at' => $invitation->expires_at->toIso8601String(),
+            'instance_name' => config('app.name'),
+        ]);
+    }
+
+    /**
      * Register a new user.
      */
     public function register(RegisterRequest $request): JsonResponse

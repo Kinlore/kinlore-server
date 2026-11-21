@@ -29,6 +29,12 @@ class ServeMediaHlsFileRequest extends FormRequest
         ];
     }
 
+    /** The filename comes from the route, not the query string. */
+    protected function prepareForValidation(): void
+    {
+        $this->merge(['filename' => $this->route('filename')]);
+    }
+
     protected function failedValidation(Validator $validator): void
     {
         throw new HttpResponseException(ApiResponse::error('Invalid filename format', 400));

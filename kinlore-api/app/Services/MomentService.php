@@ -5,20 +5,22 @@ namespace App\Services;
 use App\Models\Kid;
 use App\Models\Media;
 use App\Models\Moment;
-use App\Models\PredefinedMilestone;
 use App\Models\User;
+use App\Jobs\ProcessVideoJob;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Intervention\Image\Laravel\Facades\Image;
 use ProtoneMedia\LaravelFFMpeg\Support\FFMpeg;
 
 /**
- * Unified service for handling all moment types (photo, video, story, milestone).
+ * Unified service for handling all moment types (photo, video, story, milestone, growth).
  */
 class MomentService
 {
@@ -56,8 +58,7 @@ class MomentService
 
         return match($momentType) {
             'photo', 'video' => $this->createMediaMoment($user, $kid, $file, $data, $momentType),
-            'story' => $this->createStoryMoment($kid, $data),
-            'milestone' => $this->createMilestoneMoment($user, $kid, $data),
+            'story', 'milestone', 'growth' => $this->createTextMoment($user, $kid, $data, $momentType),
             default => throw new \InvalidArgumentException("Invalid moment_type: {$momentType}"),
         };
     }
@@ -123,17 +124,16 @@ class MomentService
             'processing_started_at' => now(),
         ]);
 
-        // Process based on type
+        // Videos are processed by a queued job so the upload returns at once
         if ($type === 'photo') {
             $this->processPhoto($media, $file, $basePath);
-        } else {
-            $this->processVideo($media);
         }
 
         // Create associated moment
         $media->refresh();
         $moment = Moment::create([
             'kid_id' => $kid->id,
+            'user_id' => $user->id,
             'media_id' => $media->id,
             'moment_type' => $type,
             'title' => $data['title'] ?? null,
@@ -153,54 +153,34 @@ class MomentService
             'orientation' => $media->orientation,
             'camera_make' => $media->camera_make,
             'camera_model' => $media->camera_model,
+            'video_status' => $type === 'video' ? 'processing' : null,
             'synced_at' => now()->timestamp * 1000,
         ]);
+
+        if ($type === 'video') {
+            ProcessVideoJob::dispatch($media->id);
+        }
 
         return ['moment' => $moment, 'media' => $media];
     }
 
     /**
-     * Create a story moment.
+     * Create a story, milestone or growth moment.
      *
      * @return array{moment: Moment}
      */
-    private function createStoryMoment(Kid $kid, array $data): array
+    private function createTextMoment(User $user, Kid $kid, array $data, string $type): array
     {
         $moment = Moment::create([
-            'id' => Str::uuid()->toString(),
             'kid_id' => $kid->id,
-            'moment_type' => 'story',
-            'description' => $data['description'],
-            // Metadata
-            'exif_date' => $data['exif_date'] ?? null,
-            'latitude' => $data['latitude'] ?? null,
-            'longitude' => $data['longitude'] ?? null,
-            'camera_make' => $data['camera_make'] ?? null,
-            'camera_model' => $data['camera_model'] ?? null,
-            'orientation' => $data['orientation'] ?? null,
-            'synced_at' => now()->timestamp * 1000,
-        ]);
-
-        Log::info('Story moment created', [
-            'moment_id' => $moment->id,
-        ]);
-
-        return ['moment' => $moment];
-    }
-
-    /**
-     * Create a milestone moment.
-     *
-     * @return array{moment: Moment}
-     */
-    private function createMilestoneMoment(User $user, Kid $kid, array $data): array
-    {
-        $moment = Moment::create([
-            'id' => Str::uuid()->toString(),
-            'kid_id' => $kid->id,
-            'moment_type' => 'milestone',
-            'milestone_id' => $data['milestone_id'],
+            'user_id' => $user->id,
+            'moment_type' => $type,
+            'milestone_id' => $type === 'milestone' ? $data['milestone_id'] : null,
+            'title' => $data['title'] ?? null,
             'description' => $data['description'] ?? null,
+            'height_cm' => $data['height_cm'] ?? null,
+            'weight_kg' => $data['weight_kg'] ?? null,
+            'head_circumference_cm' => $data['head_circumference_cm'] ?? null,
             // Metadata
             'exif_date' => $data['exif_date'] ?? null,
             'latitude' => $data['latitude'] ?? null,
@@ -211,10 +191,7 @@ class MomentService
             'synced_at' => now()->timestamp * 1000,
         ]);
 
-        Log::info('Milestone moment created', [
-            'moment_id' => $moment->id,
-            'milestone_id' => $data['milestone_id'],
-        ]);
+        Log::info('Moment created', ['moment_id' => $moment->id, 'type' => $type]);
 
         return ['moment' => $moment];
     }
@@ -258,8 +235,29 @@ class MomentService
     }
 
     /**
-     * Process video synchronously in foreground.
-     * Extracts duration, generates thumbnail, and creates HLS stream.
+     * Run by ProcessVideoJob: make the HLS stream and set the moment's video_status to ready or failed.
+     */
+    public function processVideoMoment(Media $media): void
+    {
+        try {
+            $this->processVideo($media);
+        } catch (\Throwable $e) {
+            $media->moments()->update(['video_status' => 'failed']);
+            return;
+        }
+
+        $media->refresh();
+        $media->moments()->update([
+            'thumbnail_url' => $media->getRawThumbnailUrl(),
+            'medium_url' => $media->getRawMediumUrl(),
+            'hls_url' => $media->getRawHlsUrl(),
+            'duration' => $media->duration,
+            'video_status' => 'ready',
+        ]);
+    }
+
+    /**
+     * Process video: extracts duration, generates thumbnail, and creates HLS stream.
      */
     private function processVideo(Media $media): void
     {
@@ -690,20 +688,31 @@ class MomentService
      */
     public function getMomentsForUser(User $user, array $filters = []): LengthAwarePaginator
     {
+        $displayDate = 'COALESCE(exif_date, created_at)';
+
         $query = Moment::has('kid')
-            ->with(['media', 'milestone'])
-            ->orderBy('created_at', $filters['sort_direction'] ?? 'desc');
+            ->forPayload($user)
+            ->orderByDate('desc')
+            ->orderBy('id');
 
         if (!empty($filters['kid_id'])) {
             $query->where('kid_id', $filters['kid_id']);
         }
 
         if (!empty($filters['moment_type'])) {
-            $query->where('moment_type', $filters['moment_type']);
+            $query->whereIn('moment_type', explode(',', $filters['moment_type']));
         }
 
-        if (!empty($filters['start_date']) && !empty($filters['end_date'])) {
-            $query->inDateRange($filters['start_date'], $filters['end_date']);
+        if (filter_var($filters['liked'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+            $query->whereHas('likes', fn ($q) => $q->where('user_id', $user->id));
+        }
+
+        if (!empty($filters['from'])) {
+            $query->whereRaw("{$displayDate} >= ?", [Carbon::parse($filters['from'])->startOfDay()->toDateTimeString()]);
+        }
+
+        if (!empty($filters['to'])) {
+            $query->whereRaw("{$displayDate} < ?", [Carbon::parse($filters['to'])->addDay()->startOfDay()->toDateTimeString()]);
         }
 
         return $query->paginate($filters['per_page'] ?? 20);
@@ -736,11 +745,9 @@ class MomentService
     /**
      * Get a single moment with all relations.
      */
-    public function getMoment(Moment $moment): array
+    public function getMoment(Moment $moment, ?User $viewer = null): array
     {
-        $moment->load(['media', 'milestone']);
-        
-        return $moment->toArray();
+        return Moment::whereKey($moment->id)->forPayload($viewer)->firstOrFail()->toArray();
     }
 
     /**
@@ -748,32 +755,11 @@ class MomentService
      */
     public function updateMoment(Moment $moment, array $data): Moment
     {
-        DB::transaction(function () use ($moment, $data) {
-            $moment->update(array_filter([
-                'title' => $data['title'] ?? null,
-                'description' => $data['description'] ?? null,
-            ], fn($v) => !is_null($v)));
+        $moment->update(array_intersect_key($data, array_flip([
+            'title', 'description', 'exif_date', 'milestone_id', 'height_cm', 'weight_kg', 'head_circumference_cm',
+        ])));
 
-            // Update related story if exists
-            if ($moment->story && isset($data['text'])) {
-                $moment->story->update([
-                    'title' => $data['title'] ?? $moment->story->title,
-                    'text' => $data['text'],
-                ]);
-            }
-
-            // Update related milestone if exists
-            if ($moment->userMilestone) {
-                $moment->userMilestone->update(array_filter([
-                    'custom_title' => $data['custom_title'] ?? null,
-                    'custom_description' => $data['custom_description'] ?? null,
-                    'milestone_date' => $data['milestone_date'] ?? null,
-                    'notes' => $data['notes'] ?? null,
-                ], fn($v) => !is_null($v)));
-            }
-        });
-
-        return $moment->fresh(['media', 'milestone']);
+        return $moment;
     }
 
     /**
@@ -782,16 +768,6 @@ class MomentService
     public function deleteMoment(Moment $moment): void
     {
         DB::transaction(function () use ($moment) {
-            // Delete related story
-            if ($moment->story) {
-                $moment->story->delete();
-            }
-
-            // Delete related milestone
-            if ($moment->userMilestone) {
-                $moment->userMilestone->delete();
-            }
-
             // Delete related media files
             if ($moment->media) {
                 $moment->media->deleteWithFiles();
@@ -891,6 +867,31 @@ class MomentService
     }
 
     /**
+     * Signed HLS URL for the player (docs/API_CONTRACT.md section 6).
+     *
+     * @return array{hls_url: string, expires_at: string}
+     */
+    public function playback(Moment $moment): array
+    {
+        $expires = now()->addHours(6);
+
+        return [
+            'hls_url' => URL::temporarySignedRoute('moments.hls.master', $expires, ['moment' => $moment->id]),
+            'expires_at' => $expires->toIso8601String(),
+        ];
+    }
+
+    /**
+     * Serve the master playlist ($filename null) or a variant/segment, with playlist references signed until $expires.
+     */
+    public function serveSignedHls(Moment $moment, ?string $filename, int $expires): array
+    {
+        $file = $filename === null ? $this->serveFile($moment, 'hls') : $this->serveHlsFile($moment, $filename);
+
+        return $this->storage->signPlaylist($file, 'moments.hls.file', ['moment' => $moment->id], $expires);
+    }
+
+    /**
      * Check file status (diagnostic).
      */
     public function checkFileStatus(Moment $moment): array
@@ -943,17 +944,5 @@ class MomentService
 
         $media = Media::find($iconImageId);
         return $media && $media->user_id === $user->id;
-    }
-
-    /**
-     * Validate predefined milestone exists.
-     */
-    public function validatePredefinedMilestone(?string $id): bool
-    {
-        if (empty($id)) {
-            return true;
-        }
-
-        return PredefinedMilestone::where('id', $id)->exists();
     }
 }

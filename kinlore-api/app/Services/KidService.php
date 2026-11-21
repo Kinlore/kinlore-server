@@ -29,7 +29,8 @@ class KidService
     {
         return $user->kids()->create([
             'name' => $data['name'],
-            'date_of_birth' => $data['date_of_birth'],
+            'date_of_birth' => $data['date_of_birth'] ?? null,
+            'due_date' => $data['due_date'] ?? null,
             'avatar_color' => $data['avatar_color'] ?? Kid::randomAvatarColor(),
         ]);
     }
@@ -41,19 +42,9 @@ class KidService
     {
         $kid->loadCount('moments');
 
-        return [
-            'id' => $kid->id,
-            'name' => $kid->name,
-            'date_of_birth' => $kid->date_of_birth->format('Y-m-d'),
-            'avatar_color' => $kid->avatar_color,
-            'age' => $kid->age,
-            'age_detailed' => $kid->age_detailed,
-            'age_in_months' => $kid->age_in_months,
-            'moments_count' => $kid->moments_count,
+        return $this->formatKid($kid) + [
             'first_moment' => $kid->getFirstMoment()?->display_date?->toIso8601String(),
             'latest_moment' => $kid->getLatestMoment()?->display_date?->toIso8601String(),
-            'created_at' => $kid->created_at->toIso8601String(),
-            'updated_at' => $kid->updated_at->toIso8601String(),
         ];
     }
 
@@ -80,16 +71,6 @@ class KidService
      */
     public function formatKid(Kid $kid): array
     {
-        return [
-            'id' => $kid->id,
-            'name' => $kid->name,
-            'date_of_birth' => $kid->date_of_birth->format('Y-m-d'),
-            'avatar_color' => $kid->avatar_color,
-            'age' => $kid->age,
-            'age_detailed' => $kid->age_detailed,
-            'moments_count' => $kid->moments_count ?? 0,
-            'created_at' => $kid->created_at->toIso8601String(),
-            'updated_at' => $kid->updated_at->toIso8601String(),
-        ];
+        return $kid->toArray();
     }
 }

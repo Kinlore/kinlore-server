@@ -23,10 +23,11 @@ class IndexMomentRequest extends FormRequest
     {
         return [
             'kid_id' => 'nullable|uuid|exists:kids,id',
-            'moment_type' => 'nullable|in:photo,video,story,milestone',
-            'start_date' => 'nullable|date',
-            'end_date' => 'nullable|date|after_or_equal:start_date',
-            'sort_direction' => 'nullable|in:asc,desc',
+            'moment_type' => ['nullable', 'string', 'regex:/^(photo|video|story|milestone|growth)(,(photo|video|story|milestone|growth))*$/'],
+            'liked' => 'nullable|in:true,false,1,0',
+            'from' => 'nullable|date_format:Y-m-d',
+            'to' => 'nullable|date_format:Y-m-d|after_or_equal:from',
+            'page' => 'nullable|integer|min:1',
             'per_page' => 'nullable|integer|min:1|max:100',
         ];
     }

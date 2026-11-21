@@ -15,7 +15,7 @@ class UpdateMomentRequest extends FormRequest
         $moment = $this->route('moment');
 
         return $moment instanceof Moment
-            ? $this->user()->can('update', $moment->kid)
+            ? $this->user()->can('update', $moment)
             : false;
     }
 
@@ -26,24 +26,37 @@ class UpdateMomentRequest extends FormRequest
      */
     public function rules(): array
     {
+        $type = $this->route('moment')?->moment_type;
+
         $rules = [
-            'title' => 'nullable|string|max:255',
-            'description' => 'nullable|string|max:5000',
+            'title' => 'sometimes|nullable|string|max:255',
+            'description' => 'sometimes|nullable|string|max:5000',
+            'exif_date' => 'sometimes|nullable|date',
         ];
 
-        $moment = $this->route('moment');
-
-        if ($moment instanceof Moment && $moment->moment_type === 'story') {
-            $rules['text'] = 'nullable|string|max:50000';
+        if ($type === 'milestone') {
+            $rules['milestone_id'] = 'sometimes|required|string|exists:milestones,id';
         }
 
-        if ($moment instanceof Moment && $moment->moment_type === 'milestone') {
-            $rules['custom_title'] = 'nullable|string|max:255';
-            $rules['custom_description'] = 'nullable|string|max:5000';
-            $rules['milestone_date'] = 'nullable|date';
-            $rules['notes'] = 'nullable|string|max:5000';
+        if ($type === 'growth') {
+            $rules += StoreMomentRequest::GROWTH_RULES;
+            $rules['exif_date'] = 'sometimes|required|date';
         }
 
         return $rules;
+    }
+
+    /**
+     * Older clients sent milestone_date and notes for milestones.
+     */
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('milestone_date') && !$this->has('exif_date')) {
+            $this->merge(['exif_date' => $this->input('milestone_date')]);
+        }
+
+        if ($this->has('notes') && !$this->has('description')) {
+            $this->merge(['description' => $this->input('notes')]);
+        }
     }
 }

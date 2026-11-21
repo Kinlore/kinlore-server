@@ -3,8 +3,11 @@
 namespace App\Services;
 
 use App\Models\Invitation;
+use App\Models\Kid;
+use App\Models\Moment;
 use App\Models\User;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
@@ -15,48 +18,87 @@ use Illuminate\Validation\ValidationException;
 class AuthService
 {
     /**
+     * Public setup state for the app's first screen.
+     *
+     * @return array{needs_setup: bool, setup_token_required: bool, instance_name: string}
+     */
+    public function setupStatus(): array
+    {
+        $needsSetup = !User::exists();
+
+        return [
+            'needs_setup' => $needsSetup,
+            'setup_token_required' => $needsSetup && filled(config('app.setup_token')),
+            'instance_name' => config('app.name'),
+        ];
+    }
+
+    /**
+     * A pending invitation by its token, or null when unknown, used or expired.
+     */
+    public function findPendingInvitation(string $token): ?Invitation
+    {
+        return Invitation::pending()->with('inviter')->where('token', $token)->first();
+    }
+
+    /**
      * Register a new user.
      *
-     * The first user of the instance becomes the admin. Everyone after that
-     * needs a valid invitation token created by the admin.
+     * The first user of the instance becomes the admin (with `setup_token` when
+     * SETUP_TOKEN is set). Everyone after that needs a valid invitation token,
+     * and gets the invitation's role and permissions.
      *
-     * @param array{name: string, email: string, password: string, invite_token?: string|null} $data
+     * @param array{name: string, email: string, password: string, invite_token?: string|null, setup_token?: string|null} $data
      * @return array{user: array, token: string, token_type: string}
      * @throws ValidationException
      */
     public function register(array $data): array
     {
-        $user = DB::transaction(function () use ($data) {
-            // shortcut: two sign-ups on an empty instance at the same instant could both become admin; add a setup lock if instances ever get exposed before the owner registers.
+        // The lock serializes registrations, so two parallel first sign-ups cannot both see an empty instance.
+        $user = Cache::lock('kinlore:register', 10)->block(5, fn () => DB::transaction(function () use ($data) {
             $isFirstUser = !User::exists();
-            $invitation = $isFirstUser ? null : $this->claimInvitation($data['invite_token'] ?? null, $data['email']);
 
-            $user = new User([
+            if ($isFirstUser) {
+                $this->checkSetupToken($data['setup_token'] ?? null);
+                $attributes = ['role' => 'admin'];
+                $invitation = null;
+            } else {
+                $invitation = $this->claimInvitation($data['invite_token'] ?? null, $data['email']);
+                $attributes = $invitation->only(['role', 'can_add_content', 'can_comment', 'can_like', 'can_download']);
+            }
+
+            $user = User::create($attributes + [
                 'name' => $data['name'],
                 'email' => $data['email'],
                 'password' => Hash::make($data['password']),
             ]);
-            $user->is_admin = $isFirstUser;
-            $user->save();
 
             $invitation?->update(['accepted_at' => now(), 'accepted_by' => $user->id]);
 
             return $user;
-        });
+        }));
 
         $token = $user->createToken('mobile-app', ['*'])->plainTextToken;
 
         return [
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'is_admin' => $user->is_admin,
-                'created_at' => $user->created_at->toIso8601String(),
-            ],
+            'user' => $this->userPayload($user->refresh()),
             'token' => $token,
             'token_type' => 'Bearer',
         ];
+    }
+
+    /**
+     * @throws ValidationException
+     */
+    private function checkSetupToken(?string $given): void
+    {
+        $expected = config('app.setup_token');
+
+        if (filled($expected) && !hash_equals((string) $expected, (string) $given)) {
+            throw ValidationException::withMessages([
+                'setup_token' => ['A valid setup token is required to set up this instance.'],
+            ]);
+        }
     }
 
     /**
@@ -98,12 +140,7 @@ class AuthService
         $token = $user->createToken('mobile-app')->plainTextToken;
 
         return [
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'is_admin' => $user->is_admin,
-            ],
+            'user' => $this->userPayload($user),
             'token' => $token,
             'token_type' => 'Bearer',
         ];
@@ -136,26 +173,38 @@ class AuthService
     }
 
     /**
-     * Get user info with storage usage.
+     * User payload (docs/API_CONTRACT.md section 2).
+     */
+    private function userPayload(User $user): array
+    {
+        return $user->toPayload() + ['email_verified_at' => $user->email_verified_at?->toIso8601String()];
+    }
+
+    /**
+     * User payload with family-wide counts and storage, plus the user's own uploads.
      */
     public function getUserInfo(User $user): array
     {
-        $storageBytesUsed = $user->getStorageUsed();
-        $storageBytesAvailable = (int) disk_free_space(storage_path());
+        $storageBytesUsed = (int) Moment::sum('file_size');
 
-        return [
-            'id' => $user->id,
-            'name' => $user->name,
-            'email' => $user->email,
-            'is_admin' => $user->is_admin,
-            'email_verified_at' => $user->email_verified_at,
-            'created_at' => $user->created_at->toIso8601String(),
-            'kids_count' => $user->kids()->count(),
-            'moments_count' => $user->getTotalMomentsCount(),
-            'storage_used' => $user->getStorageUsedFormatted(),
+        return $this->userPayload($user) + [
+            'kids_count' => Kid::count(),
+            'moments_count' => Moment::count(),
+            'my_moments_count' => $user->uploadedMoments()->count(),
+            'storage_used' => $this->formatBytes($storageBytesUsed),
             'storage_bytes_used' => $storageBytesUsed,
-            'storage_bytes_available' => $storageBytesAvailable,
+            'storage_bytes_available' => (int) disk_free_space(storage_path()),
         ];
+    }
+
+    private function formatBytes(int $bytes): string
+    {
+        return match (true) {
+            $bytes >= 1073741824 => number_format($bytes / 1073741824, 2) . ' GB',
+            $bytes >= 1048576 => number_format($bytes / 1048576, 2) . ' MB',
+            $bytes >= 1024 => number_format($bytes / 1024, 2) . ' KB',
+            default => $bytes . ' bytes',
+        };
     }
 
     /**

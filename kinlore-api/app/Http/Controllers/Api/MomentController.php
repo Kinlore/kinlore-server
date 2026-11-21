@@ -17,11 +17,12 @@ use App\Models\Kid;
 use App\Models\Moment;
 use App\Services\MomentService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Unified controller for all moment types (photo, video, story, milestone).
+ * Unified controller for all moment types (photo, video, story, milestone, growth).
  */
 class MomentController extends Controller
 {
@@ -72,7 +73,7 @@ class MomentController extends Controller
             );
 
             $response = [
-                'moment' => $result['moment']->fresh()->toArray(),
+                'moment' => $this->momentService->getMoment($result['moment'], $request->user()),
             ];
 
             // Include media data for photo/video types
@@ -105,7 +106,7 @@ class MomentController extends Controller
      */
     public function show(ShowMomentRequest $request, Moment $moment): JsonResponse
     {
-        return ApiResponse::success($this->momentService->getMoment($moment));
+        return ApiResponse::success($this->momentService->getMoment($moment, $request->user()));
     }
 
     /**
@@ -118,7 +119,7 @@ class MomentController extends Controller
         try {
             $moment = $this->momentService->updateMoment($moment, $validated);
 
-            return ApiResponse::success($moment->toArray(), 'Moment updated successfully');
+            return ApiResponse::success($this->momentService->getMoment($moment, $request->user()), 'Moment updated successfully');
         } catch (\Exception $e) {
             Log::error('Moment update failed: ' . $e->getMessage());
 
@@ -163,42 +164,45 @@ class MomentController extends Controller
     }
 
     /**
-     * Serve HLS master playlist (public, no auth required).
+     * Signed HLS URL for the video player, valid for 6 hours.
+     */
+    public function playback(ShowMomentRequest $request, Moment $moment): JsonResponse
+    {
+        if (!$moment->isVideo()) {
+            return ApiResponse::error('This moment is not a video', 404);
+        }
+
+        if (empty($moment->getRawOriginal('hls_url'))) {
+            return ApiResponse::error('The video is not ready yet', 409);
+        }
+
+        return ApiResponse::success($this->momentService->playback($moment));
+    }
+
+    /**
+     * Serve HLS master playlist (signed URL, no auth header).
      * iOS/Android video players cannot inject auth headers.
      */
-    public function serveHlsPublic(Moment $moment): Response
+    public function serveHlsPublic(Request $request, Moment $moment): Response
     {
         try {
-            $file = $this->momentService->serveFile($moment, 'hls');
+            $file = $this->momentService->serveSignedHls($moment, null, (int) $request->query('expires'));
 
-            return response($file['content'], 200, [
-                'Content-Type' => $file['mime_type'],
-                'Content-Length' => $file['size'],
-                'Cache-Control' => 'public, max-age=3600',
-                'Access-Control-Allow-Origin' => '*',
-            ]);
+            return $this->hlsResponse($file);
         } catch (\RuntimeException $e) {
             return ApiResponse::error($e->getMessage(), 404);
         }
     }
 
     /**
-     * Serve HLS segment files (public, no auth required).
-     * Serves variant playlists and .ts segments for video streaming.
+     * Serve HLS variant playlists and .ts segments (signed URL, no auth header).
      */
     public function serveHlsFile(ServeMomentHlsFileRequest $request, Moment $moment, string $filename): Response
     {
         try {
-            $validated = $request->validated();
-            $filename = $validated['filename'];
-            $file = $this->momentService->serveHlsFile($moment, $filename);
+            $file = $this->momentService->serveSignedHls($moment, $request->validated('filename'), (int) $request->query('expires'));
 
-            return response($file['content'], 200, [
-                'Content-Type' => $file['mime_type'],
-                'Content-Length' => $file['size'],
-                'Cache-Control' => 'public, max-age=3600',
-                'Access-Control-Allow-Origin' => '*',
-            ]);
+            return $this->hlsResponse($file);
         } catch (\RuntimeException $e) {
             Log::warning('HLS file not found', [
                 'moment_id' => $moment->id,
@@ -208,6 +212,16 @@ class MomentController extends Controller
             
             return ApiResponse::error('File not found', 404);
         }
+    }
+
+    private function hlsResponse(array $file): Response
+    {
+        return response($file['content'], 200, [
+            'Content-Type' => $file['mime_type'],
+            'Content-Length' => $file['size'],
+            'Cache-Control' => 'private, max-age=3600',
+            'Access-Control-Allow-Origin' => '*',
+        ]);
     }
 
     /**
@@ -235,9 +249,10 @@ class MomentController extends Controller
     {
         return match($type) {
             'photo' => 'Photo uploaded successfully',
-            'video' => 'Video uploaded and processed successfully',
+            'video' => 'Video uploaded, processing started',
             'story' => 'Story created successfully',
             'milestone' => 'Milestone created successfully',
+            'growth' => 'Growth measurement created successfully',
             default => 'Moment created successfully',
         };
     }

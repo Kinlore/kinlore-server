@@ -10,10 +10,17 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Service for handling WatermelonDB sync operations.
+ * Service for handling WatermelonDB sync operations (docs/API_CONTRACT.md section 9).
+ * Every time in a sync payload is integer milliseconds since the epoch, or null.
  */
 class SyncService
 {
+    private const PUSH_MOMENT_TYPES = ['story', 'milestone', 'growth'];
+
+    public function __construct(
+        private MomentService $momentService
+    ) {}
+
     /**
      * Pull changes from server since last sync.
      *
@@ -21,49 +28,41 @@ class SyncService
      */
     public function pull(User $user, ?int $lastPulledAt): array
     {
-        $lastPulledAtDate = $lastPulledAt
-            ? Carbon::createFromTimestamp($lastPulledAt / 1000)
-            : null;
+        $timestamp = now()->getTimestampMs();
+
+        // Database times have second precision, so look one second back; the client upserts.
+        $since = $lastPulledAt ? Carbon::createFromTimestampMs($lastPulledAt - 1000) : null;
 
         return [
             'changes' => [
-                'kids' => $this->getKidsChanges($user, $lastPulledAtDate),
-                'moments' => $this->getMomentsChanges($user, $lastPulledAtDate),
-                'milestones' => $this->getMilestonesChanges($lastPulledAtDate),
+                'kids' => $this->getKidsChanges($since),
+                'moments' => $this->getMomentsChanges($user, $since),
+                'milestones' => $this->getMilestonesChanges($since),
             ],
-            'timestamp' => now()->timestamp * 1000,
+            'timestamp' => $timestamp,
         ];
     }
 
     /**
      * Get kids changes since last sync.
      */
-    private function getKidsChanges(User $user, ?Carbon $lastPulledAt): array
+    private function getKidsChanges(?Carbon $since): array
     {
-        $query = Kid::query();
-        
-        if ($lastPulledAt) {
-            $query->where('updated_at', '>', $lastPulledAt);
-        }
-
-        $kids = $query->withTrashed()->get();
+        $kids = Kid::withTrashed()
+            ->when($since, fn ($q) => $q->where('updated_at', '>=', $since))
+            ->get();
 
         $created = [];
         $updated = [];
         $deleted = [];
 
         foreach ($kids as $kid) {
-            if ($kid->deleted_at) {
+            if ($kid->trashed()) {
                 $deleted[] = $kid->id;
-                continue;
-            }
-
-            $kidData = $this->formatKidForSync($kid);
-
-            if (!$lastPulledAt || $kid->created_at > $lastPulledAt) {
-                $created[] = $kidData;
+            } elseif (!$since || $kid->created_at >= $since) {
+                $created[] = $this->formatKidForSync($kid);
             } else {
-                $updated[] = $kidData;
+                $updated[] = $this->formatKidForSync($kid);
             }
         }
 
@@ -71,34 +70,29 @@ class SyncService
     }
 
     /**
-     * Get moments changes since last sync.
+     * Get moments changes since last sync. Moments of a deleted kid count as deleted.
      */
-    private function getMomentsChanges(User $user, ?Carbon $lastPulledAt): array
+    private function getMomentsChanges(User $user, ?Carbon $since): array
     {
-        $query = Moment::has('kid');
-
-        if ($lastPulledAt) {
-            $query->where('updated_at', '>', $lastPulledAt);
-        }
-
-        $moments = $query->withTrashed()->get();
+        $moments = Moment::withTrashed()
+            ->forPayload($user)
+            ->with(['kid' => fn ($q) => $q->withTrashed()->select('id', 'deleted_at')])
+            ->when($since, fn ($q) => $q->where(fn ($q) => $q
+                ->where('moments.updated_at', '>=', $since)
+                ->orWhereIn('kid_id', Kid::onlyTrashed()->where('deleted_at', '>=', $since)->select('id'))))
+            ->get();
 
         $created = [];
         $updated = [];
         $deleted = [];
 
         foreach ($moments as $moment) {
-            if ($moment->deleted_at) {
+            if ($moment->trashed() || !$moment->kid || $moment->kid->trashed()) {
                 $deleted[] = $moment->id;
-                continue;
-            }
-
-            $momentData = $this->formatMomentForSync($moment);
-
-            if (!$lastPulledAt || $moment->created_at > $lastPulledAt) {
-                $created[] = $momentData;
+            } elseif (!$since || $moment->created_at >= $since) {
+                $created[] = $this->formatMomentForSync($moment);
             } else {
-                $updated[] = $momentData;
+                $updated[] = $this->formatMomentForSync($moment);
             }
         }
 
@@ -108,26 +102,22 @@ class SyncService
     /**
      * Get milestones changes since last sync.
      */
-    private function getMilestonesChanges(?Carbon $lastPulledAt): array
+    private function getMilestonesChanges(?Carbon $since): array
     {
-        $query = Milestone::query();
-        
-        if ($lastPulledAt) {
-            $query->where('updated_at', '>', $lastPulledAt);
-        }
-
-        $milestones = $query->orderBy('stage_key')->orderBy('sort_order')->get();
+        $milestones = Milestone::query()
+            ->when($since, fn ($q) => $q->where('updated_at', '>=', $since))
+            ->orderBy('stage_key')
+            ->orderBy('sort_order')
+            ->get();
 
         $created = [];
         $updated = [];
 
         foreach ($milestones as $milestone) {
-            $milestoneData = $this->formatMilestoneForSync($milestone);
-
-            if (!$lastPulledAt || $milestone->created_at > $lastPulledAt) {
-                $created[] = $milestoneData;
+            if (!$since || $milestone->created_at >= $since) {
+                $created[] = $this->formatMilestoneForSync($milestone);
             } else {
-                $updated[] = $milestoneData;
+                $updated[] = $this->formatMilestoneForSync($milestone);
             }
         }
 
@@ -139,71 +129,176 @@ class SyncService
     }
 
     /**
-     * Push changes from client to server.
+     * Push changes from client to server. Each change passes the same permission rules as REST;
+     * a change that fails goes into `rejected` and the others still apply.
+     *
+     * @return array{kids_created: array, moments_created: array, rejected: array}
      */
-    public function push(User $user, array $changes): void
+    public function push(User $user, array $changes): array
     {
-        if (isset($changes['kids'])) {
-            $this->pushKidsChanges($user, $changes['kids']);
-        }
+        $result = ['kids_created' => [], 'moments_created' => [], 'rejected' => []];
+        $kids = $changes['kids'] ?? [];
+        $moments = $changes['moments'] ?? [];
 
-        // Note: Moments are typically created via upload endpoint, not sync
-        // But we can handle updates and deletes
+        // Kids first: new moments may belong to a kid from the same push.
+        $this->apply($result, 'kids', 'kids_created', $kids['created'] ?? [], fn ($row) => $this->upsertKid($user, $row));
+        $this->apply($result, 'kids', null, $kids['updated'] ?? [], fn ($row) => $this->upsertKid($user, $row));
+        $this->apply($result, 'moments', 'moments_created', $moments['created'] ?? [], fn ($row) => $this->upsertMoment($user, $row));
+        $this->apply($result, 'moments', null, $moments['updated'] ?? [], fn ($row) => $this->upsertMoment($user, $row));
+        $this->apply($result, 'moments', null, $moments['deleted'] ?? [], fn ($id) => $this->deleteMoment($user, $id));
+        $this->apply($result, 'kids', null, $kids['deleted'] ?? [], fn ($id) => $this->deleteKid($user, $id));
 
-        Log::info('Sync push completed', ['user_id' => $user->id]);
+        Log::info('Sync push completed', ['user_id' => $user->id, 'rejected' => count($result['rejected'])]);
+
+        return $result;
     }
 
     /**
-     * Push kids changes to server.
+     * Run $change for each row; the closure returns null on success or a reason string.
      */
-    private function pushKidsChanges(User $user, array $kidsChanges): void
+    private function apply(array &$result, string $table, ?string $createdKey, array $rows, \Closure $change): void
     {
-        // Created kids
-        if (!empty($kidsChanges['created'])) {
-            foreach ($kidsChanges['created'] as $kidData) {
-                $kid = Kid::withTrashed()->find($kidData['id']);
+        foreach ($rows as $row) {
+            $id = is_array($row) ? ($row['id'] ?? null) : $row;
 
-                // Kid IDs are visible to the whole family: never let a push take over someone else's kid.
-                if ($kid && !$user->can('update', $kid)) {
-                    continue;
-                }
+            try {
+                $reason = is_string($id) && $id !== '' ? $change($row) : 'invalid';
+            } catch (\Throwable $e) {
+                Log::warning('Sync push change failed', ['table' => $table, 'id' => $id, 'error' => $e->getMessage()]);
+                $reason = 'invalid';
+            }
 
-                if (!$kid) {
-                    $kid = new Kid(['user_id' => $user->id]);
-                    $kid->id = $kidData['id'];
-                }
+            if ($reason !== null) {
+                $result['rejected'][] = ['table' => $table, 'id' => $id, 'reason' => $reason];
+            } elseif ($createdKey) {
+                $result[$createdKey][] = ['local_id' => $id, 'id' => $id];
+            }
+        }
+    }
 
-                $kid->fill([
-                    'name' => $kidData['name'],
-                    'date_of_birth' => Carbon::createFromTimestamp((float)($kidData['date_of_birth'] ?? 0) / 1000),
-                    'avatar_color' => $kidData['avatar_color'],
-                ])->save();
+    private function upsertKid(User $user, array $row): ?string
+    {
+        $kid = Kid::withTrashed()->find($row['id']);
+
+        if ($kid?->trashed()) {
+            return 'deleted';
+        }
+
+        if ($kid ? !$user->can('update', $kid) : !$user->can('create', Kid::class)) {
+            return 'forbidden';
+        }
+
+        $kid ??= tap(new Kid(['user_id' => $user->id]), fn ($k) => $k->id = $row['id']);
+
+        $kid->fill(array_filter([
+            'name' => $row['name'] ?? null,
+            'avatar_color' => $row['avatar_color'] ?? null,
+        ], fn ($v) => $v !== null));
+
+        foreach (['date_of_birth', 'due_date'] as $field) {
+            if (array_key_exists($field, $row)) {
+                $kid->{$field} = $this->msToDate($row[$field]);
             }
         }
 
-        // Updated kids
-        if (!empty($kidsChanges['updated'])) {
-            foreach ($kidsChanges['updated'] as $kidData) {
-                $kid = Kid::find($kidData['id']);
-                if ($kid && $user->can('update', $kid)) {
-                    $kid->update([
-                        'name' => $kidData['name'],
-                        'date_of_birth' => Carbon::createFromTimestamp((float)($kidData['date_of_birth'] ?? 0) / 1000),
-                        'avatar_color' => $kidData['avatar_color'],
-                    ]);
-                }
+        if (empty($kid->name) || (!$kid->date_of_birth && !$kid->due_date)
+            || ($kid->date_of_birth && $kid->date_of_birth->isAfter(today()))) {
+            return 'invalid';
+        }
+
+        $kid->save();
+
+        return null;
+    }
+
+    private function upsertMoment(User $user, array $row): ?string
+    {
+        $moment = Moment::withTrashed()->find($row['id']);
+
+        if ($moment?->trashed()) {
+            return 'deleted';
+        }
+
+        if ($moment) {
+            if (!$user->can('update', $moment)) {
+                return 'forbidden';
+            }
+
+            // Photo and video rows come from uploads; sync may only change their text and date.
+            $fields = in_array($moment->moment_type, self::PUSH_MOMENT_TYPES, true)
+                ? ['title', 'description', 'milestone_id', 'exif_date', 'height_cm', 'weight_kg', 'head_circumference_cm']
+                : ['title', 'description', 'exif_date'];
+        } else {
+            if (!in_array($row['moment_type'] ?? null, self::PUSH_MOMENT_TYPES, true) || !Kid::find($row['kid_id'] ?? null)) {
+                return 'invalid';
+            }
+
+            if (!$user->hasPermission('add_content') || !$user->can('create', Moment::class)) {
+                return 'forbidden';
+            }
+
+            $moment = new Moment(['kid_id' => $row['kid_id'], 'user_id' => $user->id, 'moment_type' => $row['moment_type']]);
+            $moment->id = $row['id'];
+            $fields = ['title', 'description', 'milestone_id', 'exif_date', 'height_cm', 'weight_kg', 'head_circumference_cm'];
+        }
+
+        foreach ($fields as $field) {
+            if (array_key_exists($field, $row)) {
+                $moment->{$field} = $field === 'exif_date' && $row[$field] !== null
+                    ? Carbon::createFromTimestampMs($row[$field])
+                    : $row[$field];
             }
         }
 
-        // Deleted kids
-        if (!empty($kidsChanges['deleted'])) {
-            foreach ($kidsChanges['deleted'] as $kidId) {
-                $kid = Kid::find($kidId);
-                if ($kid && $user->can('update', $kid)) {
-                    $kid->delete();
-                }
-            }
+        $moment->save();
+
+        return null;
+    }
+
+    private function deleteMoment(User $user, string $id): ?string
+    {
+        $moment = Moment::find($id);
+
+        if (!$moment) {
+            return null; // already gone
         }
+
+        if (!$user->can('delete', $moment)) {
+            return 'forbidden';
+        }
+
+        $this->momentService->deleteMoment($moment);
+
+        return null;
+    }
+
+    private function deleteKid(User $user, string $id): ?string
+    {
+        $kid = Kid::find($id);
+
+        if (!$kid) {
+            return null;
+        }
+
+        if (!$user->can('delete', $kid)) {
+            return 'forbidden';
+        }
+
+        $kid->delete();
+
+        return null;
+    }
+
+    /** Calendar date from ms at UTC midnight. */
+    private function msToDate(mixed $ms): ?string
+    {
+        return $ms === null ? null : Carbon::createFromTimestampMs($ms, 'UTC')->toDateString();
+    }
+
+    /** Ms at UTC midnight of a calendar date. */
+    private function dateToMs(?\DateTimeInterface $date): ?int
+    {
+        return $date ? Carbon::parse($date->format('Y-m-d'), 'UTC')->getTimestampMs() : null;
     }
 
     /**
@@ -213,36 +308,50 @@ class SyncService
     {
         return [
             'id' => $kid->id,
+            'user_id' => $kid->user_id,
             'name' => $kid->name,
-            'date_of_birth' => $kid->date_of_birth->timestamp * 1000,
+            'date_of_birth' => $this->dateToMs($kid->date_of_birth),
+            'due_date' => $this->dateToMs($kid->due_date),
             'avatar_color' => $kid->avatar_color,
-            'created_at' => $kid->created_at->timestamp * 1000,
-            'updated_at' => $kid->updated_at->timestamp * 1000,
+            'created_at' => $kid->created_at->getTimestampMs(),
+            'updated_at' => $kid->updated_at->getTimestampMs(),
         ];
     }
 
     /**
-     * Format moment for sync response.
+     * Format moment for sync response (load it with Moment::forPayload).
      */
     public function formatMomentForSync(Moment $moment): array
     {
         return [
             'id' => $moment->id,
             'kid_id' => $moment->kid_id,
-            'moment_type' => $moment->moment_type,
-            'milestone_id' => $moment->milestone_id,
+            'user_id' => $moment->user_id,
+            'uploader_name' => $moment->user?->name,
+            'moment_type' => $moment->moment_type ?? 'photo',
             'title' => $moment->title,
             'description' => $moment->description,
+            'milestone_id' => $moment->milestone_id,
+            'exif_date' => $moment->exif_date?->getTimestampMs(),
+            'latitude' => $moment->latitude,
+            'longitude' => $moment->longitude,
+            'orientation' => $moment->orientation,
+            'duration' => $moment->duration,
+            'video_status' => $moment->video_status,
+            'height_cm' => $moment->height_cm,
+            'weight_kg' => $moment->weight_kg,
+            'head_circumference_cm' => $moment->head_circumference_cm,
+            'likes_count' => (int) $moment->likes_count,
+            'comments_count' => (int) $moment->comments_count,
+            'is_liked' => (bool) $moment->is_liked,
             'photo_url' => $moment->getRawOriginal('photo_url'),
             'medium_url' => $moment->getRawOriginal('medium_url'),
             'thumbnail_url' => $moment->getRawOriginal('thumbnail_url'),
             'file_size' => $moment->file_size,
             'mime_type' => $moment->mime_type,
-            'exif_date' => $moment->exif_date?->timestamp * 1000,
-            'latitude' => $moment->latitude,
-            'longitude' => $moment->longitude,
-            'created_at' => $moment->created_at->timestamp * 1000,
-            'updated_at' => $moment->updated_at->timestamp * 1000,
+            'device_asset_id' => $moment->device_asset_id,
+            'created_at' => $moment->created_at->getTimestampMs(),
+            'updated_at' => $moment->updated_at->getTimestampMs(),
         ];
     }
 
@@ -261,8 +370,8 @@ class SyncService
             'age_min_months' => $milestone->age_min_months,
             'age_max_months' => $milestone->age_max_months,
             'sort_order' => $milestone->sort_order,
-            'created_at' => $milestone->created_at?->timestamp * 1000,
-            'updated_at' => $milestone->updated_at?->timestamp * 1000,
+            'created_at' => $milestone->created_at?->getTimestampMs(),
+            'updated_at' => $milestone->updated_at?->getTimestampMs(),
         ];
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api;
 
 use App\Models\Moment;
+use Illuminate\Auth\Access\Response;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UnlikeMomentRequest extends FormRequest
@@ -10,13 +11,15 @@ class UnlikeMomentRequest extends FormRequest
     /**
      * Determine if the user is authorized to make this request.
      */
-    public function authorize(): bool
+    public function authorize(): bool|Response
     {
         $moment = $this->route('moment');
 
-        return $moment instanceof Moment
-            ? $this->user()->can('view', $moment)
-            : false;
+        if (!$moment instanceof Moment || !$this->user()->can('view', $moment)) {
+            return false;
+        }
+
+        return $this->user()->hasPermission('like') ?: Response::deny('You are not allowed to like moments.');
     }
 
     /**

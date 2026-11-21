@@ -38,7 +38,7 @@ The comment in `routes/api.php` gives the reason: phone video players cannot sen
 
 **Recommendation:** B, before any instance is exposed to the internet.
 
-**Answer:**
+**Answer:** B, decided 2026-11-21. `GET /v1/moments/{id}/playback` returns a signed link valid 6 hours; every playlist line is signed too. Unsigned requests get 403.
 
 ## Q3 (B4). Should the `/auth/me` counts cover the family or only the user?
 
@@ -51,7 +51,7 @@ The comment in `routes/api.php` gives the reason: phone video players cannot sen
 
 **Recommendation:** A. It matches "one family per instance".
 
-**Answer:**
+**Answer:** A, decided 2026-11-21. `/auth/me` counts the whole family; `my_moments_count` is added for the user's own uploads.
 
 ## Q4 (S3). Should first-admin setup be locked?
 
@@ -64,7 +64,7 @@ The comment in `routes/api.php` gives the reason: phone video players cannot sen
 
 **Recommendation:** C if you always deploy with a seeded user, because it removes the race and adds no new code path. Otherwise B.
 
-**Answer:**
+**Answer:** B plus a lock, decided 2026-11-21. Optional `SETUP_TOKEN`; the first registration is serialized by a lock. A seeded admin still works.
 
 ## Q5. Who can delete a moment?
 
@@ -76,7 +76,7 @@ The comment in `routes/api.php` gives the reason: phone video players cannot sen
 
 **Recommendation:** B.
 
-**Answer:**
+**Answer:** B, decided 2026-11-21. `moments.user_id` records the uploader (backfilled from the kid's creator). Uploader, kid creator, partner and admin can edit or delete.
 
 ## Q6 (T1). How should tests deal with the Redis throttle?
 
@@ -92,4 +92,5 @@ The comment in `routes/api.php` gives the reason: phone video players cannot sen
 
 ## Decided
 
-(None yet.)
+- Q2, Q3, Q4, Q5: answered on 2026-11-21 (see each answer above). Built on branch `develop`.
+- Q1 (multi-server stash) and Q6 are still open. Q6 is moot now: the Redis throttle was removed, so tests and bare-metal installs need no Redis.

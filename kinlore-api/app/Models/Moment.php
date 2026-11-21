@@ -61,6 +61,11 @@ class Moment extends Model
         'camera_model',
         'tags',
         'synced_at',
+        'duration',
+        'video_status',
+        'height_cm',
+        'weight_kg',
+        'head_circumference_cm',
     ];
 
     /**
@@ -69,8 +74,12 @@ class Moment extends Model
     protected $casts = [
         'file_size' => 'integer',
         'exif_date' => 'datetime',
-        'latitude' => 'decimal:8',
-        'longitude' => 'decimal:8',
+        'latitude' => 'float',
+        'longitude' => 'float',
+        'duration' => 'float',
+        'height_cm' => 'float',
+        'weight_kg' => 'float',
+        'head_circumference_cm' => 'float',
         'orientation' => 'integer',
         'tags' => 'array',
         'synced_at' => 'integer',
@@ -97,9 +106,10 @@ class Moment extends Model
         return $this->belongsTo(Kid::class);
     }
 
+    /** The uploader (moments.user_id). */
     public function user()
     {
-        return $this->hasOneThrough(User::class, Kid::class, 'id', 'id', 'kid_id', 'user_id');
+        return $this->belongsTo(User::class);
     }
 
     public function interactions()
@@ -298,6 +308,16 @@ class Moment extends Model
                      ->orWhereBetween('created_at', [$startDate, $endDate]);
     }
 
+    /**
+     * Everything the moment payload needs, without N+1: uploader, counts and the caller's like.
+     */
+    public function scopeForPayload($query, ?User $viewer = null)
+    {
+        return $query->with(['user:id,name', 'milestone'])
+            ->withCount(['likes', 'comments'])
+            ->withExists(['likes as is_liked' => fn ($q) => $q->where('user_id', $viewer?->id)]);
+    }
+
     public function scopeUpdatedSince($query, $timestamp)
     {
         return $query->where('updated_at', '>', Carbon::createFromTimestamp($timestamp / 1000));
@@ -345,6 +365,8 @@ class Moment extends Model
         $data = [
             'id' => $this->id,
             'kid_id' => $this->kid_id,
+            'user_id' => $this->user_id,
+            'uploader_name' => $this->user?->name,
             'video_id' => $this->video_id,
             'moment_type' => $this->moment_type ?? 'photo',
             'milestone_id' => $this->milestone_id,
@@ -359,12 +381,24 @@ class Moment extends Model
             'file_size' => $this->file_size,
             'file_size_formatted' => $this->file_size_formatted,
             'mime_type' => $this->mime_type,
+            'original_filename' => $this->original_filename,
+            'device_asset_id' => $this->device_asset_id,
             'exif_date' => $this->exif_date?->toIso8601String(),
+            'display_date' => $this->display_date?->toIso8601String(),
             'latitude' => $this->latitude,
             'longitude' => $this->longitude,
             'has_location' => $this->has_location,
+            'orientation' => $this->orientation,
             'camera_make' => $this->camera_make,
             'camera_model' => $this->camera_model,
+            'duration' => $this->duration,
+            'video_status' => $this->video_status,
+            'height_cm' => $this->height_cm,
+            'weight_kg' => $this->weight_kg,
+            'head_circumference_cm' => $this->head_circumference_cm,
+            'likes_count' => $this->interactionStat('likes_count', fn () => $this->likes()->count()),
+            'comments_count' => $this->interactionStat('comments_count', fn () => $this->comments()->count()),
+            'is_liked' => (bool) $this->interactionStat('is_liked', fn () => ($viewer = auth()->user()) ? $this->isLikedBy($viewer) : false),
             'tags' => $this->tags,
             'created_at' => $this->created_at->toIso8601String(),
             'updated_at' => $this->updated_at->toIso8601String(),
@@ -385,5 +419,11 @@ class Moment extends Model
         }
 
         return $data;
+    }
+
+    /** Value from scopeForPayload, or one query when the scope was not used. */
+    private function interactionStat(string $key, \Closure $fallback): mixed
+    {
+        return array_key_exists($key, $this->attributes) ? $this->attributes[$key] : $fallback();
     }
 }

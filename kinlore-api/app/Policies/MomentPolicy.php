@@ -6,8 +6,9 @@ use App\Models\Moment;
 use App\Models\User;
 
 /**
- * One family per instance: every user sees and adds moments.
- * Changing a moment follows the rules for its kid.
+ * One family per instance: every user sees every moment.
+ * Adding needs the add_content permission (checked where moments are created).
+ * Admin, partner, the uploader and the kid's creator can change a moment.
  */
 class MomentPolicy
 {
@@ -28,7 +29,9 @@ class MomentPolicy
 
     public function update(User $user, Moment $moment): bool
     {
-        return (new KidPolicy)->update($user, $moment->kid);
+        return $user->canManageContent()
+            || $user->id === (int) $moment->user_id
+            || $user->id === (int) $moment->kid?->user_id;
     }
 
     public function delete(User $user, Moment $moment): bool

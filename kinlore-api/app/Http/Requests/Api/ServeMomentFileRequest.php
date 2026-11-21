@@ -14,9 +14,11 @@ class ServeMomentFileRequest extends FormRequest
     {
         $moment = $this->route('moment');
 
-        return $moment instanceof Moment
-            ? $this->user()->can('view', $moment->kid)
-            : false;
+        if (!$moment instanceof Moment || !$this->user()->can('view', $moment->kid)) {
+            return false;
+        }
+
+        return $this->route('type') !== 'original' || $this->user()->hasPermission('download');
     }
 
     /**

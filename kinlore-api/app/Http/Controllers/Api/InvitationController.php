@@ -19,7 +19,7 @@ class InvitationController extends Controller
      */
     public function index(): JsonResponse
     {
-        return ApiResponse::success(Invitation::pending()->latest()->get());
+        return ApiResponse::success(Invitation::pending()->with('inviter')->latest()->get()->map->toItem());
     }
 
     /**
@@ -30,15 +30,26 @@ class InvitationController extends Controller
         $validated = $request->validated();
         $token = Str::random(48);
 
+        $permissions = $validated['permissions'] ?? [];
+
         $invitation = Invitation::create([
             'token' => $token,
             'email' => $validated['email'] ?? null,
+            'role' => $validated['role'] ?? 'family',
+            'can_add_content' => $permissions['add_content'] ?? true,
+            'can_comment' => $permissions['comment'] ?? true,
+            'can_like' => $permissions['like'] ?? true,
+            'can_download' => $permissions['download'] ?? true,
             'invited_by' => $request->user()->id,
-            'expires_at' => now()->addDays($validated['expires_in_days'] ?? 7),
+            'expires_at' => now()->addDays((int) ($validated['expires_in_days'] ?? 7)),
         ]);
 
         return ApiResponse::success(
-            $invitation->toArray() + ['token' => $token, 'invite_link' => "kinlore://invite/{$token}"],
+            $invitation->toItem() + [
+                'token' => $token,
+                'invite_link' => $invitation->inviteLink(),
+                'invite_url' => $invitation->inviteUrl(),
+            ],
             'Invitation created',
             201
         );

@@ -28,6 +28,15 @@ class User extends Authenticatable
         'can_download',
     ];
 
+    /** Same defaults as the columns, so a new model has them before it is reloaded. */
+    protected $attributes = [
+        'role' => 'family',
+        'can_add_content' => true,
+        'can_comment' => true,
+        'can_like' => true,
+        'can_download' => true,
+    ];
+
     public const ROLES = ['admin', 'partner', 'family'];
 
     public const PERMISSIONS = ['add_content', 'comment', 'like', 'download'];
@@ -94,6 +103,20 @@ class User extends Authenticatable
     public function permissionsArray(): array
     {
         return array_combine(self::PERMISSIONS, array_map(fn ($p) => $this->hasPermission($p), self::PERMISSIONS));
+    }
+
+    /** User payload shared by login, register, /auth/me and members (docs/API_CONTRACT.md section 2). */
+    public function toPayload(): array
+    {
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+            'email' => $this->email,
+            'role' => $this->role,
+            'is_admin' => $this->is_admin,
+            'permissions' => $this->permissionsArray(),
+            'created_at' => $this->created_at?->toIso8601String(),
+        ];
     }
 
     /**

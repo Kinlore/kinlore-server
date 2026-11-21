@@ -21,6 +21,12 @@ class StoreInvitationRequest extends FormRequest
     {
         return [
             'email' => 'nullable|email|max:255|unique:users,email',
+            'role' => 'nullable|in:partner,family',
+            'permissions' => 'nullable|array',
+            'permissions.add_content' => 'boolean',
+            'permissions.comment' => 'boolean',
+            'permissions.like' => 'boolean',
+            'permissions.download' => 'boolean',
             'expires_in_days' => 'nullable|integer|min:1|max:30',
         ];
     }

@@ -23,6 +23,11 @@ class PushSyncRequest extends FormRequest
     {
         return [
             'changes' => 'required|array',
+            'changes.kids' => 'sometimes|array',
+            'changes.moments' => 'sometimes|array',
+            'changes.*.created' => 'sometimes|array',
+            'changes.*.updated' => 'sometimes|array',
+            'changes.*.deleted' => 'sometimes|array',
             'lastPulledAt' => 'nullable|integer',
         ];
     }

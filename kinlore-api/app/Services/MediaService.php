@@ -961,6 +961,16 @@ class MediaService
     }
 
     /**
+     * Serve the master playlist ($filename null) or a variant/segment, with playlist references signed until $expires.
+     */
+    public function serveSignedHls(Media $media, ?string $filename, int $expires): array
+    {
+        $file = $filename === null ? $this->serveFile($media, 'hls') : $this->serveHlsFile($media, $filename);
+
+        return $this->storage->signPlaylist($file, 'media.hls.file', ['media' => $media->id], $expires);
+    }
+
+    /**
      * Delete media with all associated files.
      */
     public function deleteMedia(Media $media): void

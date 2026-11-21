@@ -191,7 +191,7 @@ class KidTest extends TestCase
 
     public function test_user_cannot_update_another_users_kid(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->family()->create();
         $otherUser = User::factory()->create();
         $kid = Kid::factory()->create(['user_id' => $otherUser->id]);
         
@@ -219,7 +219,7 @@ class KidTest extends TestCase
 
     public function test_user_cannot_delete_another_users_kid(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->family()->create();
         $otherUser = User::factory()->create();
         $kid = Kid::factory()->create(['user_id' => $otherUser->id]);
         

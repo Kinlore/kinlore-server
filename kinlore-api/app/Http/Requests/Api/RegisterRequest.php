@@ -26,6 +26,7 @@ class RegisterRequest extends FormRequest
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8|confirmed',
             'invite_token' => 'nullable|string|max:64',
+            'setup_token' => 'nullable|string|max:255',
         ];
     }
 }

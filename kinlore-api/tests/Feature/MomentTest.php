@@ -178,7 +178,7 @@ class MomentTest extends TestCase
 
     public function test_user_cannot_update_another_users_moment(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->family()->create();
         $moment = Moment::factory()->create(['title' => 'Original']);
 
         Sanctum::actingAs($user);
@@ -203,7 +203,7 @@ class MomentTest extends TestCase
 
     public function test_user_cannot_delete_another_users_moment(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->family()->create();
         $otherUser = User::factory()->create();
         $kid = Kid::factory()->create(['user_id' => $otherUser->id]);
         $moment = Moment::factory()->create(['kid_id' => $kid->id]);
@@ -289,5 +289,117 @@ class MomentTest extends TestCase
             'moment_type' => 'milestone',
             'milestone_id' => 'does-not-exist',
         ])->assertStatus(422)->assertJsonValidationErrors(['milestone_id']);
+    }
+
+    public function test_story_title_is_stored_and_uploader_is_set(): void
+    {
+        $user = User::factory()->create(['name' => 'Sam']);
+        $kid = Kid::factory()->create();
+
+        Sanctum::actingAs($user);
+
+        $response = $this->postJson('/api/v1/moments', [
+            'kid_id' => $kid->id,
+            'moment_type' => 'story',
+            'title' => 'Beach day',
+            'description' => 'Sand everywhere',
+        ])->assertStatus(201)
+            ->assertJsonPath('data.moment.title', 'Beach day')
+            ->assertJsonPath('data.moment.user_id', $user->id)
+            ->assertJsonPath('data.moment.uploader_name', 'Sam')
+            ->assertJsonPath('data.moment.likes_count', 0)
+            ->assertJsonPath('data.moment.is_liked', false);
+
+        $this->assertNotNull($response->json('data.moment.display_date'));
+        $this->assertDatabaseHas('moments', ['title' => 'Beach day', 'user_id' => $user->id]);
+    }
+
+    public function test_milestone_title_is_stored(): void
+    {
+        $kid = Kid::factory()->create();
+        Milestone::factory()->create(['id' => 'first_step']);
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->postJson('/api/v1/moments', [
+            'kid_id' => $kid->id,
+            'moment_type' => 'milestone',
+            'milestone_id' => 'first_step',
+            'title' => 'Walked to the cat',
+        ])->assertStatus(201)->assertJsonPath('data.moment.title', 'Walked to the cat');
+    }
+
+    public function test_family_user_without_add_content_cannot_create_moment(): void
+    {
+        $kid = Kid::factory()->create();
+        Sanctum::actingAs(User::factory()->family(['can_add_content' => false])->create());
+
+        $this->postJson('/api/v1/moments', [
+            'kid_id' => $kid->id,
+            'moment_type' => 'story',
+            'description' => 'Not allowed',
+        ])->assertStatus(403)->assertJsonPath('message', 'You do not have permission to add content.');
+    }
+
+    public function test_update_changes_exif_date(): void
+    {
+        $user = User::factory()->create();
+        $moment = Moment::factory()->create(['moment_type' => 'story']);
+
+        Sanctum::actingAs($user);
+
+        $this->putJson("/api/v1/moments/{$moment->id}", ['exif_date' => '2024-05-01T08:00:00Z'])
+            ->assertOk()
+            ->assertJsonPath('data.exif_date', '2024-05-01T08:00:00+00:00')
+            ->assertJsonPath('data.display_date', '2024-05-01T08:00:00+00:00');
+    }
+
+    public function test_uploader_can_update_own_moment_on_another_users_kid(): void
+    {
+        $family = User::factory()->family()->create();
+        $moment = Moment::factory()->create(['user_id' => $family->id]);
+
+        Sanctum::actingAs($family);
+
+        $this->putJson("/api/v1/moments/{$moment->id}", ['title' => 'Mine'])->assertOk();
+    }
+
+    public function test_list_filters_and_sorts_by_display_date(): void
+    {
+        $user = User::factory()->create();
+        $kid = Kid::factory()->create();
+        $old = Moment::factory()->create(['kid_id' => $kid->id, 'moment_type' => 'photo', 'exif_date' => '2024-01-10 10:00:00']);
+        $new = Moment::factory()->create(['kid_id' => $kid->id, 'moment_type' => 'photo', 'exif_date' => '2024-03-10 10:00:00']);
+        $story = Moment::factory()->create(['kid_id' => $kid->id, 'moment_type' => 'story', 'exif_date' => '2024-02-10 10:00:00']);
+        Moment::factory()->create(['moment_type' => 'video', 'exif_date' => '2024-02-11 10:00:00']);
+        $story->interactions()->create(['user_id' => $user->id, 'type' => 'like']);
+
+        Sanctum::actingAs($user);
+
+        $ids = fn ($query) => array_column($this->getJson("/api/v1/moments?{$query}")->assertOk()->json('data'), 'id');
+
+        $this->assertSame([$new->id, $story->id, $old->id], $ids("kid_id={$kid->id}"));
+        $this->assertSame([$new->id, $story->id, $old->id], $ids("kid_id={$kid->id}&moment_type=photo,story"));
+        $this->assertSame([$new->id, $old->id], $ids('moment_type=photo'));
+        $this->assertSame([$story->id], $ids('liked=true'));
+        $this->assertSame([$story->id], $ids("kid_id={$kid->id}&from=2024-02-01&to=2024-02-10"));
+        $this->assertCount(1, $ids('per_page=1'));
+
+        $this->getJson('/api/v1/moments?moment_type=bogus')->assertStatus(422);
+        $this->getJson('/api/v1/moments?per_page=101')->assertStatus(422);
+        $this->getJson('/api/v1/moments?liked=true')->assertJsonPath('data.0.is_liked', true)->assertJsonPath('data.0.likes_count', 1);
+    }
+
+    public function test_original_file_needs_download_permission(): void
+    {
+        $moment = Moment::factory()->create();
+        Storage::disk('seaweedfs')->put($moment->getRawOriginal('photo_url'), 'jpeg-bytes');
+        Storage::disk('seaweedfs')->put($moment->getRawOriginal('thumbnail_url'), 'thumb-bytes');
+
+        Sanctum::actingAs(User::factory()->family(['can_download' => false])->create());
+        $this->get("/api/v1/moments/{$moment->id}/file/original")->assertStatus(403);
+        $this->get("/api/v1/moments/{$moment->id}/file/thumbnail")->assertOk();
+
+        Sanctum::actingAs(User::factory()->family()->create());
+        $this->get("/api/v1/moments/{$moment->id}/file/original")->assertOk();
     }
 }

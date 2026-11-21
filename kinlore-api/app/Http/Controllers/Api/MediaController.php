@@ -15,6 +15,7 @@ use App\Models\Kid;
 use App\Models\Media;
 use App\Services\MediaService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -133,42 +134,29 @@ class MediaController extends Controller
     }
 
     /**
-     * Serve HLS master playlist (public, no auth required).
+     * Serve HLS master playlist (signed URL, no auth header).
      * iOS/Android video players cannot inject auth headers.
      */
-    public function serveHlsPublic(Media $media): Response
+    public function serveHlsPublic(Request $request, Media $media): Response
     {
         try {
-            $file = $this->mediaService->serveFile($media, 'hls');
+            $file = $this->mediaService->serveSignedHls($media, null, (int) $request->query('expires'));
 
-            return response($file['content'], 200, [
-                'Content-Type' => $file['mime_type'],
-                'Content-Length' => $file['size'],
-                'Cache-Control' => 'public, max-age=3600',
-                'Access-Control-Allow-Origin' => '*',
-            ]);
+            return $this->hlsResponse($file);
         } catch (\RuntimeException $e) {
             return ApiResponse::error($e->getMessage(), 404);
         }
     }
 
     /**
-     * Serve HLS segment files (public, no auth required).
-     * Serves variant playlists and .ts segments for video streaming.
+     * Serve HLS variant playlists and .ts segments (signed URL, no auth header).
      */
     public function serveHlsFile(ServeMediaHlsFileRequest $request, Media $media, string $filename): Response
     {
         try {
-            $validated = $request->validated();
-            $filename = $validated['filename'];
-            $file = $this->mediaService->serveHlsFile($media, $filename);
+            $file = $this->mediaService->serveSignedHls($media, $request->validated('filename'), (int) $request->query('expires'));
 
-            return response($file['content'], 200, [
-                'Content-Type' => $file['mime_type'],
-                'Content-Length' => $file['size'],
-                'Cache-Control' => 'public, max-age=3600',
-                'Access-Control-Allow-Origin' => '*',
-            ]);
+            return $this->hlsResponse($file);
         } catch (\RuntimeException $e) {
             Log::warning('HLS file not found', [
                 'media_id' => $media->id,
@@ -178,6 +166,16 @@ class MediaController extends Controller
             
             return ApiResponse::error('File not found', 404);
         }
+    }
+
+    private function hlsResponse(array $file): Response
+    {
+        return response($file['content'], 200, [
+            'Content-Type' => $file['mime_type'],
+            'Content-Length' => $file['size'],
+            'Cache-Control' => 'private, max-age=3600',
+            'Access-Control-Allow-Origin' => '*',
+        ]);
     }
 
     /**

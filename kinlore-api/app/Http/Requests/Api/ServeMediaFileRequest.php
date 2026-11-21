@@ -14,9 +14,11 @@ class ServeMediaFileRequest extends FormRequest
     {
         $media = $this->route('media');
 
-        return $media instanceof Media
-            ? $this->user()->can('view', $media->kid)
-            : false;
+        if (!$media instanceof Media || !$this->user()->can('view', $media->kid)) {
+            return false;
+        }
+
+        return $this->route('type') !== 'original' || $this->user()->hasPermission('download');
     }
 
     /**

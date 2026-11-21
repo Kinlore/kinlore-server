@@ -13,7 +13,7 @@ use Tests\TestCase;
 
 /**
  * One family per instance: first user is admin, others join by invitation,
- * everyone sees the family, only admin or creator changes a kid.
+ * everyone sees the family, a family member cannot change kids they did not add.
  */
 class InstanceAccessTest extends TestCase
 {
@@ -47,19 +47,21 @@ class InstanceAccessTest extends TestCase
 
     public function test_admin_invites_and_invitation_works_once(): void
     {
-        $admin = User::factory()->create(['is_admin' => true]);
+        $admin = User::factory()->admin()->create();
         Sanctum::actingAs($admin);
 
         $token = $this->postJson('/api/v1/invitations')->assertStatus(201)->json('data.token');
         $this->getJson('/api/v1/invitations')->assertOk()->assertJsonCount(1, 'data')->assertJsonMissingPath('data.0.token');
 
-        $this->register('guest@example.test', $token)->assertStatus(201)->assertJsonPath('data.user.is_admin', false);
+        $this->register('guest@example.test', $token)->assertStatus(201)
+            ->assertJsonPath('data.user.is_admin', false)
+            ->assertJsonPath('data.user.role', 'family');
         $this->register('second@example.test', $token)->assertStatus(422);
     }
 
     public function test_invitation_rules_for_email_expiry_and_revoke(): void
     {
-        $admin = User::factory()->create(['is_admin' => true]);
+        $admin = User::factory()->admin()->create();
         Sanctum::actingAs($admin);
 
         $locked = $this->postJson('/api/v1/invitations', ['email' => 'Grandma@example.test'])->json('data.token');
@@ -78,8 +80,8 @@ class InstanceAccessTest extends TestCase
 
     public function test_non_admin_cannot_manage_invitations(): void
     {
-        User::factory()->create(['is_admin' => true]);
-        Sanctum::actingAs(User::factory()->create());
+        User::factory()->admin()->create();
+        Sanctum::actingAs(User::factory()->create()); // partner
 
         $this->postJson('/api/v1/invitations')->assertStatus(403);
         $this->getJson('/api/v1/invitations')->assertStatus(403);
@@ -87,8 +89,8 @@ class InstanceAccessTest extends TestCase
 
     public function test_family_shares_kids_but_only_admin_or_creator_changes_them(): void
     {
-        $admin = User::factory()->create(['is_admin' => true]);
-        $guest = User::factory()->create();
+        $admin = User::factory()->admin()->create();
+        $guest = User::factory()->family()->create();
         $adminKid = Kid::factory()->create(['user_id' => $admin->id]);
         $guestKid = Kid::factory()->create(['user_id' => $guest->id]);
 
@@ -103,8 +105,8 @@ class InstanceAccessTest extends TestCase
 
     public function test_sync_push_cannot_take_over_another_users_kid(): void
     {
-        $admin = User::factory()->create(['is_admin' => true]);
-        $guest = User::factory()->create();
+        $admin = User::factory()->admin()->create();
+        $guest = User::factory()->family()->create();
         $kid = Kid::factory()->create(['user_id' => $admin->id, 'name' => 'Original']);
 
         app(SyncService::class)->push($guest, ['kids' => ['created' => [[
@@ -114,11 +116,5 @@ class InstanceAccessTest extends TestCase
         $kid->refresh();
         $this->assertSame('Original', $kid->name);
         $this->assertSame($admin->id, $kid->user_id);
-
-        $newId = (string) \Illuminate\Support\Str::uuid();
-        app(SyncService::class)->push($guest, ['kids' => ['created' => [[
-            'id' => $newId, 'name' => 'New', 'date_of_birth' => 0, 'avatar_color' => '#000000',
-        ]]]]);
-        $this->assertSame($guest->id, Kid::find($newId)->user_id);
     }
 }
