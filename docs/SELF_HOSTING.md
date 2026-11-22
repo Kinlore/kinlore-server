@@ -1,17 +1,18 @@
 # Self-hosting Kinlore
 
-You can run the Kinlore API in Docker (recommended) or directly on a server ("bare metal"). Both use the same code and the same settings.
+You can run the Kinlore server in two ways. Both use the same code and the same settings.
 
-## What the server needs
+- **Docker (recommended):** this guide. One command starts the API, PostgreSQL, the media storage and Redis.
+- **Directly on a Linux host, without Docker:** see **[BARE_METAL.md](BARE_METAL.md)**. It has every command and configuration file, and a script that tests the whole install.
 
-| Part | Docker | Bare metal |
-|---|---|---|
-| PHP 8.4+ with `pdo_pgsql` or `pdo_sqlite`, `gd`, `exif`, `zip`, `intl`, `mbstring`, `bcmath` | in the image | install it |
-| FFmpeg (video to HLS) | in the image | install it, set `FFMPEG_BINARIES` and `FFPROBE_BINARIES` |
-| Database | PostgreSQL 18 container | PostgreSQL, or SQLite for a small family |
-| Media storage | SeaweedFS containers (S3 API) | local disk (`SEAWEEDFS_DRIVER=local`), or any S3 service |
-| Cache and rate limits | Redis container | Redis, or the database/file cache |
-| Queue worker (videos, exports) | runs inside the API container | run `php artisan queue:work --queue=video-processing,default` |
+## What the Docker setup contains
+
+| Part | Container |
+|---|---|
+| API: Caddy (web server), PHP-FPM and the queue worker for videos and exports | `kinlore-api` |
+| Database | PostgreSQL 18 |
+| Media storage (S3 API) | SeaweedFS (three containers) |
+| Cache and rate limits | Redis |
 
 ## Option 1: Docker
 
@@ -35,47 +36,69 @@ Settings you can put in a `.env` file next to `docker-compose.yml`:
 | `DB_PORT` | `5432` | Host port of PostgreSQL. |
 | `REDIS_FORWARD_PORT` | `6379` | Host port of Redis. |
 | `SEAWEEDFS_S3_PORT` | `8333` | Host port of the SeaweedFS S3 API. |
+| `KINLORE_DOMAIN` | empty | Your public host name. When set, the API container serves HTTPS with its own certificate. |
+| `APP_BIND_ADDRESS` | `0.0.0.0` | Host address of the API ports. `127.0.0.1` when a proxy on this machine is the only way in. |
 | `API_ENV_FILE` | `./kinlore-api/.env` | Settings file for the API container. It may be missing. |
 | `BIND_ADDRESS` | `127.0.0.1` | Host address for the PostgreSQL, Redis and S3 ports. They are reachable only from this machine by default. |
 | `TRUSTED_PROXIES` | private networks | Reverse proxies whose `X-Forwarded-*` headers are trusted, so links use `https`. |
 
-**HTTPS.** Phones need HTTPS for a server on the internet. The API container serves plain HTTP on port 80. Choose one:
-- **Bundled Caddy proxy (simplest).** See "Reverse proxy" below.
-- **Your own reverse proxy** (Caddy, nginx, Traefik, Nginx Proxy Manager). See "Reverse proxy" below.
-- **Bundled certbot.** Get a certificate for your host name into the `letsencrypt` volume. When `/etc/letsencrypt/live/<host of APP_URL>/fullchain.pem` exists, the API container switches to HTTPS by itself at the next start. Set `SERVER_NAME` if the host differs from `APP_URL`.
+**HTTPS.** Phones need HTTPS for a server on the internet. Choose one:
+- **Built in (simplest).** Set `KINLORE_DOMAIN` to your host name. Caddy inside the API container then gets and renews a certificate by itself. See "HTTPS and reverse proxies" below.
+- **Your own reverse proxy** on the host or in another container (Caddy, nginx, Traefik, Nginx Proxy Manager). Leave `KINLORE_DOMAIN` empty; the API container then serves plain HTTP. See "HTTPS and reverse proxies" below.
 
 **Security defaults.** PostgreSQL, Redis and the SeaweedFS S3 port listen only on `127.0.0.1`. Change the SeaweedFS keys in `kinlore-api/docker/s3.json` together with `SEAWEEDFS_KEY` and `SEAWEEDFS_SECRET` before you set `BIND_ADDRESS=0.0.0.0`.
 
 **Upgrading from PostgreSQL 17 or older.** The PostgreSQL 18 image keeps its data in `/var/lib/postgresql/18/...`. An old data volume does not start with it. Back up with `pg_dump`, start a fresh volume and restore. Do not delete the old volume before the restore works.
 
-## Reverse proxy
+## HTTPS and reverse proxies
 
-Kinlore works behind any reverse proxy that terminates TLS. The proxy must:
-- forward `Host`, `X-Forwarded-Proto`, `X-Forwarded-Host` and `X-Forwarded-For`;
-- allow large request bodies (videos) and long timeouts (30 minutes is safe).
+The web server inside the API container is Caddy. It has two modes, chosen by `KINLORE_DOMAIN`.
 
-The API trusts these headers from private networks by default (`TRUSTED_PROXIES`). For a proxy on a public address, set `TRUSTED_PROXIES` to its IP. Without trusted headers, video and export links use `http`, and iPhones refuse them. Set `APP_URL` to the public `https` address.
+### Built-in HTTPS (no extra proxy)
 
-### Bundled Caddy (Docker)
-
-Caddy gets and renews a Let's Encrypt certificate by itself. Your domain must point at the server, and ports 80 and 443 must be open.
+Caddy gets and renews a Let's Encrypt certificate by itself. Your host name must point at the server, and ports 80 and 443 must be open. Leave `APP_PORT` and `APP_SSL_PORT` at 80 and 443.
 
 ```ini
 # .env next to docker-compose.yml
 KINLORE_DOMAIN=photos.example.com
 APP_URL=https://photos.example.com
-APP_PORT=8080              # move the API off port 80, Caddy takes 80 and 443
-APP_SSL_PORT=8443
-APP_BIND_ADDRESS=127.0.0.1 # reach the API only through Caddy
 ```
 
 ```sh
-docker compose --profile proxy up -d
+docker compose up -d
 ```
 
-For a local test, use `KINLORE_DOMAIN=localhost`; Caddy then uses its own certificate, which your browser and phone do not trust.
+The certificate is kept in the `caddy_data` volume. For a local test, use `KINLORE_DOMAIN=localhost`; Caddy then makes its own certificate, which your browser and phone do not trust.
 
-### nginx
+### Your own reverse proxy
+
+Leave `KINLORE_DOMAIN` empty. The API container then serves plain HTTP, and your proxy adds HTTPS. Move the API off ports 80 and 443 and make it reachable only from this machine:
+
+```ini
+# .env next to docker-compose.yml
+APP_URL=https://photos.example.com
+APP_PORT=8080
+APP_SSL_PORT=8443          # not used in this mode; moved so 443 stays free for your proxy
+APP_BIND_ADDRESS=127.0.0.1
+```
+
+Your proxy must:
+- forward `Host`, `X-Forwarded-Proto`, `X-Forwarded-Host` and `X-Forwarded-For`;
+- allow large request bodies (videos) and long timeouts (30 minutes is safe).
+
+The API trusts these headers from private networks by default (`TRUSTED_PROXIES`), so a device on your home network could also send them. To close that, set `TRUSTED_PROXIES` to the address your proxy connects from (for a proxy on the Docker host, the Docker gateway, for example `172.18.0.1`; find it with `docker network inspect kinlore_kinlore-network`). For a proxy on a public address, set `TRUSTED_PROXIES` to its IP. Without trusted headers, video and export links use `http`, and iPhones refuse them.
+
+### Caddy on the host
+
+```
+photos.example.com {
+    reverse_proxy 127.0.0.1:8080
+}
+```
+
+Caddy sends the needed headers by itself and has no body size limit.
+
+### nginx on the host
 
 ```nginx
 server {
@@ -111,58 +134,20 @@ labels:
 ```
 Traefik must share a Docker network with the API. Raise its `respondingTimeouts` for long uploads.
 
-### Bare metal
+### Moving from an older setup
 
-Run any of the proxies above in front of PHP-FPM or `php artisan serve`, with the same headers. Set `TRUSTED_PROXIES=127.0.0.1` when the proxy runs on the same machine.
+- **You used `docker compose --profile proxy`:** the separate Caddy container is gone. Remove `--profile proxy`, `PROXY_HTTP_PORT` and `PROXY_HTTPS_PORT`, set `APP_PORT=80` and `APP_SSL_PORT=443` (or remove them), keep `KINLORE_DOMAIN`, and run `docker compose up -d --build --remove-orphans`. The certificate is reused, because it stays in the `caddy_data` volume.
+- **You used the bundled certbot:** it is gone too. Set `KINLORE_DOMAIN` to your host name; Caddy gets a new certificate at the first start. The old `letsencrypt` volume is no longer used.
 
-## Option 2: Bare metal
+## Without Docker
 
-1. Install PHP, Composer, FFmpeg and a database (see the table above).
-2. Install and configure:
-   ```sh
-   cd kinlore-api
-   composer install --no-dev --optimize-autoloader
-   cp .env.example .env
-   php artisan key:generate
-   ```
-3. Edit `.env`. A small, simple setup with no extra services:
-   ```ini
-   APP_URL=https://photos.example.com
-   DB_CONNECTION=sqlite
-   DB_DATABASE=/var/lib/kinlore/database.sqlite
-   SEAWEEDFS_DRIVER=local
-   MEDIA_ROOT=/var/lib/kinlore/media
-   CACHE_STORE=database
-   QUEUE_CONNECTION=database
-   ```
-   For PostgreSQL, set `DB_CONNECTION=pgsql` and the `DB_*` values. For S3 storage, keep `SEAWEEDFS_DRIVER=s3` and set `SEAWEEDFS_ENDPOINT`, `SEAWEEDFS_KEY`, `SEAWEEDFS_SECRET` and `SEAWEEDFS_BUCKET`.
-4. Create the tables:
-   ```sh
-   php artisan migrate --force
-   php artisan db:seed --force   # milestones; also the admin when SEED_USER_* is set
-   ```
-   Then open `APP_URL` in a browser to create the admin account (see "First admin").
-5. Serve it with nginx or Apache and PHP-FPM, with `kinlore-api/public` as the web root. Use `docker/kinlore-api.conf` as an nginx example. Allow large uploads: `client_max_body_size 0;` in nginx, and `upload_max_filesize=512M`, `post_max_size=520M` in PHP (see `docker/zz-uploads.ini`).
-6. Run the queue worker as a service (systemd example):
-   ```ini
-   [Service]
-   WorkingDirectory=/srv/kinlore/kinlore-api
-   ExecStart=/usr/bin/php artisan queue:work --queue=video-processing,default --tries=3 --timeout=1800
-   Restart=always
-   User=www-data
-   ```
-   One worker is enough. If you run more, keep `DB_QUEUE_RETRY_AFTER` (default 3700 seconds) longer than the longest job.
-   With `QUEUE_CONNECTION=sync` no worker is needed, but uploads of long videos then wait for the conversion.
-
-For a quick local test without a web server: `php artisan serve --host 0.0.0.0 --port 8000`, and run `php artisan queue:work` in a second terminal. Put the settings in `.env`: `artisan serve` does not pass most shell environment variables on to its workers.
-
-Check any running instance with the end-to-end script (it creates test data, so use a test instance): `scripts/smoke-test.sh http://localhost:8000 <admin email> <admin password>`.
+The full guide for an install directly on a Linux host is **[BARE_METAL.md](BARE_METAL.md)**. Check any running instance, Docker or not, with the end-to-end script. It creates test data, so use it before the family starts: `scripts/smoke-test.sh https://photos.example.com <admin email> <admin password>`.
 
 ## First admin
 
 The admin account is created **in a web browser**, not in the app (like Immich or Actual Budget):
 
-1. Start the server (Docker or bare metal).
+1. Start the server (Docker, or the host install of BARE_METAL.md).
 2. Open the server address (`APP_URL`, for example `https://photos.example.com`) in a browser. An empty instance sends you to `/setup`.
 3. Enter your name, email and password. The page then shows the server address and email to use in the app.
 
@@ -176,7 +161,7 @@ Optional:
 - **The admin forgot it**, or you prefer the server: run the command below. It asks for the new password and signs that user out everywhere.
   ```sh
   docker compose exec api php artisan kinlore:reset-password ann@example.com   # Docker
-  php artisan kinlore:reset-password ann@example.com                           # bare metal, in kinlore-api
+  sudo -u www-data php artisan kinlore:reset-password ann@example.com          # host install, in kinlore-api
   ```
 
 ## Connect the app

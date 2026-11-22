@@ -1,0 +1,22 @@
+# Kinlore on a host without Docker: Caddy in front of PHP-FPM, with automatic HTTPS.
+# Copy to /etc/caddy/Caddyfile, set your host name, then: sudo systemctl reload caddy
+# For plain HTTP on a home network, write ":80" in place of the host name.
+photos.example.com {
+	root * /srv/kinlore/kinlore-api/public
+	encode zstd gzip
+	header -X-Powered-By
+
+	# Hidden files are never served (ACME challenges stay reachable)
+	@hidden {
+		path /.*
+		not path /.well-known/*
+	}
+	respond @hidden 404
+
+	# PHP limits the upload size (php-kinlore.ini). Long timeouts for videos and exports.
+	php_fastcgi unix//run/php/php8.4-fpm.sock {
+		read_timeout 30m
+		write_timeout 30m
+	}
+	file_server
+}

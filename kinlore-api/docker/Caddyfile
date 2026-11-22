@@ -1,15 +1,43 @@
-# Optional reverse proxy with automatic HTTPS (docker compose --profile proxy up -d).
-# Caddy gets a Let's Encrypt certificate for KINLORE_DOMAIN by itself.
-# Use KINLORE_DOMAIN=localhost for a local test with Caddy's own certificate.
-{$KINLORE_DOMAIN} {
-	encode zstd gzip
-
-	# Caddy adds X-Forwarded-For, -Proto and -Host; the API trusts them from the Docker network.
-	reverse_proxy kinlore-api:80 {
-		transport http {
-			# long video uploads and export downloads
-			read_timeout 30m
-			write_timeout 30m
-		}
+# Web server of the API container: Caddy in front of PHP-FPM.
+#
+# KINLORE_DOMAIN set   -> Caddy serves that host name with automatic HTTPS (ports 80 and 443).
+# KINLORE_DOMAIN empty -> plain HTTP on port 80, for your own reverse proxy or a home network.
+# The entrypoint turns these settings into KINLORE_SITE and CADDY_TRUSTED_PROXIES.
+{
+	admin off
+	servers {
+		# Keep X-Forwarded-* from your reverse proxy; Caddy overwrites them for every other client.
+		trusted_proxies static {$CADDY_TRUSTED_PROXIES}
 	}
+}
+
+(kinlore) {
+	root * /var/www/html/public
+	encode zstd gzip
+	header -X-Powered-By
+	header ?X-Content-Type-Options nosniff
+
+	# Hidden files are never served (ACME challenges stay reachable)
+	@hidden {
+		path /.*
+		not path /.well-known/*
+	}
+	respond @hidden 404
+
+	# No body size limit here: PHP limits uploads (zz-uploads.ini). Long timeouts for videos and exports.
+	php_fastcgi 127.0.0.1:9000 {
+		read_timeout 30m
+		write_timeout 30m
+	}
+	file_server
+}
+
+{$KINLORE_SITE} {
+	import kinlore
+}
+
+# Inside the container only: the Docker health check uses this, whatever KINLORE_SITE is.
+http://localhost:8080 {
+	bind 127.0.0.1
+	import kinlore
 }

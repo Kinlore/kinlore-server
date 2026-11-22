@@ -1,9 +1,9 @@
-# Use PHP-FPM with Nginx (production-ready)
+# PHP-FPM behind Caddy, plus the queue worker
 FROM php:8.4-fpm-alpine
 
 # Install system dependencies
 RUN apk add --no-cache \
-    nginx \
+    caddy \
     supervisor \
     git \
     curl \
@@ -51,23 +51,14 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 # Set working directory
 WORKDIR /var/www/html
 
-# Copy Nginx configuration
-COPY ./docker/nginx.conf /etc/nginx/nginx.conf
-COPY ./docker/kinlore-api.conf /etc/nginx/http.d/default.conf
-COPY ./docker/kinlore-api-ssl.conf /etc/nginx/kinlore-api-ssl.conf
+# Caddy: web server and, with KINLORE_DOMAIN, automatic HTTPS. Certificates live in /data.
+COPY ./docker/Caddyfile /etc/caddy/Caddyfile
+ENV XDG_DATA_HOME=/data XDG_CONFIG_HOME=/config
 
 # Copy Supervisor configuration
 COPY ./docker/supervisord.conf /etc/supervisord.conf
 
 RUN mkdir -p /var/log/supervisor
-
-# Redirect Nginx logs to stdout/stderr for docker logs
-RUN ln -sf /dev/stdout /var/log/nginx/access.log \
-    && ln -sf /dev/stderr /var/log/nginx/error.log
-
-RUN mkdir -p /tmp/client_body
-RUN chown -R nginx:nginx /tmp/client_body 2>/dev/null || true
-RUN chmod 700 /tmp/client_body
 
 # Copy PHP configuration for uploads
 COPY ./docker/zz-uploads.ini /usr/local/etc/php/conf.d/zz-uploads.ini
@@ -90,15 +81,12 @@ RUN php artisan route:cache && \
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache && \
     chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
-# Create required directories for nginx/certbot
-RUN mkdir -p /var/www/certbot
-
-# Expose HTTP and HTTPS ports
-EXPOSE 80 443
+# HTTP, and HTTPS (TCP and HTTP/3) when KINLORE_DOMAIN is set
+EXPOSE 80 443 443/udp
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost/api/health || exit 1
+  CMD curl -f http://localhost:8080/api/health || exit 1
 
-# Start via entrypoint (runs supervisor which manages nginx + php-fpm)
+# Start via entrypoint (runs supervisor: Caddy, PHP-FPM, queue worker)
 ENTRYPOINT ["/entrypoint.sh"]

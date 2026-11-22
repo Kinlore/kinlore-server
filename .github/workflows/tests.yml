@@ -5,6 +5,7 @@ on:
   pull_request:
 
 jobs:
+  # Unit and feature tests. Includes OpenApiRoutesTest: openapi.yaml must list exactly the server's routes.
   api:
     runs-on: ubuntu-latest
     defaults:
@@ -18,5 +19,44 @@ jobs:
           extensions: pdo_sqlite, gd, exif, zip, intl, mbstring, bcmath
       - run: composer install --no-interaction --prefer-dist
       - run: cp .env.example .env && php artisan key:generate
-      # Includes OpenApiRoutesTest: openapi.yaml must list exactly the routes the server has
       - run: php artisan test
+
+  # The Docker stack of docs/SELF_HOSTING.md, in both web server modes
+  docker:
+    runs-on: ubuntu-latest
+    env:
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      DB_PASSWORD: ci-only-password
+      SEED_USER_EMAIL: admin@example.test
+      SEED_USER_PASSWORD: CiOnly-12345
+    steps:
+      - uses: actions/checkout@v4
+      - name: Plain HTTP mode (for your own reverse proxy)
+        env:
+          APP_URL: http://localhost
+        run: |
+          docker compose up -d --build --wait --wait-timeout 300
+          curl -fsS http://localhost/api/health
+          scripts/smoke-test.sh http://localhost "$SEED_USER_EMAIL" "$SEED_USER_PASSWORD"
+      - name: Links use https behind a trusted proxy
+        run: |
+          sleep 61   # sign-in limit: 5 per minute
+          curl -fsS -H 'X-Forwarded-Proto: https' -H 'X-Forwarded-Host: photos.example.com' \
+            http://localhost/api/auth/setup-status | grep -q '"setup_url":"https:\\/\\/photos.example.com\\/setup"'
+      - name: Built-in HTTPS mode (KINLORE_DOMAIN)
+        env:
+          APP_URL: https://localhost
+          KINLORE_DOMAIN: localhost
+        run: |
+          docker compose up -d --wait --wait-timeout 300
+          curl -fsSk https://localhost/api/health
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost/api/health)" = 308
+      - if: failure()
+        run: docker compose logs --tail 80 api
+
+  # The host install of docs/BARE_METAL.md, on a clean Debian, with Caddy and with nginx
+  bare-metal:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: scripts/test-bare-metal.sh

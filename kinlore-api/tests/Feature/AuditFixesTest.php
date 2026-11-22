@@ -128,4 +128,11 @@ class AuditFixesTest extends TestCase
         $path = Moment::find($id)->getRawOriginal('photo_url');
         $this->assertSame($size, Storage::disk('seaweedfs')->size($path));
     }
+
+    public function test_api_answers_json_without_an_accept_header(): void
+    {
+        // A browser or plain curl once got a 500 page here (the missing "login" route)
+        $this->get('/api/v1/kids')->assertStatus(401)->assertJsonPath('success', false);
+        $this->get('/api/v1/nothing-here')->assertStatus(404)->assertJsonPath('success', false);
+    }
 }

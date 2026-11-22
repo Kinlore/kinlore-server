@@ -10,7 +10,7 @@ Kinlore is a self-hosted alternative to hosted family journals such as Backthen.
 - **Invited members.** Everyone else joins with an invitation that the admin creates. An invitation gives the role `partner` or `family`.
 - **Shared family data.** All members see all kids and memories.
 - **Roles and permissions.** A partner can add and change everything. A family member can view, and can add content, like, comment and download when the admin allows it. The full rules are in API_CONTRACT §1.
-- **Two ways to run it.** Docker (PostgreSQL, SeaweedFS, optional Caddy proxy) or bare metal (SQLite and local disk are enough). See [SELF_HOSTING.md](SELF_HOSTING.md).
+- **Two ways to run it.** Docker (PostgreSQL, SeaweedFS, Caddy with optional built-in HTTPS), see [SELF_HOSTING.md](SELF_HOSTING.md). Or directly on a Linux host (SQLite and the local disk are enough), see [BARE_METAL.md](BARE_METAL.md).
 
 A family that wants a second space runs a second deployment. The mobile app can hold several deployments by address.
 

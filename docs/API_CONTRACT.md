@@ -148,7 +148,7 @@ Response: `{ success: true, data: { kids_created: [{ local_id, id }], moments_cr
 
 ## 10. Reverse proxy
 
-The API trusts `X-Forwarded-Proto`, `X-Forwarded-Host`, `X-Forwarded-Port` and `X-Forwarded-For` from the addresses in `TRUSTED_PROXIES` (default: private networks). Signed links, invite links, the web setup page and redirects then use the public `https` address. Docker ships an optional Caddy proxy with automatic HTTPS (compose profile `proxy`); examples for other proxies are in `docs/SELF_HOSTING.md`.
+The API trusts `X-Forwarded-Proto`, `X-Forwarded-Host`, `X-Forwarded-Port` and `X-Forwarded-For` from the addresses in `TRUSTED_PROXIES` (default: private networks). Signed links, invite links, the web setup page and redirects then use the public `https` address. The Docker image has Caddy as its web server: with `KINLORE_DOMAIN` set it serves HTTPS with its own certificate, otherwise plain HTTP for your own reverse proxy. Examples are in `docs/SELF_HOSTING.md` and `docs/BARE_METAL.md`.
 
 ## 11. Health
 

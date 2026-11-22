@@ -27,6 +27,9 @@ return Application::configure(basePath: dirname(__DIR__))
             at: env('TRUSTED_PROXIES', '127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16'),
         );
 
+        // There is no login page: a request without a valid token gets 401, never a redirect
+        $middleware->redirectGuestsTo(fn () => null);
+
         // run CORS before everything else
         $middleware->prepend(HandleCors::class);
         
@@ -53,11 +56,12 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(function (Request $request, Throwable $e): bool {
-            return $request->expectsJson();
+            // API paths always answer JSON, also to a browser or curl without an Accept header
+            return $request->expectsJson() || $request->is('api/*');
         });
 
         $exceptions->renderable(function (ValidationException $e, Request $request) {
-            if (!$request->expectsJson()) {
+            if (!$request->expectsJson() && !$request->is('api/*')) {
                 return null;
             }
 
@@ -65,7 +69,7 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $exceptions->renderable(function (AuthenticationException $e, Request $request) {
-            if (!$request->expectsJson()) {
+            if (!$request->expectsJson() && !$request->is('api/*')) {
                 return null;
             }
 
@@ -73,7 +77,7 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $exceptions->renderable(function (AuthorizationException $e, Request $request) {
-            if (!$request->expectsJson()) {
+            if (!$request->expectsJson() && !$request->is('api/*')) {
                 return null;
             }
 
@@ -81,7 +85,7 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $exceptions->renderable(function (ModelNotFoundException $e, Request $request) {
-            if (!$request->expectsJson()) {
+            if (!$request->expectsJson() && !$request->is('api/*')) {
                 return null;
             }
 
@@ -89,7 +93,7 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $exceptions->renderable(function (NotFoundHttpException $e, Request $request) {
-            if (!$request->expectsJson()) {
+            if (!$request->expectsJson() && !$request->is('api/*')) {
                 return null;
             }
 
@@ -97,7 +101,7 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $exceptions->renderable(function (MethodNotAllowedHttpException $e, Request $request) {
-            if (!$request->expectsJson()) {
+            if (!$request->expectsJson() && !$request->is('api/*')) {
                 return null;
             }
 
@@ -105,7 +109,7 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $exceptions->renderable(function (HttpExceptionInterface $e, Request $request) {
-            if (!$request->expectsJson()) {
+            if (!$request->expectsJson() && !$request->is('api/*')) {
                 return null;
             }
 
@@ -115,7 +119,7 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $exceptions->renderable(function (Throwable $e, Request $request) {
-            if (!$request->expectsJson()) {
+            if (!$request->expectsJson() && !$request->is('api/*')) {
                 return null;
             }
 

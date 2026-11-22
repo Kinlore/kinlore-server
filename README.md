@@ -6,7 +6,9 @@ Kinlore is a self-hosted place for one family to keep the photos, videos, storie
 - The mobile app is in the `kinlore-mobile` repository. It works offline and syncs with this server.
 - The API is described in [`kinlore-api/openapi.yaml`](kinlore-api/openapi.yaml) and agreed with the app in [`docs/API_CONTRACT.md`](docs/API_CONTRACT.md).
 
-Start here: **[docs/SELF_HOSTING.md](docs/SELF_HOSTING.md)** explains how to run the server with Docker or on bare metal.
+Start here:
+- **[docs/SELF_HOSTING.md](docs/SELF_HOSTING.md)**: run the server with Docker, with built-in HTTPS or behind your own reverse proxy.
+- **[docs/BARE_METAL.md](docs/BARE_METAL.md)**: install the full server directly on a Linux host, without Docker.
 
 Other documents:
 - [docs/ROADMAP.md](docs/ROADMAP.md): direction, history and planned work.
@@ -16,5 +18,7 @@ Other documents:
 Run the tests:
 
 ```sh
-cd kinlore-api && composer install && php artisan test
+cd kinlore-api && composer install && php artisan test   # unit and feature tests
+scripts/smoke-test.sh <address> <admin email> <password>  # end-to-end, against a running test instance
+scripts/test-bare-metal.sh                                # the host-install guide, in a clean Debian container
 ```

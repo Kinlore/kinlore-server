@@ -88,7 +88,7 @@ The agreement between server and app is [API_CONTRACT.md](API_CONTRACT.md). Chec
 |---|---|---|
 | ✅ | First admin is created on the web setup page (`/setup`), never in the app | optional `SETUP_TOKEN` |
 | ✅ | App: server address with port, https first then http, sign-in only | invite sign-up stays in the app |
-| ✅ | Bundled Caddy reverse proxy (`--profile proxy`), trusted proxy headers | nginx and Traefik examples in SELF_HOSTING |
+| ✅ | Bundled Caddy reverse proxy, trusted proxy headers | since 2026-11-22 Caddy is the web server inside the API image (Phase 8) |
 | ✅ | Every feature tested on the iOS simulator against Docker (PostgreSQL, SeaweedFS, Caddy) | see below |
 
 Bugs found in the simulator and fixed: uploads sent a capture date 1000× too large (all videos and EXIF-less photos failed); video durations 1000× too long; comment and description fields lost focus after one character; comment field hidden under the tab bar; hidden upload bar blocked the tab bar; failed uploads were silent and could not be cleared; Settings showed no server and stale storage; due dates in the past were accepted; export dropped files whose ids shared a prefix; splash screen stayed after a reload; keyboard covered Continue; many unlabeled controls for screen readers.
@@ -123,3 +123,16 @@ A full audit of both repos compared the code with these documents. All findings 
 | ⬜ | Android build and a real-phone run | never done; iOS simulator only |
 | ⬜ | Tokens never expire; the app has no screen to list or revoke sign-ins | the API has `/auth/sessions` |
 | ⬜ | Expired invitations are never deleted | harmless: they are refused |
+
+## Phase 8: Caddy in the image, host install guide (2026-11-22)
+
+| Status | Item | Notes |
+|---|---|---|
+| ✅ | Caddy replaces nginx inside the API image | one web server for PHP and HTTPS |
+| ✅ | HTTPS is optional: `KINLORE_DOMAIN` set gives built-in HTTPS, empty gives plain HTTP for your own reverse proxy | the separate Caddy container and certbot are removed |
+| ✅ | Guide for a full install on a host without Docker | [BARE_METAL.md](BARE_METAL.md), files in `deploy/bare-metal/` (Caddy, nginx, systemd, PHP limits, settings, backup) |
+| ✅ | The guide is tested | `scripts/test-bare-metal.sh`: clean Debian 13, Caddy and nginx, 300 MB file, 55/55 end-to-end checks through each |
+| ✅ | API paths answer JSON without an `Accept` header | a browser or plain curl got a 500 page instead of 401 |
+| ✅ | Workflow runs the API tests, the Docker stack in both modes and the host-install guide | `.github/workflows/tests.yml` |
+
+Checked live on Docker in both modes: 50/50 end-to-end checks, `https` links behind a proxy, HTTP/2, the 350 MB upload and download.
