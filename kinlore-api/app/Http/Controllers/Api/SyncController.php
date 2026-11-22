@@ -24,7 +24,9 @@ class SyncController extends Controller
 
         $result = $this->syncService->pull(
             $request->user(),
-            $validated['lastPulledAt'] ?? null
+            $validated['lastPulledAt'] ?? null,
+            $validated['cursor'] ?? null,
+            $validated['limit'] ?? SyncService::PULL_PAGE_SIZE
         );
 
         return response()->json($result);

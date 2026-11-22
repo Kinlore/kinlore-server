@@ -139,16 +139,6 @@ class User extends Authenticatable
         return $this->hasMany(Moment::class, 'user_id');
     }
 
-    public function videos()
-    {
-        return $this->hasMany(Video::class);
-    }
-
-    public function customMilestones()
-    {
-        return $this->hasMany(CustomMilestone::class);
-    }
-
     public function interactions()
     {
         return $this->hasMany(MomentInteraction::class);

@@ -68,8 +68,6 @@ tags:
     description: On this day, then and now
   - name: Exports
     description: Admin only
-  - name: Media
-    description: Raw media records behind photo and video moments
   - name: Milestones
     description: Predefined milestone list (read only)
   - name: Sync
@@ -370,24 +368,6 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /v1/user:
-    get:
-      tags: [Auth]
-      operationId: currentUserRaw
-      summary: The caller as a raw database record
-      description: |
-        Any signed-in user. **No envelope.** Returns the Eloquent `User` model with its
-        columns (`can_*` booleans instead of `permissions`, no `is_admin`). Prefer `GET /auth/me`.
-      responses:
-        '200':
-          description: Raw user record
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UserRecord'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-
   /v1/members:
     get:
       tags: [Members]
@@ -422,11 +402,12 @@ paths:
     patch:
       tags: [Members]
       operationId: updateMember
-      summary: Change a member's role or permissions
+      summary: Change a member's role, permissions or password
       description: |
         Admin only. `role=admin` on another user transfers the admin role: the caller becomes
         `partner`. The admin cannot set any other role on themself (`422`). Permissions are
-        stored for any role but only limit `family` users.
+        stored for any role but only limit `family` users. A `password` replaces the member's
+        password and signs them out on all devices (the admin keeps the current session).
       requestBody:
         required: true
         content:
@@ -438,6 +419,10 @@ paths:
                   $ref: '#/components/schemas/Role'
                 permissions:
                   $ref: '#/components/schemas/PermissionsInput'
+                password:
+                  type: string
+                  minLength: 8
+                  maxLength: 255
       responses:
         '200':
           description: Member updated
@@ -844,22 +829,6 @@ paths:
       tags: [Moments]
       operationId: momentUploadedIdentifiers
       summary: Device identifiers of uploaded photos and videos (duplicate detection)
-      description: Any signed-in user.
-      parameters:
-        - $ref: '#/components/parameters/KidId'
-      responses:
-        '200':
-          $ref: '#/components/responses/UploadedIdentifiers'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
-  /v1/kids/{kid}/media/uploaded-identifiers:
-    get:
-      tags: [Media]
-      operationId: mediaUploadedIdentifiers
-      summary: Device identifiers of media records (duplicate detection)
       description: Any signed-in user.
       parameters:
         - $ref: '#/components/parameters/KidId'
@@ -1424,153 +1393,6 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /v1/media:
-    get:
-      tags: [Media]
-      operationId: listMedia
-      summary: List media records
-      description: Any signed-in user. `meta` has the pagination.
-      parameters:
-        - name: kid_id
-          in: query
-          schema:
-            type: string
-            format: uuid
-        - name: type
-          in: query
-          schema:
-            type: string
-            enum: [photo, video]
-        - name: status
-          in: query
-          schema:
-            type: string
-            enum: [uploading, processing, completed, failed]
-        - name: per_page
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 20
-      responses:
-        '200':
-          description: One page of media
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/Envelope'
-                  - required: [data, meta]
-                    properties:
-                      data:
-                        type: array
-                        items:
-                          $ref: '#/components/schemas/Media'
-                      meta:
-                        $ref: '#/components/schemas/PaginationMeta'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '422':
-          $ref: '#/components/responses/ValidationFailed'
-
-  /v1/media/{media}:
-    parameters:
-      - $ref: '#/components/parameters/MediaId'
-    get:
-      tags: [Media]
-      operationId: getMedia
-      summary: One media record
-      description: Any signed-in user.
-      responses:
-        '200':
-          description: Media
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/Envelope'
-                  - properties:
-                      data:
-                        $ref: '#/components/schemas/Media'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '404':
-          $ref: '#/components/responses/NotFound'
-    delete:
-      tags: [Media]
-      operationId: deleteMedia
-      summary: Delete a media record and its files
-      description: Same rule as kid update - role `admin` or `partner`, or the creator of the media's kid.
-      responses:
-        '200':
-          $ref: '#/components/responses/MessageOnly'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '500':
-          $ref: '#/components/responses/ServerError'
-
-  /v1/media/{media}/file/{file}:
-    get:
-      tags: [Media]
-      operationId: getMediaFile
-      summary: A media file (image proxy or signed HLS part)
-      description: |
-        Same rules as `GET /v1/moments/{moment}/file/{file}`:
-        `original` (needs permission `download`), `medium`, `thumbnail` with bearer token, or
-        an `.m3u8`/`.ts` name with a signed URL.
-      security:
-        - bearerAuth: []
-        - signedUrl: []
-      parameters:
-        - $ref: '#/components/parameters/MediaId'
-        - name: file
-          in: path
-          required: true
-          schema:
-            anyOf:
-              - type: string
-                enum: [original, medium, thumbnail]
-              - type: string
-                pattern: '^[a-zA-Z0-9_-]+\.(m3u8|ts)$'
-        - $ref: '#/components/parameters/SignedExpires'
-        - $ref: '#/components/parameters/SignedSignature'
-      responses:
-        '200':
-          $ref: '#/components/responses/BinaryFile'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
-  /v1/media/{media}/file/hls:
-    get:
-      tags: [Media]
-      operationId: getMediaHlsMaster
-      summary: HLS master playlist of a media record (signed URL)
-      description: Signed URL, no header. No API route hands out this URL today.
-      security:
-        - signedUrl: []
-      parameters:
-        - $ref: '#/components/parameters/MediaId'
-        - $ref: '#/components/parameters/SignedExpiresRequired'
-        - $ref: '#/components/parameters/SignedSignatureRequired'
-      responses:
-        '200':
-          $ref: '#/components/responses/HlsPlaylist'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
   /v1/milestones:
     get:
       tags: [Milestones]
@@ -1663,6 +1485,10 @@ paths:
         Any signed-in user. Throttle `sync` (300 per minute). **No envelope.**
         The server returns rows with `updated_at >= lastPulledAt - 1000`, so rows can come
         again: the client must upsert every row in `created` and `updated`.
+
+        Moments come in pages of at most 2000. While `has_more` is true, call again with the
+        same `lastPulledAt` and `cursor = next_cursor`. Kids and milestones come whole with
+        the first page only. After the last page, store the `timestamp` of the first page.
       requestBody:
         required: true
         content:
@@ -1735,13 +1561,6 @@ components:
         format: uuid
     MomentId:
       name: moment
-      in: path
-      required: true
-      schema:
-        type: string
-        format: uuid
-    MediaId:
-      name: media
       in: path
       required: true
       schema:
@@ -2039,33 +1858,6 @@ components:
             storage_bytes_available:
               type: integer
               description: Free disk space on the API server.
-
-    UserRecord:
-      type: object
-      description: Raw `User` model of `GET /v1/user` (no envelope).
-      properties:
-        id:
-          type: integer
-        name:
-          type: string
-        email:
-          type: string
-        email_verified_at:
-          type: [string, 'null']
-        role:
-          $ref: '#/components/schemas/Role'
-        can_add_content:
-          type: boolean
-        can_comment:
-          type: boolean
-        can_like:
-          type: boolean
-        can_download:
-          type: boolean
-        created_at:
-          type: string
-        updated_at:
-          type: string
 
     AuthResult:
       type: object
@@ -3087,13 +2879,29 @@ components:
           type: integer
           description: The app's local schema version (currently 2). Any integer is accepted.
         migration:
-          description: WatermelonDB migration info. Ignored.
+          description: Old migration info. Ignored.
+        cursor:
+          type: [string, 'null']
+          format: uuid
+          description: "`next_cursor` of the previous page; null or absent for the first page."
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 2000
+          default: 2000
+          description: Most moments in this page.
 
     SyncPullResponse:
       type: object
       description: No envelope.
-      required: [changes, timestamp]
+      required: [changes, timestamp, has_more, next_cursor]
       properties:
+        has_more:
+          type: boolean
+          description: True when more moments follow; pull again with `next_cursor`.
+        next_cursor:
+          type: [string, 'null']
+          format: uuid
         changes:
           type: object
           required: [kids, moments, milestones]

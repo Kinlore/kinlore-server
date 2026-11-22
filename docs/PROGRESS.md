@@ -1,28 +1,28 @@
 # Progress Tracker
 
-Last updated: 2026-11-21 (branch `develop`). Item IDs and details are in [ROADMAP.md](ROADMAP.md).
+Last updated: 2026-11-22 (branch `develop`). Item IDs and details are in [ROADMAP.md](ROADMAP.md).
 
 Status: ✅ done · 🔄 in review · ⬜ open · ❓ needs a decision (see [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md))
 
-## Phase 1: single instance (PR #1)
+## Phase 1: single instance (PR #1, merged to `main` on 2026-11-21)
 
 | Status | Item | Notes |
 |---|---|---|
 | ✅ | Find when the server became multi-tenant | `a151002`, 2025-12-29. History is in ROADMAP §2. |
 | ✅ | Look for an existing roadmap or design docs | None in `kinlore-server` or `kinlore-mobile`. |
-| 🔄 | Revert the multi-tenant commits | Commit `e905435`. Security parts of `37946a0` kept. |
-| 🔄 | First user becomes admin, invite-only sign-up | Commit `b9871a1`. |
-| 🔄 | Admin-only invitation endpoints | `GET/POST /v1/invitations`, `DELETE /v1/invitations/{id}` |
-| 🔄 | Shared family reads, admin or creator writes | Kid and moment policies, list queries, sync pull. |
-| 🔄 | S1: update and destroy requests check `update`, not `view` | |
-| 🔄 | S2: sync push cannot take over another user's kid | |
-| 🔄 | B1: sync push keeps the kid ID the app sends | |
-| 🔄 | B3: restore `/auth/me` fields in `openapi.yaml` | |
-| 🔄 | Seeded user becomes admin on an empty instance | `UserSeeder` |
-| 🔄 | Tests for the new rules | `tests/Feature/InstanceAccessTest.php`, 6 tests passing |
-| ⬜ | Merge PR #1 | |
-| ⬜ | Run the migrations on every deployment | Drops the server tables and `kids.server_id`. |
-| ❓ | Keep or drop the stash "multi-server WIP before revert (2026-11-21)" | Q1 |
+| ✅ | Revert the multi-tenant commits | Commit `e905435`. Security parts of `37946a0` kept. |
+| ✅ | First user becomes admin, invite-only sign-up | Commit `b9871a1`. |
+| ✅ | Admin-only invitation endpoints | `GET/POST /v1/invitations`, `DELETE /v1/invitations/{id}` |
+| ✅ | Shared family reads, admin or creator writes | Kid and moment policies, list queries, sync pull. |
+| ✅ | S1: update and destroy requests check `update`, not `view` | |
+| ✅ | S2: sync push cannot take over another user's kid | |
+| ✅ | B1: sync push keeps the kid ID the app sends | |
+| ✅ | B3: restore `/auth/me` fields in `openapi.yaml` | |
+| ✅ | Seeded user becomes admin on an empty instance | `UserSeeder` |
+| ✅ | Tests for the new rules | `tests/Feature/InstanceAccessTest.php`, 6 tests passing |
+| ✅ | Merge PR #1 | |
+| ⬜ | Run the migrations on every deployment | Drops the server tables and `kids.server_id`. Docker does this at each start. |
+| ✅ | Keep or drop the stash "multi-server WIP before revert (2026-11-21)" | Q1: dropped on 2026-11-22 |
 
 ## Phase 2: test suite
 
@@ -35,7 +35,7 @@ Status: ✅ done · 🔄 in review · ⬜ open · ❓ needs a decision (see [OPE
 | ✅ | B2 + T5: kid age is returned as a decimal | Whole numbers. |
 | ✅ | T6: update old tests to the shared-family rules | |
 
-Current numbers on `develop`: 148 passing, 0 failing.
+Current numbers on `develop`: 166 passing, 0 failing (2026-11-22).
 
 ## Phase 3: mobile app
 
@@ -60,7 +60,7 @@ Current numbers on `develop`: 148 passing, 0 failing.
 
 ## Phase 5: contract v2 and Backthen features (branch `develop`)
 
-The agreement between server and app is [API_CONTRACT.md](API_CONTRACT.md). Checked by `php artisan test` (148 tests), the mobile type check, and `scripts/smoke-test.sh` (53/53 on Docker with PostgreSQL, 48/48 on bare metal with SQLite and local disk).
+The agreement between server and app is [API_CONTRACT.md](API_CONTRACT.md). Checked by `php artisan test`, the mobile `npm test`, and `scripts/smoke-test.sh` (53/53 on Docker with PostgreSQL, 48/48 on bare metal with SQLite and local disk).
 
 | Status | Item | Notes |
 |---|---|---|
@@ -79,7 +79,7 @@ The agreement between server and app is [API_CONTRACT.md](API_CONTRACT.md). Chec
 | ⬜ | Web app for desktop upload and viewing | |
 | ⬜ | Look-back uses UTC month and day; 29 February is skipped | minor |
 | ⬜ | Old WatermelonDB app data is not migrated | unsynced local items and the old upload queue are lost on upgrade; a full pull restores server data |
-| ⬜ | Unrouted old controllers (Photo, Story, UserMilestone, Video) and in-request video processing in `MediaService::upload` | dead code, remove |
+| ✅ | Unrouted old controllers (Photo, Story, UserMilestone, Video) and the unused `/v1/media` path | removed on 2026-11-22, about 4,300 lines; no table dropped |
 | ⬜ | Storage URLs in moment payloads point at the internal SeaweedFS host | unused by the app |
 
 ## Phase 6: web setup, reverse proxy, simulator test (2026-11-21)
@@ -91,7 +91,7 @@ The agreement between server and app is [API_CONTRACT.md](API_CONTRACT.md). Chec
 | ✅ | Bundled Caddy reverse proxy (`--profile proxy`), trusted proxy headers | nginx and Traefik examples in SELF_HOSTING |
 | ✅ | Every feature tested on the iOS simulator against Docker (PostgreSQL, SeaweedFS, Caddy) | see below |
 
-Bugs found in the simulator and fixed: uploads sent a capture date 1000× too large (all videos and EXIF-less photos failed); video durations 1000× too long; comment and description fields lost focus after one character; comment field hidden under the tab bar; hidden upload bar blocked the tab bar; failed uploads were silent and could not be cleared; Settings showed no server and stale storage; due dates in the past were accepted; export dropped files whose ids shared a prefix; splash screen stayed after a reload; keyboard covered Continue; many unlabeled controls for screen readers. Factory Reset is now admin-only.
+Bugs found in the simulator and fixed: uploads sent a capture date 1000× too large (all videos and EXIF-less photos failed); video durations 1000× too long; comment and description fields lost focus after one character; comment field hidden under the tab bar; hidden upload bar blocked the tab bar; failed uploads were silent and could not be cleared; Settings showed no server and stale storage; due dates in the past were accepted; export dropped files whose ids shared a prefix; splash screen stayed after a reload; keyboard covered Continue; many unlabeled controls for screen readers.
 
 Open:
 | Status | Item | Notes |
@@ -102,3 +102,24 @@ Open:
 | ⬜ | Comment field not visible to XCTest (deep view tree); check with VoiceOver on a device | |
 | ✅ | Milestone cards do not announce the selected state | fixed |
 | ✅ | Read-only description looks like an input box | fixed |
+
+## Phase 7: audit fixes (2026-11-22)
+
+A full audit of both repos compared the code with these documents. All findings are fixed. Checked live on Docker and the iOS simulator: a 350 MB video uploads, processes and downloads complete; the export downloads complete; sync runs in two pages with 2,100 memories; password reset works by command and in the app.
+
+| Status | Item | Notes |
+|---|---|---|
+| ✅ | Large videos failed: upload, video job and original download read the whole file into memory | now streams; PHP keeps its 256 MB limit |
+| ✅ | Docker: downloads over about 2 MB could be cut short (nginx could not write its temp files) | found while testing the fix above with a 350 MB video; nginx now sends straight to the client |
+| ✅ | The app had no remote copy | private GitHub repo `kinlore-mobile` |
+| ✅ | Android blocked plain `http://` servers in release builds | cleartext traffic allowed, like the iOS local-network rule |
+| ✅ | No way to recover a forgotten password | `php artisan kinlore:reset-password <email>`; the admin sets a member's password in the app |
+| ✅ | First sync loaded the whole library in one response | pages of 2000 memories (API_CONTRACT §9) |
+| ✅ | A second queue worker could restart a running job | `retry_after` is now longer than the longest job |
+| ✅ | Dead code on the server and in the app | removed; `minio:test` and `GET /v1/user` too |
+| ✅ | Nothing ran the tests by itself | GitHub workflow in both repos; `npm test` in the app; a test keeps `openapi.yaml` equal to the routes |
+| ✅ | Stale documents (ROADMAP, this file, OPEN_QUESTIONS), wrong comments, no app README | corrected |
+| ✅ | SeaweedFS image was `latest` | pinned to 4.54 |
+| ⬜ | Android build and a real-phone run | never done; iOS simulator only |
+| ⬜ | Tokens never expire; the app has no screen to list or revoke sign-ins | the API has `/auth/sessions` |
+| ⬜ | Expired invitations are never deleted | harmless: they are refused |

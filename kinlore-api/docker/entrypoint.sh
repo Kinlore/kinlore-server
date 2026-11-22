@@ -13,33 +13,26 @@ echo "✅ Database is ready!"
 
 # Run migrations
 echo "🔄 Running database migrations..."
-php artisan migrate --force
-
-# Check if migrations succeeded
-if [ $? -eq 0 ]; then
-  echo "✅ Migrations completed successfully!"
-else
-  echo "❌ Migrations failed!"
-  exit 1
-fi
+php artisan migrate --force   # set -e stops the start when this fails
+echo "✅ Migrations completed successfully!"
 
 # Run seeders (UserSeeder is idempotent - skips if user exists)
 echo "🌱 Running database seeders..."
 php artisan db:seed --force
 echo "✅ Seeders completed!"
 
-# Create MinIO bucket if it doesn't exist (optional)
-echo "🪣 Checking MinIO bucket..."
+# Create the storage bucket if it doesn't exist (optional)
+echo "🪣 Checking storage bucket..."
 php artisan tinker --execute="
 try {
     if (!Storage::disk('seaweedfs')->exists('.kinlore-initialized')) {
         Storage::disk('seaweedfs')->put('.kinlore-initialized', 'Bucket initialized at ' . now());
-        echo 'MinIO bucket initialized\n';
+        echo 'Storage bucket initialized\n';
     } else {
-        echo 'MinIO bucket already exists\n';
+        echo 'Storage bucket already exists\n';
     }
 } catch (Exception \$e) {
-    echo 'MinIO check skipped: ' . \$e->getMessage() . '\n';
+    echo 'Storage check skipped: ' . \$e->getMessage() . '\n';
 }
 "
 

@@ -43,7 +43,7 @@ class MomentService
      * @param Kid $kid
      * @param array $data Request data
      * @param UploadedFile|null $file Uploaded file for photo/video
-     * @return array{moment: Moment, media?: Media, story?: Story, milestone?: UserMilestone}
+     * @return array{moment: Moment, media?: Media}
      */
     public function create(User $user, Kid $kid, array $data, ?UploadedFile $file = null): array
     {
@@ -275,13 +275,19 @@ class MomentService
                 mkdir($tempDir, 0755, true);
             }
             
-            $tempInputFile = $tempDir . '/input_' . basename($storagePath);
-            $fileContents = Storage::disk('seaweedfs')->get($storagePath);
-            file_put_contents($tempInputFile, $fileContents);
-
-            // Copy temp file to Laravel's local storage for FFMpeg processing
+            // Copy the video to Laravel's local storage for FFMpeg, as a stream: it can be larger than PHP memory
             $localStoragePath = 'tmp/video_' . $media->id . '/' . basename($storagePath);
-            Storage::disk('local')->put($localStoragePath, file_get_contents($tempInputFile));
+            $source = Storage::disk('seaweedfs')->readStream($storagePath);
+            if (!$source) {
+                throw new \RuntimeException("Video file not found in storage: {$storagePath}");
+            }
+            try {
+                Storage::disk('local')->writeStream($localStoragePath, $source);
+            } finally {
+                if (is_resource($source)) {
+                    fclose($source);
+                }
+            }
 
             // Extract video duration using FFMpeg from local storage
             $ffmpeg = FFMpeg::fromDisk('local')->open($localStoragePath);
@@ -614,8 +620,14 @@ class MomentService
             $filename = basename($file);
             $storagePath = "{$basePath}/hls/{$filename}";
             
-            $content = Storage::disk('local')->get($file);
-            Storage::disk('seaweedfs')->put($storagePath, $content);
+            $segment = Storage::disk('local')->readStream($file);
+            try {
+                Storage::disk('seaweedfs')->put($storagePath, $segment);
+            } finally {
+                if (is_resource($segment)) {
+                    fclose($segment);
+                }
+            }
             
             Log::debug('MomentService: Uploaded HLS file', [
                 'local' => $file,
@@ -810,8 +822,18 @@ class MomentService
             throw new \RuntimeException('File not found');
         }
 
-        $content = $this->storage->get($path);
         $size = $this->storage->size($path);
+
+        // An original can be a video larger than PHP memory, so it goes out as a stream
+        if ($type === 'original') {
+            return [
+                'stream' => $this->storage->disk()->readStream($path),
+                'size' => $size,
+                'mime_type' => $moment->mime_type ?? 'application/octet-stream',
+            ];
+        }
+
+        $content = $this->storage->get($path);
 
         // Determine MIME type based on file type
         if ($type === 'thumbnail' || $type === 'medium') {

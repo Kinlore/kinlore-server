@@ -15,6 +15,9 @@ use Illuminate\Support\Facades\Log;
  */
 class SyncService
 {
+    /** Most moments in one pull response (docs/API_CONTRACT.md section 9). */
+    public const PULL_PAGE_SIZE = 2000;
+
     private const PUSH_MOMENT_TYPES = ['story', 'milestone', 'growth'];
 
     public function __construct(
@@ -26,20 +29,26 @@ class SyncService
      *
      * @return array{changes: array, timestamp: int}
      */
-    public function pull(User $user, ?int $lastPulledAt): array
+    public function pull(User $user, ?int $lastPulledAt, ?string $cursor = null, int $limit = self::PULL_PAGE_SIZE): array
     {
         $timestamp = now()->getTimestampMs();
 
         // Database times have second precision, so look one second back; the client upserts.
         $since = $lastPulledAt ? Carbon::createFromTimestampMs($lastPulledAt - 1000) : null;
 
+        $none = ['created' => [], 'updated' => [], 'deleted' => []];
+        [$moments, $nextCursor] = $this->getMomentsChanges($user, $since, $cursor, $limit);
+
         return [
             'changes' => [
-                'kids' => $this->getKidsChanges($since),
-                'moments' => $this->getMomentsChanges($user, $since),
-                'milestones' => $this->getMilestonesChanges($since),
+                // Kids and milestones are few: they come whole with the first page only.
+                'kids' => $cursor === null ? $this->getKidsChanges($since) : $none,
+                'moments' => $moments,
+                'milestones' => $cursor === null ? $this->getMilestonesChanges($since) : $none,
             ],
             'timestamp' => $timestamp,
+            'has_more' => $nextCursor !== null,
+            'next_cursor' => $nextCursor,
         ];
     }
 
@@ -70,17 +79,28 @@ class SyncService
     }
 
     /**
-     * Get moments changes since last sync. Moments of a deleted kid count as deleted.
+     * One page of moments changes since last sync, and the cursor of the next page (null on the last).
+     * Moments of a deleted kid count as deleted.
      */
-    private function getMomentsChanges(User $user, ?Carbon $since): array
+    private function getMomentsChanges(User $user, ?Carbon $since, ?string $cursor, int $limit): array
     {
+        // Pages go in id order: the filter is the same on every page, so no row is skipped.
         $moments = Moment::withTrashed()
             ->forPayload($user)
             ->with(['kid' => fn ($q) => $q->withTrashed()->select('id', 'deleted_at')])
             ->when($since, fn ($q) => $q->where(fn ($q) => $q
                 ->where('moments.updated_at', '>=', $since)
                 ->orWhereIn('kid_id', Kid::onlyTrashed()->where('deleted_at', '>=', $since)->select('id'))))
+            ->when($cursor, fn ($q) => $q->where('moments.id', '>', $cursor))
+            ->orderBy('moments.id')
+            ->limit($limit + 1)
             ->get();
+
+        $nextCursor = null;
+        if ($moments->count() > $limit) {
+            $moments = $moments->take($limit);
+            $nextCursor = $moments->last()->id;
+        }
 
         $created = [];
         $updated = [];
@@ -96,7 +116,7 @@ class SyncService
             }
         }
 
-        return compact('created', 'updated', 'deleted');
+        return [compact('created', 'updated', 'deleted'), $nextCursor];
     }
 
     /**

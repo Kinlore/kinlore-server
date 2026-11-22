@@ -2,7 +2,7 @@
 
 Kinlore is a self-hosted place for one family to keep the photos, videos, stories, milestones and growth records of their children. It is an alternative to hosted services such as Backthen: your memories stay on your own server, with no storage limits, subscriptions or print shop.
 
-- One deployment holds one family. The first user is the admin. Everyone else joins with an invitation.
+- One deployment holds one family. The owner creates the admin account in a web browser at `/setup`. Everyone else joins with an invitation.
 - The mobile app is in the `kinlore-mobile` repository. It works offline and syncs with this server.
 - The API is described in [`kinlore-api/openapi.yaml`](kinlore-api/openapi.yaml) and agreed with the app in [`docs/API_CONTRACT.md`](docs/API_CONTRACT.md).
 

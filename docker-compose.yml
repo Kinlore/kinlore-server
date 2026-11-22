@@ -29,7 +29,7 @@ services:
 
   # SeaweedFS Object Storage (S3-Compatible)
   seaweedfs-master:
-    image: chrislusf/seaweedfs:latest
+    image: chrislusf/seaweedfs:4.54 # pinned: this holds all media; read the SeaweedFS release notes before you raise it
     container_name: kinlore-seaweedfs-master
     restart: unless-stopped
     command: master -ip=seaweedfs-master -ip.bind=0.0.0.0 -metricsPort=9324
@@ -39,7 +39,7 @@ services:
       - kinlore-network
 
   seaweedfs-volume:
-    image: chrislusf/seaweedfs:latest
+    image: chrislusf/seaweedfs:4.54 # pinned: this holds all media; read the SeaweedFS release notes before you raise it
     container_name: kinlore-seaweedfs-volume
     restart: unless-stopped
     command: volume -mserver="seaweedfs-master:9333" -ip.bind=0.0.0.0 -port=8080 -metricsPort=9325
@@ -51,7 +51,7 @@ services:
       - kinlore-network
 
   seaweedfs-filer:
-    image: chrislusf/seaweedfs:latest
+    image: chrislusf/seaweedfs:4.54 # pinned: this holds all media; read the SeaweedFS release notes before you raise it
     container_name: kinlore-seaweedfs-filer
     restart: unless-stopped
     command: filer -master="seaweedfs-master:9333" -ip.bind=0.0.0.0 -s3 -s3.config=/etc/seaweedfs/s3.json -s3.port=8333
@@ -73,7 +73,7 @@ services:
     networks:
       - kinlore-network
 
-  # Laravel API (Apache + mod_php)
+  # Laravel API (nginx + PHP-FPM + queue worker)
   api:
     build:
       context: ./kinlore-api

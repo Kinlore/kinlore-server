@@ -52,15 +52,6 @@ class Milestone extends Model
     ];
 
     /**
-     * Relationships
-     */
-    
-    public function userMilestones()
-    {
-        return $this->hasMany(UserMilestone::class, 'milestone_id');
-    }
-
-    /**
      * Scopes
      */
     

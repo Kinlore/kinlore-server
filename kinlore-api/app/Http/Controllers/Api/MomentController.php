@@ -150,12 +150,20 @@ class MomentController extends Controller
     {
         try {
             $file = $this->momentService->serveFile($moment, $type);
-
-            return response($file['content'], 200, [
+            $headers = [
                 'Content-Type' => $file['mime_type'],
                 'Content-Length' => $file['size'],
                 'Cache-Control' => 'private, max-age=3600',
-            ]);
+            ];
+
+            if (isset($file['stream'])) {
+                return response()->stream(function () use ($file) {
+                    fpassthru($file['stream']);
+                    fclose($file['stream']);
+                }, 200, $headers);
+            }
+
+            return response($file['content'], 200, $headers);
         } catch (\InvalidArgumentException $e) {
             return ApiResponse::error($e->getMessage(), 400);
         } catch (\RuntimeException $e) {

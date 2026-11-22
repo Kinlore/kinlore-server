@@ -1,6 +1,6 @@
 # Kinlore API Contract (v2, 2026-11-21)
 
-This file is the agreement between `kinlore-api` and `kinlore-mobile`. When the code and this file disagree, fix the code, or change this file on purpose in both repos. `openapi.yaml` is generated from this file and the code.
+This file is the agreement between `kinlore-api` and `kinlore-mobile`. When the code and this file disagree, fix the code, or change this file on purpose in both repos. `openapi.yaml` is written by hand from this file and the code; a check compares its paths with the server's routes.
 
 Conventions:
 - Base path `/api`. Authenticated routes use `Authorization: Bearer <token>` (Sanctum).
@@ -74,7 +74,8 @@ API:
 ## 4. Members (admin only)
 
 - `GET /v1/members`: `[{ id, name, email, role, is_admin, permissions, created_at, moments_count }]`.
-- `PATCH /v1/members/{user}`: `{ role?: admin|partner|family, permissions?: {...} }`.
+- `PATCH /v1/members/{user}`: `{ role?: admin|partner|family, permissions?: {...}, password?: string (min 8) }`.
+  - `password` sets a new password for a member who forgot theirs and deletes all their tokens (signed out everywhere). When the admin sets their own, the current session stays. The server owner can do the same with `php artisan kinlore:reset-password <email>`.
   - Setting `role=admin` on another user transfers the admin role: the caller becomes `partner`.
   - The admin cannot change their own role in any other way. Returns the member item.
 - `DELETE /v1/members/{user}`: removes the user. The admin cannot remove themself. The user's tokens are revoked. Kids they created are reassigned to the admin (no data is lost). Their moments stay, with `user_id = null`. Their likes and comments are deleted.
@@ -127,9 +128,10 @@ Moment payload (REST and the inside of `data.moment`):
 
 ## 9. Sync
 
-`POST /v1/sync/pull` request: `{ lastPulledAt: number|null, schemaVersion: 2, migration: null }`.
+`POST /v1/sync/pull` request: `{ lastPulledAt: number|null, schemaVersion: 2, migration: null, cursor?: string|null, limit?: 1..2000 }`.
 
-Response: `{ changes: { kids: {created, updated, deleted}, moments: {created, updated, deleted}, milestones: {created, updated, deleted} }, timestamp: number }`.
+Response: `{ changes: { kids: {created, updated, deleted}, moments: {created, updated, deleted}, milestones: {created, updated, deleted} }, timestamp: number, has_more: bool, next_cursor: string|null }`.
+- **Paging:** one response holds at most 2000 moments (`limit`), in id order. While `has_more` is true, the client pulls again with the same `lastPulledAt` and `cursor = next_cursor`. Kids and milestones come whole with the first page (no cursor); later pages have them empty. The client applies each page, and after the last page stores the `timestamp` of the **first** page. When a page fails, it stores nothing and starts again at the next sync.
 - `timestamp` is the server time in milliseconds at the start of the pull.
 - The server returns rows with `updated_at >= lastPulledAt - 1000` (database times have second precision). The client must therefore **upsert** every row in `created` and `updated` (insert when missing, otherwise update all fields). Rows may come again.
 - `deleted`: ids of kids and moments soft-deleted since `lastPulledAt - 1000`, including the moments of deleted kids.

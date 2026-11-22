@@ -1,0 +1,22 @@
+name: Tests
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: kinlore-api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_sqlite, gd, exif, zip, intl, mbstring, bcmath
+      - run: composer install --no-interaction --prefer-dist
+      - run: cp .env.example .env && php artisan key:generate
+      # Includes OpenApiRoutesTest: openapi.yaml must list exactly the routes the server has
+      - run: php artisan test

@@ -35,7 +35,7 @@ class MemberController extends Controller
     }
 
     /**
-     * Change a member's role or permissions. `role=admin` on another user transfers the admin role.
+     * Change a member's role, permissions or password. `role=admin` on another user transfers the admin role.
      */
     public function update(UpdateMemberRequest $request, User $user): JsonResponse
     {
@@ -58,6 +58,13 @@ class MemberController extends Controller
 
             foreach ($validated['permissions'] ?? [] as $permission => $value) {
                 $user->setAttribute("can_{$permission}", $value);
+            }
+
+            // A new password signs the member out everywhere; the admin keeps the session that made the change.
+            if (!empty($validated['password'])) {
+                $user->password = $validated['password'];
+                $keep = $user->is($admin) ? $admin->currentAccessToken()?->id : null;
+                $user->tokens()->when($keep, fn ($q) => $q->where('id', '!=', $keep))->delete();
             }
 
             $user->save();

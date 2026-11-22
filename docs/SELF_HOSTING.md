@@ -151,6 +151,7 @@ Run any of the proxies above in front of PHP-FPM or `php artisan serve`, with th
    Restart=always
    User=www-data
    ```
+   One worker is enough. If you run more, keep `DB_QUEUE_RETRY_AFTER` (default 3700 seconds) longer than the longest job.
    With `QUEUE_CONNECTION=sync` no worker is needed, but uploads of long videos then wait for the conversion.
 
 For a quick local test without a web server: `php artisan serve --host 0.0.0.0 --port 8000`, and run `php artisan queue:work` in a second terminal. Put the settings in `.env`: `artisan serve` does not pass most shell environment variables on to its workers.
@@ -169,9 +170,18 @@ Optional:
 - **Setup token.** Set `SETUP_TOKEN` to a long random value. The setup page then asks for it, so a stranger cannot take an instance that is online before you finish setup. Recommended when the server is reachable from the internet during setup.
 - **Seeded admin.** Set `SEED_USER_NAME`, `SEED_USER_EMAIL` and `SEED_USER_PASSWORD` before the first start, for automated installs. The web setup is then skipped. Docker runs the seeder at every start; it creates the user only once.
 
+## Forgotten password
+
+- **A member forgot it:** the admin opens Settings → Members → the member → "Set new password" in the app. The member is signed out on all devices and signs in with the new password.
+- **The admin forgot it**, or you prefer the server: run the command below. It asks for the new password and signs that user out everywhere.
+  ```sh
+  docker compose exec api php artisan kinlore:reset-password ann@example.com   # Docker
+  php artisan kinlore:reset-password ann@example.com                           # bare metal, in kinlore-api
+  ```
+
 ## Connect the app
 
-In the app, enter the server address (`APP_URL`), then the admin's email and password. The address may include a port, for example `192.168.1.20:8088` or `photos.example.com:8443`. Without `http://` or `https://`, the app tries HTTPS first and then HTTP. Set `APP_URL` with the same port, because invite and video links are built from it. If the server is not set up yet, the app says so and offers to open the setup page in the browser. The admin invites the family from Settings → Members. The app shares a link such as `https://photos.example.com/invite/<token>`. The page opens the app with the server address and the invitation already filled in.
+In the app, enter the server address (`APP_URL`), then the admin's email and password. The address may include a port, for example `192.168.1.20:8088` or `photos.example.com:8443`. Without `http://` or `https://`, the app tries HTTPS first and then HTTP. Plain HTTP is for the home network: iPhones allow it only for local addresses, Android allows it for any address. Use HTTPS for a server on the internet. Set `APP_URL` with the same port, because invite and video links are built from it. If the server is not set up yet, the app says so and offers to open the setup page in the browser. The admin invites the family from Settings → Members. The app shares a link such as `https://photos.example.com/invite/<token>`. The page opens the app with the server address and the invitation already filled in.
 
 ## Backups
 

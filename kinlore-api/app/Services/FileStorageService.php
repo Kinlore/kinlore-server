@@ -32,11 +32,15 @@ class FileStorageService
      */
     public function storeFile(string $path, $file, string $visibility = 'private'): bool
     {
-        return Storage::disk($this->disk)->put(
-            $path,
-            file_get_contents($file->getRealPath()),
-            $visibility
-        );
+        // A stream keeps a large video out of PHP memory
+        $stream = fopen($file->getRealPath(), 'r');
+        try {
+            return Storage::disk($this->disk)->put($path, $stream, $visibility);
+        } finally {
+            if (is_resource($stream)) {
+                fclose($stream);
+            }
+        }
     }
 
     /**

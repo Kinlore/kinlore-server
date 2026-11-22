@@ -26,6 +26,7 @@ class UpdateMemberRequest extends FormRequest
             'permissions.comment' => 'boolean',
             'permissions.like' => 'boolean',
             'permissions.download' => 'boolean',
+            'password' => 'nullable|string|min:8|max:255',
         ];
     }
 }

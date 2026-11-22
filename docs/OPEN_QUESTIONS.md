@@ -1,6 +1,6 @@
 # Open Questions
 
-Last updated: 2026-11-21. These items need a decision from the project owner. Write the answer under each question. Then move the item to "Decided" and update [PROGRESS.md](PROGRESS.md).
+Last updated: 2026-11-22. Every question below is answered; nothing waits for a decision. These items need a decision from the project owner. Write the answer under each question. Then move the item to "Decided" and update [PROGRESS.md](PROGRESS.md).
 
 IDs match [ROADMAP.md](ROADMAP.md).
 
@@ -21,13 +21,13 @@ All of it depends on the server tables that PR #1 removes.
 
 **Recommendation:** B. It keeps the work without cluttering `main`.
 
-**Answer:**
+**Answer:** A, decided 2026-11-22. The stash is dropped.
 
 ## Q2 (S4). Should HLS video streaming stay open without a login?
 
-**Context:** these routes have no authentication:
+**Context (as it was on 2026-11-21):** these routes had no authentication:
 - `/v1/moments/{id}/file/hls` and `/v1/moments/{id}/file/{name}.m3u8|.ts`
-- `/v1/media/{id}/file/hls` and `/v1/media/{id}/file/{name}.m3u8|.ts`
+- the same two under `/v1/media/{id}` (that path was removed on 2026-11-22)
 
 The comment in `routes/api.php` gives the reason: phone video players cannot send login headers with HLS requests. Anyone who has a moment or media UUID can stream that video. UUIDs are hard to guess, but they can leak, for example from logs or shared links.
 
@@ -64,7 +64,7 @@ The comment in `routes/api.php` gives the reason: phone video players cannot sen
 
 **Recommendation:** C if you always deploy with a seeded user, because it removes the race and adds no new code path. Otherwise B.
 
-**Answer:** B plus a lock, decided 2026-11-21. Optional `SETUP_TOKEN`; the first registration is serialized by a lock. A seeded admin still works.
+**Answer:** B plus a lock, decided 2026-11-21, then moved to the web on the same day: the first admin is created only on the web page `/setup` (optional `SETUP_TOKEN`, one setup at a time under a lock). `POST /auth/register` is invite-only. A seeded admin still works.
 
 ## Q5. Who can delete a moment?
 
@@ -88,9 +88,11 @@ The comment in `routes/api.php` gives the reason: phone video players cannot sen
 
 **Recommendation:** A. Tests then run anywhere, with no extra services.
 
-**Answer:**
+**Answer:** No longer needed. The Redis throttle was removed, so tests and bare-metal installs need no Redis.
 
 ## Decided
 
 - Q2, Q3, Q4, Q5: answered on 2026-11-21 (see each answer above). Built on branch `develop`.
-- Q1 (multi-server stash) and Q6 are still open. Q6 is moot now: the Redis throttle was removed, so tests and bare-metal installs need no Redis.
+- Q1: answered on 2026-11-22 (stash dropped). Q6: closed, the Redis throttle is gone.
+- Factory Reset in the app: decided 2026-11-22, it became "Reset this phone" and deletes nothing on the server.
+- Audit decisions of 2026-11-22: Android allows plain HTTP; the unused `/v1/media` path is removed; password reset by server command and by the admin in the app; sync pull is paged.

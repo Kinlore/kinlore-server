@@ -132,11 +132,6 @@ class Moment extends Model
         return $this->likes()->where('user_id', $user->id)->exists();
     }
 
-    public function video()
-    {
-        return $this->belongsTo(Video::class);
-    }
-
     public function media()
     {
         return $this->belongsTo(Media::class);
@@ -145,11 +140,6 @@ class Moment extends Model
     public function milestone()
     {
         return $this->belongsTo(Milestone::class);
-    }
-
-    public function customMilestone()
-    {
-        return $this->belongsTo(CustomMilestone::class);
     }
 
     /**
@@ -404,18 +394,9 @@ class Moment extends Model
             'updated_at' => $this->updated_at->toIso8601String(),
         ];
 
-        // Include video details if loaded and exists
-        if ($this->relationLoaded('video') && $this->video) {
-            $data['video'] = $this->video->toStatusArray();
-        }
-
         // Include milestone details if loaded
         if ($this->relationLoaded('milestone') && $this->milestone) {
             $data['milestone'] = $this->milestone->toArray();
-        }
-
-        if ($this->relationLoaded('customMilestone') && $this->customMilestone) {
-            $data['custom_milestone'] = $this->customMilestone->toArray();
         }
 
         return $data;
