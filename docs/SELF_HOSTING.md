@@ -6,7 +6,7 @@ You can run the Kinlore API in Docker (recommended) or directly on a server ("ba
 
 | Part | Docker | Bare metal |
 |---|---|---|
-| PHP 8.2+ with `pdo_pgsql` or `pdo_sqlite`, `gd`, `exif`, `zip`, `intl`, `mbstring`, `bcmath` | in the image | install it |
+| PHP 8.4+ with `pdo_pgsql` or `pdo_sqlite`, `gd`, `exif`, `zip`, `intl`, `mbstring`, `bcmath` | in the image | install it |
 | FFmpeg (video to HLS) | in the image | install it, set `FFMPEG_BINARIES` and `FFPROBE_BINARIES` |
 | Database | PostgreSQL 18 container | PostgreSQL, or SQLite for a small family |
 | Media storage | SeaweedFS containers (S3 API) | local disk (`SEAWEEDFS_DRIVER=local`), or any S3 service |
