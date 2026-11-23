@@ -89,8 +89,9 @@ class WebSetupTest extends TestCase
     public function test_validation_errors_are_shown_on_the_form(): void
     {
         $this->from('/setup')->post('/setup', ['email' => 'not-an-email', 'password' => 'short', 'password_confirmation' => 'other'] + self::FORM)
-            ->assertRedirect('/setup')
-            ->assertSessionHasErrors(['email', 'password']);
+            ->assertRedirect('/setup');
+        // No assertSessionHasErrors() here: with JSON sessions that helper loads the error bag as an
+        // object, and the next test request then loses it. The page below proves the errors instead.
         $this->assertDatabaseCount('users', 0);
 
         // The redirected form shows the messages and keeps the email, never the password.

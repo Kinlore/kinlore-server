@@ -16,6 +16,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
+use Intervention\Image\Encoders\JpegEncoder;
 use Intervention\Image\Laravel\Facades\Image;
 use ProtoneMedia\LaravelFFMpeg\Support\FFMpeg;
 
@@ -206,18 +207,18 @@ class MomentService
             $mediumPath = "{$basePath}/medium.jpg";
 
             // Generate medium (1200px width)
-            $mediumImage = Image::read($file->getRealPath())
+            $mediumImage = Image::decodePath($file->getRealPath())
                 ->orient()
                 ->scaleDown(width: 1200)
-                ->toJpeg(quality: 85);
+                ->encode(new JpegEncoder(quality: 85));
 
             $this->storage->store($mediumPath, (string) $mediumImage);
 
             // Generate thumbnail (300x300 cover)
-            $thumbnailImage = Image::read($file->getRealPath())
+            $thumbnailImage = Image::decodePath($file->getRealPath())
                 ->orient()
                 ->cover(300, 300)
-                ->toJpeg(quality: 80);
+                ->encode(new JpegEncoder(quality: 80));
 
             $this->storage->store($thumbnailPath, (string) $thumbnailImage);
 

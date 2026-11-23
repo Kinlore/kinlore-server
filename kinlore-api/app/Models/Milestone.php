@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Cache;
 
 class Milestone extends Model
 {
@@ -71,68 +70,26 @@ class Milestone extends Model
     }
 
     /**
-     * Get all milestones (cached for performance)
-     */
-    public static function getAllCached()
-    {
-        return Cache::remember('milestones.all', 60 * 60 * 24, function () {
-            return static::ordered()->get();
-        });
-    }
-
-    /**
-     * Get milestones grouped by stage
+     * Milestones grouped by stage. No cache: the list is about a hundred rows and rarely read.
      */
     public static function getGroupedByStage()
     {
-        return Cache::remember('milestones.grouped', 60 * 60 * 24, function () {
-            $milestones = static::ordered()->get();
-            
-            return $milestones->groupBy('stage_key')->map(function ($stageMilestones, $stageKey) {
-                return [
-                    'stage_key' => $stageKey,
-                    'stage_label' => $stageMilestones->first()->stage_label,
-                    'milestones' => $stageMilestones->values(),
-                ];
-            })->values();
-        });
+        return static::ordered()->get()->groupBy('stage_key')->map(fn ($stageMilestones, $stageKey) => [
+            'stage_key' => $stageKey,
+            'stage_label' => $stageMilestones->first()->stage_label,
+            'milestones' => $stageMilestones->values(),
+        ])->values();
     }
 
     /**
-     * Get milestones grouped by category
+     * Milestones grouped by category.
      */
     public static function getGroupedByCategory()
     {
-        return Cache::remember('milestones.by_category', 60 * 60 * 24, function () {
-            $milestones = static::ordered()->get();
-            
-            return $milestones->groupBy('category')->map(function ($categoryMilestones, $category) {
-                return [
-                    'category' => $category,
-                    'milestones' => $categoryMilestones->values(),
-                ];
-            })->values();
-        });
-    }
-
-    /**
-     * Clear the cache when a milestone is updated
-     */
-    protected static function boot()
-    {
-        parent::boot();
-
-        static::saved(function () {
-            Cache::forget('milestones.all');
-            Cache::forget('milestones.grouped');
-            Cache::forget('milestones.by_category');
-        });
-
-        static::deleted(function () {
-            Cache::forget('milestones.all');
-            Cache::forget('milestones.grouped');
-            Cache::forget('milestones.by_category');
-        });
+        return static::ordered()->get()->groupBy('category')->map(fn ($categoryMilestones, $category) => [
+            'category' => $category,
+            'milestones' => $categoryMilestones->values(),
+        ])->values();
     }
 
     /**
