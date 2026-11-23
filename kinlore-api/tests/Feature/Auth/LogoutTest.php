@@ -1,11 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tests\Feature\Auth;
 
-use Tests\TestCase;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
+use Tests\TestCase;
 
 class LogoutTest extends TestCase
 {
@@ -28,7 +30,7 @@ class LogoutTest extends TestCase
     public function test_user_can_logout_from_all_devices(): void
     {
         $user = User::factory()->create();
-        
+
         // Create multiple tokens
         $user->createToken('device-1');
         $user->createToken('device-2');
@@ -63,7 +65,7 @@ class LogoutTest extends TestCase
             'success',
             'data' => ['token', 'token_type'],
         ]);
-        
+
         // Old token should be deleted, new one created
         $this->assertEquals($oldTokenCount, $user->tokens()->count());
         $this->assertNull($user->tokens()->find($oldToken->accessToken->id));

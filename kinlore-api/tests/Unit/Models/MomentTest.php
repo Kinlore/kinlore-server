@@ -1,11 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tests\Unit\Models;
 
-use Tests\TestCase;
-use App\Models\Moment;
 use App\Models\Kid;
+use App\Models\Moment;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
 
 class MomentTest extends TestCase
 {

@@ -66,7 +66,7 @@ class User extends Authenticatable
     /** @param string $permission one of self::PERMISSIONS */
     public function hasPermission(string $permission): bool
     {
-        if (!in_array($permission, self::PERMISSIONS, true)) {
+        if (! in_array($permission, self::PERMISSIONS, true)) {
             throw new \InvalidArgumentException("Unknown permission: {$permission}");
         }
 
@@ -129,13 +129,13 @@ class User extends Authenticatable
         $bytes = $this->getStorageUsed();
 
         if ($bytes >= 1073741824) {
-            return number_format($bytes / 1073741824, 2) . ' GB';
+            return number_format($bytes / 1073741824, 2).' GB';
         } elseif ($bytes >= 1048576) {
-            return number_format($bytes / 1048576, 2) . ' MB';
+            return number_format($bytes / 1048576, 2).' MB';
         } elseif ($bytes >= 1024) {
-            return number_format($bytes / 1024, 2) . ' KB';
+            return number_format($bytes / 1024, 2).' KB';
         }
 
-        return $bytes . ' bytes';
+        return $bytes.' bytes';
     }
 }

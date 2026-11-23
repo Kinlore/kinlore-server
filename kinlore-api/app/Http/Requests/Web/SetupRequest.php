@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests\Web;
 
 use Illuminate\Foundation\Http\FormRequest;
@@ -14,9 +16,7 @@ class SetupRequest extends FormRequest
         return true;
     }
 
-    /**
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
-     */
+    /** @return array<string, mixed> */
     public function rules(): array
     {
         return [

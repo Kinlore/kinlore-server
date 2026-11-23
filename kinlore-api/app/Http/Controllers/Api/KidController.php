@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
@@ -16,12 +18,9 @@ use Illuminate\Http\JsonResponse;
 class KidController extends Controller
 {
     public function __construct(
-        private KidService $kidService
+        private readonly KidService $kidService,
     ) {}
 
-    /**
-     * Display a listing of the user's kids.
-     */
     public function index(IndexKidRequest $request): JsonResponse
     {
         $kids = $this->kidService->getKidsForUser($request->user());
@@ -29,9 +28,6 @@ class KidController extends Controller
         return ApiResponse::success($kids);
     }
 
-    /**
-     * Store a newly created kid.
-     */
     public function store(StoreKidRequest $request): JsonResponse
     {
         $validated = $request->validated();
@@ -45,9 +41,6 @@ class KidController extends Controller
         );
     }
 
-    /**
-     * Display the specified kid.
-     */
     public function show(ShowKidRequest $request, Kid $kid): JsonResponse
     {
         $kidDetails = $this->kidService->getKidDetails($kid);
@@ -55,9 +48,6 @@ class KidController extends Controller
         return ApiResponse::success($kidDetails);
     }
 
-    /**
-     * Update the specified kid.
-     */
     public function update(UpdateKidRequest $request, Kid $kid): JsonResponse
     {
         $validated = $request->validated();
@@ -70,9 +60,6 @@ class KidController extends Controller
         );
     }
 
-    /**
-     * Remove the specified kid.
-     */
     public function destroy(DestroyKidRequest $request, Kid $kid): JsonResponse
     {
         $this->kidService->deleteKid($kid);

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
@@ -12,7 +14,7 @@ use Illuminate\Http\JsonResponse;
 class SyncController extends Controller
 {
     public function __construct(
-        private SyncService $syncService
+        private readonly SyncService $syncService,
     ) {}
 
     /**
@@ -24,9 +26,10 @@ class SyncController extends Controller
 
         $result = $this->syncService->pull(
             $request->user(),
-            $validated['lastPulledAt'] ?? null,
+            // The integer rule also accepts numeric strings.
+            isset($validated['lastPulledAt']) ? (int) $validated['lastPulledAt'] : null,
             $validated['cursor'] ?? null,
-            $validated['limit'] ?? SyncService::PULL_PAGE_SIZE
+            (int) ($validated['limit'] ?? SyncService::PULL_PAGE_SIZE),
         );
 
         return response()->json($result);

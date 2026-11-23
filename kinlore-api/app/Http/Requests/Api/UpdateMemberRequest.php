@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests\Api;
 
 use App\Enums\Role;
@@ -16,13 +18,11 @@ class UpdateMemberRequest extends FormRequest
         return true;
     }
 
-    /**
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
-     */
+    /** @return array<string, mixed> */
     public function rules(): array
     {
         return [
-            'role' => ['nullable', Rule::in(Role::cases())],
+            'role' => ['nullable', Rule::enum(Role::class)],
             'permissions' => 'nullable|array',
             'permissions.add_content' => 'boolean',
             'permissions.comment' => 'boolean',

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Api;
 
 use App\Enums\MomentType;
@@ -18,7 +20,7 @@ use Illuminate\Support\Facades\DB;
  */
 class LookbackController extends Controller
 {
-    private const DISPLAY_DATE = 'COALESCE(exif_date, created_at)';
+    private const string DISPLAY_DATE = 'COALESCE(exif_date, created_at)';
 
     public function index(IndexLookbackRequest $request): JsonResponse
     {
@@ -37,14 +39,14 @@ class LookbackController extends Controller
     private function onThisDay(User $user, Carbon $date): array
     {
         $monthDay = DB::getDriverName() === 'pgsql'
-            ? "to_char(" . self::DISPLAY_DATE . ", 'MM-DD')"
-            : "strftime('%m-%d', " . self::DISPLAY_DATE . ")";
+            ? 'to_char('.self::DISPLAY_DATE.", 'MM-DD')"
+            : "strftime('%m-%d', ".self::DISPLAY_DATE.')';
 
         return Moment::has('kid')
             ->forPayload($user)
             ->whereIn('moment_type', [MomentType::Photo, MomentType::Video, MomentType::Story])
             ->whereRaw("{$monthDay} = ?", [$date->format('m-d')])
-            ->whereRaw(self::DISPLAY_DATE . ' < ?', [$date->copy()->startOfYear()->toDateTimeString()])
+            ->whereRaw(self::DISPLAY_DATE.' < ?', [$date->copy()->startOfYear()->toDateTimeString()])
             ->orderByDate('desc')
             ->get()
             ->groupBy(fn (Moment $m) => $m->display_date->year)

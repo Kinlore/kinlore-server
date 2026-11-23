@@ -56,7 +56,7 @@ Settings you can put in a `.env` file next to `docker-compose.yml`:
 | PHP | 8.5 | in the image; supported until the end of 2029 |
 | PostgreSQL | 18 | newest patch at each `docker compose pull`; supported until November 2030 |
 | SeaweedFS | 4.55 | pinned, because it holds all media; read its release notes before you raise it |
-| Redis | 8.8 | cache and rate limits only; safe to raise |
+| Redis | 8.10 | cache and rate limits only; safe to raise, never to lower (an older Redis cannot read the data of a newer one) |
 | Caddy | 2.11 | comes with the image |
 
 PHP 8.6 and PostgreSQL 19 came out on 19 November 2026. Kinlore stays on 8.5 and 18 until they have had their first fixes. The workflow already tests the code on PHP 8.6.

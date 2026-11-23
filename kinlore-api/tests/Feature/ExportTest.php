@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tests\Feature;
 
 use App\Models\Export;
@@ -46,7 +48,7 @@ class ExportTest extends TestCase
 
         $this->postJson('/api/v1/exports')->assertStatus(202);
 
-        $zip = new ZipArchive();
+        $zip = new ZipArchive;
         $this->assertTrue($zip->open(Export::latest()->first()->fullPath()));
         $photos = collect(range(0, $zip->numFiles - 1))->map(fn ($i) => $zip->getNameIndex($i))->filter(fn ($n) => str_ends_with($n, '.jpg'));
         $this->assertCount(2, $photos, 'both photos must be in the ZIP');
@@ -75,9 +77,9 @@ class ExportTest extends TestCase
         $this->assertGreaterThan(0, $item['size_bytes']);
         $this->assertNotNull($item['download_url']);
 
-        $zip = new ZipArchive();
+        $zip = new ZipArchive;
         $this->assertTrue($zip->open(Export::find($item['id'])->fullPath()));
-        $photoPath = 'Mia/2025/2025-06-01_photo_' . substr(str_replace('-', '', $photo->id), -12) . '.jpg';
+        $photoPath = 'Mia/2025/2025-06-01_photo_'.substr(str_replace('-', '', $photo->id), -12).'.jpg';
         $this->assertSame('JPEG-BYTES', $zip->getFromName($photoPath));
         $memories = json_decode($zip->getFromName('Mia/memories.json'), true);
         $this->assertCount(2, $memories);

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
@@ -11,7 +13,7 @@ use Illuminate\Http\Request;
 class MilestoneController extends Controller
 {
     public function __construct(
-        private MilestoneService $milestoneService
+        private readonly MilestoneService $milestoneService,
     ) {}
 
     /**
@@ -21,9 +23,9 @@ class MilestoneController extends Controller
     public function index(Request $request): JsonResponse
     {
         $filters = $request->only(['group_by', 'category', 'stage_key']);
-        
+
         // Default to stage grouping if no group_by specified and not flat
-        if (!$request->has('group_by') && !$request->boolean('flat')) {
+        if (! $request->has('group_by') && ! $request->boolean('flat')) {
             $filters['group_by'] = 'stage';
         }
 
@@ -32,9 +34,6 @@ class MilestoneController extends Controller
         return ApiResponse::success($milestones);
     }
 
-    /**
-     * Get a specific milestone by ID.
-     */
     public function show(string $id): JsonResponse
     {
         $milestone = $this->milestoneService->getMilestone($id);

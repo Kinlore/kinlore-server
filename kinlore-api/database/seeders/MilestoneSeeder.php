@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Seeders;
 
 use App\Models\Milestone;
@@ -22,21 +24,16 @@ class MilestoneSeeder extends Seeder
         'partnership_marriage' => ['min' => 216, 'max' => null], // No upper limit
     ];
 
-    /**
-     * Run the database seeds.
-     * 
-     * Reads milestones from milestones.json and seeds the milestones table.
-     * Uses updateOrCreate to prevent duplicates when run multiple times (e.g., via Docker).
-     */
+    // updateOrCreate prevents duplicates when the seeder runs more than once (e.g., via Docker).
     public function run(): void
     {
-        // Read the JSON file
         $jsonPath = database_path('seeders/milestones.json');
-        
-        $this->command->info('Looking for milestones.json at: ' . $jsonPath);
-        
-        if (!File::exists($jsonPath)) {
-            $this->command->error('milestones.json not found at: ' . $jsonPath);
+
+        $this->command->info('Looking for milestones.json at: '.$jsonPath);
+
+        if (! File::exists($jsonPath)) {
+            $this->command->error('milestones.json not found at: '.$jsonPath);
+
             return;
         }
 
@@ -46,18 +43,20 @@ class MilestoneSeeder extends Seeder
         $data = json_decode($json, true);
 
         if (json_last_error() !== JSON_ERROR_NONE) {
-            $this->command->error('JSON parse error: ' . json_last_error_msg());
+            $this->command->error('JSON parse error: '.json_last_error_msg());
+
             return;
         }
 
-        if (!$data || !isset($data['storyMilestones'])) {
+        if (! $data || ! isset($data['storyMilestones'])) {
             $this->command->error('Invalid JSON structure in milestones.json - missing storyMilestones key');
-            $this->command->info('Keys found: ' . implode(', ', array_keys($data ?? [])));
+            $this->command->info('Keys found: '.implode(', ', array_keys($data ?? [])));
+
             return;
         }
 
         $this->command->info('✓ JSON parsed successfully');
-        $this->command->info('Found ' . count($data['storyMilestones']) . ' stages');
+        $this->command->info('Found '.count($data['storyMilestones']).' stages');
 
         $totalCount = 0;
         $sortOrder = 0;
@@ -66,15 +65,15 @@ class MilestoneSeeder extends Seeder
             $stageKey = $stage['stageKey'];
             $stageLabel = $stage['stageLabel'];
             $milestones = $stage['milestones'] ?? [];
-            
+
             // Get age range for this stage
             $ageRange = self::STAGE_AGE_RANGES[$stageKey] ?? ['min' => null, 'max' => null];
 
-            $this->command->info("Processing stage [{$stageIndex}]: {$stageLabel} ({$stageKey}) - " . count($milestones) . ' milestones');
+            $this->command->info("Processing stage [{$stageIndex}]: {$stageLabel} ({$stageKey}) - ".count($milestones).' milestones');
 
             foreach ($milestones as $milestone) {
                 $sortOrder++;
-                
+
                 try {
                     $result = Milestone::updateOrCreate(
                         ['id' => $milestone['id']],
@@ -88,20 +87,20 @@ class MilestoneSeeder extends Seeder
                             'sort_order' => $sortOrder,
                         ]
                     );
-                    
+
                     $action = $result->wasRecentlyCreated ? 'created' : 'updated';
                     $this->command->line("  [{$action}] {$milestone['id']}: {$milestone['title']}");
-                    
+
                     $totalCount++;
                 } catch (\Exception $e) {
-                    $this->command->error("  [FAILED] {$milestone['id']}: " . $e->getMessage());
+                    $this->command->error("  [FAILED] {$milestone['id']}: ".$e->getMessage());
                 }
             }
         }
 
         $this->command->newLine();
-        $this->command->info("✓ Seeded {$totalCount} milestones across " . count($data['storyMilestones']) . " stages.");
-        
+        $this->command->info("✓ Seeded {$totalCount} milestones across ".count($data['storyMilestones']).' stages.');
+
         // Verify what's in the database
         $dbCount = Milestone::count();
         $this->command->info("Database milestone count: {$dbCount}");

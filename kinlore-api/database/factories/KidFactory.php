@@ -19,8 +19,8 @@ class KidFactory extends Factory
             'name' => fake()->firstName(),
             'date_of_birth' => fake()->dateTimeBetween('-10 years', '-1 year'),
             'avatar_color' => fake()->randomElement([
-                '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', 
-                '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E2'
+                '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A',
+                '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E2',
             ]),
         ];
     }

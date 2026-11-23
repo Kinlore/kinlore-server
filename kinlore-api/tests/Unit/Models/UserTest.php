@@ -1,12 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tests\Unit\Models;
 
-use Tests\TestCase;
-use App\Models\User;
 use App\Models\Kid;
 use App\Models\Moment;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
 
 class UserTest extends TestCase
 {
@@ -34,7 +36,7 @@ class UserTest extends TestCase
     {
         $user = User::factory()->create();
         $kid = Kid::factory()->create(['user_id' => $user->id]);
-        
+
         Moment::factory()->create([
             'kid_id' => $kid->id,
             'file_size' => 1024 * 1024, // 1MB
@@ -54,4 +56,3 @@ class UserTest extends TestCase
         $this->assertTrue(\Hash::check('password123', $user->password));
     }
 }
-

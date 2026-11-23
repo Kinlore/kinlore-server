@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Api;
 
 use App\Enums\MomentType;
@@ -28,12 +30,9 @@ use Symfony\Component\HttpFoundation\Response;
 class MomentController extends Controller
 {
     public function __construct(
-        private MomentService $momentService
+        private readonly MomentService $momentService,
     ) {}
 
-    /**
-     * List moments with optional filters.
-     */
     public function index(IndexMomentRequest $request): JsonResponse
     {
         $validated = $request->validated();
@@ -91,7 +90,7 @@ class MomentController extends Controller
         } catch (\InvalidArgumentException $e) {
             return ApiResponse::error($e->getMessage(), 422);
         } catch (\Exception $e) {
-            Log::error('Moment creation failed: ' . $e->getMessage());
+            Log::error('Moment creation failed: '.$e->getMessage());
 
             return ApiResponse::error(
                 'Failed to create moment',
@@ -102,17 +101,11 @@ class MomentController extends Controller
         }
     }
 
-    /**
-     * Get a single moment.
-     */
     public function show(ShowMomentRequest $request, Moment $moment): JsonResponse
     {
         return ApiResponse::success($this->momentService->getMoment($moment, $request->user()));
     }
 
-    /**
-     * Update a moment.
-     */
     public function update(UpdateMomentRequest $request, Moment $moment): JsonResponse
     {
         $validated = $request->validated();
@@ -122,15 +115,12 @@ class MomentController extends Controller
 
             return ApiResponse::success($this->momentService->getMoment($moment, $request->user()), 'Moment updated successfully');
         } catch (\Exception $e) {
-            Log::error('Moment update failed: ' . $e->getMessage());
+            Log::error('Moment update failed: '.$e->getMessage());
 
             return ApiResponse::error('Failed to update moment', 500);
         }
     }
 
-    /**
-     * Delete a moment.
-     */
     public function destroy(DestroyMomentRequest $request, Moment $moment): JsonResponse
     {
         try {
@@ -138,7 +128,7 @@ class MomentController extends Controller
 
             return ApiResponse::success(message: 'Moment deleted successfully');
         } catch (\Exception $e) {
-            Log::error('Moment deletion failed: ' . $e->getMessage());
+            Log::error('Moment deletion failed: '.$e->getMessage());
 
             return ApiResponse::error('Failed to delete moment', 500);
         }
@@ -158,9 +148,13 @@ class MomentController extends Controller
             ];
 
             if (isset($file['stream'])) {
-                return response()->stream(function () use ($file) {
-                    fpassthru($file['stream']);
-                    fclose($file['stream']);
+                return response()->stream(function () use ($file): void {
+                    try {
+                        fpassthru($file['stream']);
+                    } finally {
+                        // Also when the phone drops the connection in the middle of a download
+                        fclose($file['stream']);
+                    }
                 }, 200, $headers);
             }
 
@@ -177,7 +171,7 @@ class MomentController extends Controller
      */
     public function playback(ShowMomentRequest $request, Moment $moment): JsonResponse
     {
-        if (!$moment->isVideo()) {
+        if (! $moment->isVideo()) {
             return ApiResponse::error('This moment is not a video', 404);
         }
 
@@ -216,13 +210,14 @@ class MomentController extends Controller
             Log::warning('HLS file not found', [
                 'moment_id' => $moment->id,
                 'filename' => $filename,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
-            
+
             return ApiResponse::error('File not found', 404);
         }
     }
 
+    /** @param array<string, mixed> $file */
     private function hlsResponse(array $file): Response
     {
         return response($file['content'], 200, [
@@ -251,12 +246,9 @@ class MomentController extends Controller
         return ApiResponse::success($identifiers);
     }
 
-    /**
-     * Get success message based on moment type.
-     */
     private function getSuccessMessage(?MomentType $type): string
     {
-        return match($type) {
+        return match ($type) {
             MomentType::Photo => 'Photo uploaded successfully',
             MomentType::Video => 'Video uploaded, processing started',
             MomentType::Story => 'Story created successfully',

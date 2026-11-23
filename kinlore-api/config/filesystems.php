@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 return [
 
     /*
@@ -47,7 +49,7 @@ return [
             'report' => false,
         ],
 
-// ⭐ SeaweedFS S3 Configuration
+        // ⭐ SeaweedFS S3 Configuration
         'seaweedfs' => [
             // SEAWEEDFS_DRIVER=local stores media on the server's own disk (bare metal, no SeaweedFS)
             'driver' => env('SEAWEEDFS_DRIVER', 's3'),
@@ -61,13 +63,13 @@ return [
             'endpoint' => env('SEAWEEDFS_ENDPOINT', 'http://kinlore-seaweedfs-filer:8333'),
             'use_path_style_endpoint' => env('SEAWEEDFS_USE_PATH_STYLE_ENDPOINT', true),
             'throw' => false,
-            
+
             // Custom URL for public access
-            'url' => env('SEAWEEDFS_URL', 'http://localhost:8333') . '/' . env('SEAWEEDFS_BUCKET', 'kinlore'),
-            
+            'url' => env('SEAWEEDFS_URL', 'http://localhost:8333').'/'.env('SEAWEEDFS_BUCKET', 'kinlore'),
+
             // Visibility (private by default)
             'visibility' => 'private',
-            
+
             // Cache control headers
             'options' => [
                 'CacheControl' => 'max-age=31536000, public',

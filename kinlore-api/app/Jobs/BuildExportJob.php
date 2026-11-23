@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Jobs;
 
 use App\Enums\ExportStatus;
@@ -10,6 +12,8 @@ use App\Models\Moment;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Queue\Attributes\Timeout;
+use Illuminate\Queue\Attributes\Tries;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
@@ -20,28 +24,24 @@ use ZipArchive;
  * Builds the export ZIP (docs/API_CONTRACT.md section 8):
  * {Kid name}/{YYYY}/{YYYY-MM-DD}_{type}_{id8}.{ext}, {Kid name}/memories.json and kinlore-export.json.
  */
+#[Tries(1)]
+#[Timeout(3600)]
 class BuildExportJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     private const KEEP = 3;
 
-    public int $tries = 1;
-
-    public int $timeout = 3600;
-
     /** @var string[] temp copies of originals, deleted after the ZIP is closed */
     private array $tempFiles = [];
 
-    public function __construct(public string $exportId)
-    {
-    }
+    public function __construct(public string $exportId) {}
 
     public function handle(): void
     {
         $export = Export::find($this->exportId);
 
-        if (!$export) {
+        if (! $export) {
             return;
         }
 
@@ -70,11 +70,11 @@ class BuildExportJob implements ShouldQueue
 
     private function build(string $zipPath): void
     {
-        if (!is_dir(dirname($zipPath))) {
+        if (! is_dir(dirname($zipPath))) {
             mkdir(dirname($zipPath), 0755, true);
         }
 
-        $zip = new ZipArchive();
+        $zip = new ZipArchive;
         if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
             throw new \RuntimeException("Cannot create {$zipPath}");
         }
@@ -120,7 +120,7 @@ class BuildExportJob implements ShouldQueue
             ])->values()->all(),
         ]));
 
-        if (!$zip->close()) {
+        if (! $zip->close()) {
             throw new \RuntimeException('Cannot write the ZIP file');
         }
     }
@@ -132,13 +132,14 @@ class BuildExportJob implements ShouldQueue
     {
         $source = $moment->getRawOriginal('photo_url');
 
-        if (!in_array($moment->moment_type, [MomentType::Photo, MomentType::Video], true) || empty($source)) {
+        if (! in_array($moment->moment_type, [MomentType::Photo, MomentType::Video], true) || empty($source)) {
             return null;
         }
 
         $in = Storage::disk('seaweedfs')->readStream($source);
-        if (!$in) {
+        if (! $in) {
             Log::warning('BuildExportJob: Original missing', ['moment_id' => $moment->id, 'path' => $source]);
+
             return null;
         }
 
@@ -158,7 +159,6 @@ class BuildExportJob implements ShouldQueue
         return $name;
     }
 
-    /** Kid name made safe for a folder; a second kid with the same name gets its id appended. */
     /**
      * Ids are UUIDv7: the first characters are a timestamp and repeat for items made close together,
      * so names use the random end of the id.
@@ -168,13 +168,14 @@ class BuildExportJob implements ShouldQueue
         return substr(str_replace('-', '', $id), -12);
     }
 
+    /** Kid name made safe for a folder; a second kid with the same name gets its id appended. */
     private function folderName(Kid $kid, array &$folders): string
     {
         // leading dots are dropped so a kid named "." or ".." cannot make a path that leaves the archive root
         $name = ltrim(trim(preg_replace('/[\/\\\\:*?"<>|]+/', '-', $kid->name)), '.') ?: 'Kid';
 
         if (in_array($name, $folders, true)) {
-            $name .= ' ' . self::shortId($kid->id);
+            $name .= ' '.self::shortId($kid->id);
         }
 
         return $folders[$kid->id] = $name;
@@ -182,7 +183,7 @@ class BuildExportJob implements ShouldQueue
 
     private function json(array $data): string
     {
-        return json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        return json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
     }
 
     /** Keep the newest exports only. */

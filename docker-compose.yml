@@ -161,7 +161,7 @@ services:
       retries: 3
       start_period: 40s
   redis:
-    image: redis:8.8-alpine # pinned to the current stable series; holds only cache and rate limits
+    image: redis:8.10-alpine # pinned series; holds only cache and rate limits. Never pin lower than the version that wrote the data: an older Redis cannot read it
     container_name: kinlore-redis
     restart: unless-stopped
     ports:

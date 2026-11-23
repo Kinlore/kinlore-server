@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests\Api;
 
 use App\Enums\MomentType;
@@ -7,21 +9,15 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class IndexMomentRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
-     */
+    /** @return array<string, mixed> */
     public function rules(): array
     {
+        // A comma-separated list of types, so Rule::enum does not fit here.
         $types = implode('|', array_column(MomentType::cases(), 'value'));
 
         return [

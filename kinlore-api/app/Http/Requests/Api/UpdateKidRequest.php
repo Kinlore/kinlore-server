@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests\Api;
 
 use App\Models\Kid;
@@ -8,23 +10,14 @@ use Illuminate\Validation\Validator;
 
 class UpdateKidRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
         $kid = $this->route('kid');
 
-        return $kid instanceof Kid
-            ? $this->user()->can('update', $kid)
-            : false;
+        return $kid instanceof Kid && $this->user()->can('update', $kid);
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
-     */
+    /** @return array<string, mixed> */
     public function rules(): array
     {
         return [
@@ -37,11 +30,13 @@ class UpdateKidRequest extends FormRequest
 
     /**
      * The kid must keep a date of birth or a due date after the update.
+     *
+     * @return array<int, \Closure(Validator): void>
      */
     public function after(): array
     {
         return [
-            function (Validator $validator) {
+            function (Validator $validator): void {
                 $kid = $this->route('kid');
                 $dob = $this->exists('date_of_birth') ? $this->input('date_of_birth') : $kid?->date_of_birth;
                 $due = $this->exists('due_date') ? $this->input('due_date') : $kid?->due_date;

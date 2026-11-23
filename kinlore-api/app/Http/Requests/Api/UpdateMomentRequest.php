@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests\Api;
 
 use App\Enums\MomentType;
@@ -8,23 +10,14 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateMomentRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
         $moment = $this->route('moment');
 
-        return $moment instanceof Moment
-            ? $this->user()->can('update', $moment)
-            : false;
+        return $moment instanceof Moment && $this->user()->can('update', $moment);
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
-     */
+    /** @return array<string, mixed> */
     public function rules(): array
     {
         $type = $this->route('moment')?->moment_type;
@@ -50,13 +43,14 @@ class UpdateMomentRequest extends FormRequest
     /**
      * Older clients sent milestone_date and notes for milestones.
      */
+    #[\Override]
     protected function prepareForValidation(): void
     {
-        if ($this->has('milestone_date') && !$this->has('exif_date')) {
+        if ($this->has('milestone_date') && ! $this->has('exif_date')) {
             $this->merge(['exif_date' => $this->input('milestone_date')]);
         }
 
-        if ($this->has('notes') && !$this->has('description')) {
+        if ($this->has('notes') && ! $this->has('description')) {
             $this->merge(['description' => $this->input('notes')]);
         }
     }

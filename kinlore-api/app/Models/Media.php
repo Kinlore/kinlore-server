@@ -41,10 +41,13 @@ class Media extends Model
     use HasUuids, SoftDeletes;
 
     public const string STATUS_PROCESSING = 'processing';
+
     public const string STATUS_COMPLETED = 'completed';
+
     public const string STATUS_FAILED = 'failed';
 
     public const string TYPE_PHOTO = 'photo';
+
     public const string TYPE_VIDEO = 'video';
 
     #[\Override]
@@ -136,13 +139,14 @@ class Media extends Model
     {
         return Attribute::make(get: function (): ?Carbon {
             $date = $this->exif_data['exif_date'] ?? null;
+
             return $date ? Carbon::parse($date) : null;
         })->withoutObjectCaching();
     }
 
     protected function hasLocation(): Attribute
     {
-        return Attribute::make(get: fn (): bool => !is_null($this->latitude) && !is_null($this->longitude));
+        return Attribute::make(get: fn (): bool => ! is_null($this->latitude) && ! is_null($this->longitude));
     }
 
     protected function duration(): Attribute
@@ -164,7 +168,7 @@ class Media extends Model
     {
         return Attribute::make(get: function (): ?string {
             $duration = $this->duration;
-            if (!$duration) {
+            if (! $duration) {
                 return null;
             }
 
@@ -181,14 +185,14 @@ class Media extends Model
             $bytes = $this->file_size;
 
             if ($bytes >= 1073741824) {
-                return number_format($bytes / 1073741824, 2) . ' GB';
+                return number_format($bytes / 1073741824, 2).' GB';
             } elseif ($bytes >= 1048576) {
-                return number_format($bytes / 1048576, 2) . ' MB';
+                return number_format($bytes / 1048576, 2).' MB';
             } elseif ($bytes >= 1024) {
-                return number_format($bytes / 1024, 2) . ' KB';
+                return number_format($bytes / 1024, 2).' KB';
             }
 
-            return $bytes . ' bytes';
+            return $bytes.' bytes';
         });
     }
 
@@ -227,11 +231,11 @@ class Media extends Model
                 Storage::disk('seaweedfs')->deleteDirectory(dirname($this->getRawHlsUrl()));
             }
 
-            if (!empty($filesToDelete)) {
+            if (! empty($filesToDelete)) {
                 Storage::disk('seaweedfs')->delete($filesToDelete);
             }
         } catch (\Exception $e) {
-            Log::error('Failed to delete media files: ' . $e->getMessage());
+            Log::error('Failed to delete media files: '.$e->getMessage());
         }
 
         return $this->delete();
@@ -248,15 +252,15 @@ class Media extends Model
                     $media->attributes['medium_url'] ?? null,
                 ]);
 
-                if ($media->type === self::TYPE_VIDEO && !empty($media->attributes['hls_url'])) {
+                if ($media->type === self::TYPE_VIDEO && ! empty($media->attributes['hls_url'])) {
                     Storage::disk('seaweedfs')->deleteDirectory(dirname($media->attributes['hls_url']));
                 }
 
-                if (!empty($filesToDelete)) {
+                if (! empty($filesToDelete)) {
                     Storage::disk('seaweedfs')->delete($filesToDelete);
                 }
             } catch (\Exception $e) {
-                Log::error('Failed to delete media files: ' . $e->getMessage());
+                Log::error('Failed to delete media files: '.$e->getMessage());
             }
         });
     }

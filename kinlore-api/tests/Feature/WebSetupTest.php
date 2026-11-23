@@ -1,10 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tests\Feature;
 
 use App\Enums\Role;
 use App\Models\User;
+use App\Services\AuthService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 /**
@@ -66,9 +70,9 @@ class WebSetupTest extends TestCase
     {
         User::factory()->admin()->create();
 
-        $this->expectException(\Illuminate\Validation\ValidationException::class);
+        $this->expectException(ValidationException::class);
         try {
-            app(\App\Services\AuthService::class)->createFirstAdmin(self::FORM);
+            app(AuthService::class)->createFirstAdmin(self::FORM);
         } finally {
             $this->assertDatabaseCount('users', 1);
         }

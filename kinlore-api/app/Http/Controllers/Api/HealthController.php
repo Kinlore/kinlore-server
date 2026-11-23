@@ -1,34 +1,23 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Cache;
 
 class HealthController extends Controller
 {
     /**
-     * Basic health check (public)
-     * Used by Docker healthcheck and load balancers
-     */
-    public function check()
-    {
-        return response()->json([
-            'status' => 'ok',
-            'timestamp' => now()->toIso8601String(),
-            'service' => config('app.name'),
-            'environment' => config('app.env'),
-        ], 200);
-    }
-
-    /**
      * Detailed health check (requires authentication)
      * Shows all system components status
      */
-    public function detailed(Request $request)
+    public function detailed(Request $request): JsonResponse
     {
         $checks = [];
         $overallStatus = 'healthy';
@@ -68,13 +57,14 @@ class HealthController extends Controller
             'timestamp' => now()->toIso8601String(),
             'checks' => $checks,
             'user' => [
-                //'id' => $request->user()->id,
-                //'email' => $request->user()->email,
+                // 'id' => $request->user()->id,
+                // 'email' => $request->user()->email,
             ],
         ], $overallStatus === 'healthy' ? 200 : 503);
     }
 
-    private function checkDatabase()
+    /** @return array<string, mixed> */
+    private function checkDatabase(): array
     {
         try {
             $start = microtime(true);
@@ -95,22 +85,23 @@ class HealthController extends Controller
         }
     }
 
-    private function checkStorage()
+    /** @return array<string, mixed> */
+    private function checkStorage(): array
     {
         try {
             $start = microtime(true);
             $disk = config('filesystems.default');
-            
+
             // Test write
-            $testFile = 'health-checks/test-' . time() . '.txt';
-            Storage::disk($disk)->put($testFile, 'Health check: ' . now());
-            
+            $testFile = 'health-checks/test-'.time().'.txt';
+            Storage::disk($disk)->put($testFile, 'Health check: '.now());
+
             // Test read
             $content = Storage::disk($disk)->get($testFile);
-            
+
             // Test delete
             Storage::disk($disk)->delete($testFile);
-            
+
             $responseTime = round((microtime(true) - $start) * 1000, 2);
 
             return [
@@ -128,22 +119,23 @@ class HealthController extends Controller
         }
     }
 
-    private function checkCache()
+    /** @return array<string, mixed> */
+    private function checkCache(): array
     {
         try {
             $start = microtime(true);
-            $key = 'health_check_' . time();
-            $value = 'test_' . uniqid();
-            
+            $key = 'health_check_'.time();
+            $value = 'test_'.uniqid();
+
             // Test write
             Cache::put($key, $value, 60);
-            
+
             // Test read
             $retrieved = Cache::get($key);
-            
+
             // Test delete
             Cache::forget($key);
-            
+
             $responseTime = round((microtime(true) - $start) * 1000, 2);
             $works = $retrieved === $value;
 
@@ -160,7 +152,8 @@ class HealthController extends Controller
         }
     }
 
-    private function checkDiskSpace()
+    /** @return array<string, mixed> */
+    private function checkDiskSpace(): array
     {
         $storageBasePath = storage_path();
         $freeSpace = disk_free_space($storageBasePath);
@@ -178,7 +171,8 @@ class HealthController extends Controller
         ];
     }
 
-    private function checkMemory()
+    /** @return array<string, mixed> */
+    private function checkMemory(): array
     {
         $memoryLimit = ini_get('memory_limit');
         $memoryUsage = memory_get_usage(true);
@@ -191,15 +185,11 @@ class HealthController extends Controller
         ];
     }
 
-    private function getRequiredExtensions()
+    /** @return array<string, bool> */
+    private function getRequiredExtensions(): array
     {
         $required = ['pdo', 'pdo_pgsql', 'mbstring', 'gd', 'zip', 'bcmath', 'exif'];
-        $loaded = [];
 
-        foreach ($required as $ext) {
-            $loaded[$ext] = extension_loaded($ext);
-        }
-
-        return $loaded;
+        return array_combine($required, array_map(extension_loaded(...), $required));
     }
 }

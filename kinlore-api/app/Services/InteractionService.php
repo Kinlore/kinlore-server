@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services;
 
 use App\Enums\InteractionType;
@@ -8,21 +10,12 @@ use App\Models\MomentInteraction;
 use App\Models\User;
 use Illuminate\Support\Collection;
 
-/**
- * Service for handling moment interactions (likes, comments).
- */
 class InteractionService
 {
-    /**
-     * Like a moment.
-     * Returns the interaction if newly created, null if already liked.
-     */
+    // Returns the interaction if newly created, null if already liked.
     public function like(User $user, Moment $moment): ?MomentInteraction
     {
-        // Check if already liked
-        $existingLike = $moment->likes()->where('user_id', $user->id)->first();
-
-        if ($existingLike) {
+        if ($moment->likes()->where('user_id', $user->id)->first()) {
             return null;
         }
 
@@ -31,16 +24,13 @@ class InteractionService
             'moment_id' => $moment->id,
             'type' => InteractionType::Like,
         ]);
-        
+
         $interaction->save();
 
         return $interaction;
     }
 
-    /**
-     * Unlike a moment.
-     * Returns true if unliked, false if not previously liked.
-     */
+    // Returns true if unliked, false if not previously liked.
     public function unlike(User $user, Moment $moment): bool
     {
         $deleted = (bool) $moment->likes()->where('user_id', $user->id)->delete();
@@ -52,17 +42,11 @@ class InteractionService
         return $deleted;
     }
 
-    /**
-     * Check if a moment is liked by a user.
-     */
     public function isLikedBy(User $user, Moment $moment): bool
     {
         return $moment->likes()->where('user_id', $user->id)->exists();
     }
 
-    /**
-     * Add a comment to a moment.
-     */
     public function comment(User $user, Moment $moment, string $content): MomentInteraction
     {
         $interaction = new MomentInteraction([
@@ -79,7 +63,6 @@ class InteractionService
     }
 
     /**
-     * Delete a comment.
      * @throws \InvalidArgumentException if not a comment
      * @throws \RuntimeException if the user is neither the author nor the admin
      */
@@ -89,16 +72,13 @@ class InteractionService
             throw new \InvalidArgumentException('Invalid interaction type');
         }
 
-        if ((int) $interaction->user_id !== $user->id && !$user->is_admin) {
+        if ((int) $interaction->user_id !== $user->id && ! $user->is_admin) {
             throw new \RuntimeException('You can only delete your own comments.');
         }
 
         $interaction->delete();
     }
 
-    /**
-     * Get comments for a moment.
-     */
     public function getComments(Moment $moment): Collection
     {
         return $moment->comments()
@@ -107,17 +87,11 @@ class InteractionService
             ->get();
     }
 
-    /**
-     * Get likes count for a moment.
-     */
     public function getLikesCount(Moment $moment): int
     {
         return $moment->likes()->count();
     }
 
-    /**
-     * Get comments count for a moment.
-     */
     public function getCommentsCount(Moment $moment): int
     {
         return $moment->comments()->count();

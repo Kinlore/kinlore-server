@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests\Api;
 
 use App\Models\User;
@@ -17,16 +19,13 @@ class RegisterRequest extends FormRequest
         return User::exists();
     }
 
+    #[\Override]
     protected function failedAuthorization(): never
     {
-        throw new AuthorizationException('Finish setup in a web browser at ' . url('/setup'));
+        throw new AuthorizationException('Finish setup in a web browser at '.url('/setup'));
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
-     */
+    /** @return array<string, mixed> */
     public function rules(): array
     {
         return [

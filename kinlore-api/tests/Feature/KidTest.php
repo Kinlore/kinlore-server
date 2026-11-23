@@ -1,12 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tests\Feature;
 
-use Tests\TestCase;
-use App\Models\User;
 use App\Models\Kid;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
+use Tests\TestCase;
 
 class KidTest extends TestCase
 {
@@ -16,7 +18,7 @@ class KidTest extends TestCase
     {
         $user = User::factory()->create();
         Kid::factory()->count(3)->create(['user_id' => $user->id]);
-        
+
         Sanctum::actingAs($user);
 
         $response = $this->getJson('/api/v1/kids');
@@ -120,7 +122,7 @@ class KidTest extends TestCase
     {
         $user = User::factory()->create();
         $kid = Kid::factory()->create(['user_id' => $user->id]);
-        
+
         Sanctum::actingAs($user);
 
         $response = $this->getJson("/api/v1/kids/{$kid->id}");
@@ -135,7 +137,7 @@ class KidTest extends TestCase
         $user = User::factory()->create();
         $otherUser = User::factory()->create();
         $kid = Kid::factory()->create(['user_id' => $otherUser->id]);
-        
+
         Sanctum::actingAs($user);
 
         $response = $this->getJson("/api/v1/kids/{$kid->id}");
@@ -173,7 +175,7 @@ class KidTest extends TestCase
     {
         $user = User::factory()->create();
         $kid = Kid::factory()->create(['user_id' => $user->id, 'name' => 'Emma']);
-        
+
         Sanctum::actingAs($user);
 
         $response = $this->putJson("/api/v1/kids/{$kid->id}", [
@@ -194,7 +196,7 @@ class KidTest extends TestCase
         $user = User::factory()->family()->create();
         $otherUser = User::factory()->create();
         $kid = Kid::factory()->create(['user_id' => $otherUser->id]);
-        
+
         Sanctum::actingAs($user);
 
         $response = $this->putJson("/api/v1/kids/{$kid->id}", [
@@ -208,7 +210,7 @@ class KidTest extends TestCase
     {
         $user = User::factory()->create();
         $kid = Kid::factory()->create(['user_id' => $user->id]);
-        
+
         Sanctum::actingAs($user);
 
         $response = $this->deleteJson("/api/v1/kids/{$kid->id}");
@@ -222,7 +224,7 @@ class KidTest extends TestCase
         $user = User::factory()->family()->create();
         $otherUser = User::factory()->create();
         $kid = Kid::factory()->create(['user_id' => $otherUser->id]);
-        
+
         Sanctum::actingAs($user);
 
         $response = $this->deleteJson("/api/v1/kids/{$kid->id}");

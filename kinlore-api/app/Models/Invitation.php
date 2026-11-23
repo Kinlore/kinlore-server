@@ -72,11 +72,11 @@ class Invitation extends Model
 
     public function inviteLink(): string
     {
-        return "kinlore://invite/{$this->token}?server=" . rawurlencode((string) config('app.url'));
+        return "kinlore://invite/{$this->token}?server=".rawurlencode((string) config('app.url'));
     }
 
     public function inviteUrl(): string
     {
-        return rtrim((string) config('app.url'), '/') . "/invite/{$this->token}";
+        return rtrim((string) config('app.url'), '/')."/invite/{$this->token}";
     }
 }

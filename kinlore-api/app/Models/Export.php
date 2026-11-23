@@ -37,7 +37,7 @@ class Export extends Model
     /** Absolute path of the ZIP file, or null when there is none. */
     public function fullPath(): ?string
     {
-        return $this->path ? storage_path('app/' . $this->path) : null;
+        return $this->path ? storage_path('app/'.$this->path) : null;
     }
 
     #[\Override]

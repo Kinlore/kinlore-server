@@ -1,18 +1,25 @@
 <?php
 
-use Illuminate\Foundation\Application;
-use Illuminate\Foundation\Configuration\Exceptions;
-use Illuminate\Foundation\Configuration\Middleware;
-use Illuminate\Http\Middleware\HandleCors;
+declare(strict_types=1);
+
+use App\Http\Middleware\SecurityHeaders;
 use App\Http\Responses\ApiResponse;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
+use Illuminate\Auth\Middleware\Authorize;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Foundation\Application;
+use Illuminate\Foundation\Configuration\Exceptions;
+use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Middleware\HandleCors;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
@@ -28,103 +35,64 @@ return Application::configure(basePath: dirname(__DIR__))
         );
 
         // There is no login page: a request without a valid token gets 401, never a redirect
-        $middleware->redirectGuestsTo(fn () => null);
+        $middleware->redirectGuestsTo(fn (): null => null);
 
         // run CORS before everything else
         $middleware->prepend(HandleCors::class);
-        
-        // Add security headers
-        $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
 
-        // Add Sanctum middleware for API routes
+        $middleware->append(SecurityHeaders::class);
+
         $middleware->api(prepend: [
-            \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
+            EnsureFrontendRequestsAreStateful::class,
         ]);
 
-        // Add throttling
         $middleware->api('throttle:api');
 
-        // Alias for auth:sanctum
         $middleware->alias([
-            'auth.sanctum' => \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
+            'auth.sanctum' => EnsureFrontendRequestsAreStateful::class,
         ]);
 
         // Authorize resource operations automatically
         $middleware->alias([
-            'can' => \Illuminate\Auth\Middleware\Authorize::class,
+            'can' => Authorize::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        $exceptions->shouldRenderJsonWhen(function (Request $request, Throwable $e): bool {
-            // API paths always answer JSON, also to a browser or curl without an Accept header
-            return $request->expectsJson() || $request->is('api/*');
-        });
+        // API paths always answer JSON, also to a browser or curl without an Accept header
+        $isApi = fn (Request $request): bool => $request->expectsJson() || $request->is('api/*');
 
-        $exceptions->renderable(function (ValidationException $e, Request $request) {
-            if (!$request->expectsJson() && !$request->is('api/*')) {
-                return null;
-            }
+        $exceptions->shouldRenderJsonWhen(fn (Request $request, Throwable $e): bool => $isApi($request));
 
-            return ApiResponse::validation($e->errors());
-        });
+        // Each renderer returns null outside the API, so Laravel's default page renders instead
+        $exceptions->renderable(fn (ValidationException $e, Request $request): ?JsonResponse => $isApi($request)
+            ? ApiResponse::validation($e->errors())
+            : null);
 
-        $exceptions->renderable(function (AuthenticationException $e, Request $request) {
-            if (!$request->expectsJson() && !$request->is('api/*')) {
-                return null;
-            }
+        $exceptions->renderable(fn (AuthenticationException $e, Request $request): ?JsonResponse => $isApi($request)
+            ? ApiResponse::error($e->getMessage() ?: 'Unauthenticated', 401)
+            : null);
 
-            return ApiResponse::error($e->getMessage() ?: 'Unauthenticated', 401);
-        });
+        $exceptions->renderable(fn (AuthorizationException $e, Request $request): ?JsonResponse => $isApi($request)
+            ? ApiResponse::error($e->getMessage() ?: 'Forbidden', 403)
+            : null);
 
-        $exceptions->renderable(function (AuthorizationException $e, Request $request) {
-            if (!$request->expectsJson() && !$request->is('api/*')) {
-                return null;
-            }
+        $exceptions->renderable(fn (ModelNotFoundException $e, Request $request): ?JsonResponse => $isApi($request)
+            ? ApiResponse::error('Resource not found', 404)
+            : null);
 
-            return ApiResponse::error($e->getMessage() ?: 'Forbidden', 403);
-        });
+        $exceptions->renderable(fn (NotFoundHttpException $e, Request $request): ?JsonResponse => $isApi($request)
+            ? ApiResponse::error('Route not found', 404)
+            : null);
 
-        $exceptions->renderable(function (ModelNotFoundException $e, Request $request) {
-            if (!$request->expectsJson() && !$request->is('api/*')) {
-                return null;
-            }
+        $exceptions->renderable(fn (MethodNotAllowedHttpException $e, Request $request): ?JsonResponse => $isApi($request)
+            ? ApiResponse::error('Method not allowed', 405)
+            : null);
 
-            return ApiResponse::error('Resource not found', 404);
-        });
+        $exceptions->renderable(fn (HttpExceptionInterface $e, Request $request): ?JsonResponse => $isApi($request)
+            ? ApiResponse::error($e->getMessage() ?: 'Request failed', $e->getStatusCode())
+            : null);
 
-        $exceptions->renderable(function (NotFoundHttpException $e, Request $request) {
-            if (!$request->expectsJson() && !$request->is('api/*')) {
-                return null;
-            }
-
-            return ApiResponse::error('Route not found', 404);
-        });
-
-        $exceptions->renderable(function (MethodNotAllowedHttpException $e, Request $request) {
-            if (!$request->expectsJson() && !$request->is('api/*')) {
-                return null;
-            }
-
-            return ApiResponse::error('Method not allowed', 405);
-        });
-
-        $exceptions->renderable(function (HttpExceptionInterface $e, Request $request) {
-            if (!$request->expectsJson() && !$request->is('api/*')) {
-                return null;
-            }
-
-            $message = $e->getMessage() ?: 'Request failed';
-
-            return ApiResponse::error($message, $e->getStatusCode());
-        });
-
-        $exceptions->renderable(function (Throwable $e, Request $request) {
-            if (!$request->expectsJson() && !$request->is('api/*')) {
-                return null;
-            }
-
-            $extra = config('app.debug') ? ['error' => $e->getMessage()] : [];
-
-            return ApiResponse::error('Server error', 500, [], $extra);
-        });
+        $exceptions->renderable(fn (Throwable $e, Request $request): ?JsonResponse => $isApi($request)
+            ? ApiResponse::error('Server error', 500, [], config('app.debug') ? ['error' => $e->getMessage()] : [])
+            : null);
     })->create();

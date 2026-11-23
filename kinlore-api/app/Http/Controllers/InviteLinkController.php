@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers;
 
 use App\Services\AuthService;
@@ -11,7 +13,7 @@ use Illuminate\Http\Response;
 class InviteLinkController extends Controller
 {
     public function __construct(
-        private AuthService $authService
+        private readonly AuthService $authService,
     ) {}
 
     public function show(string $token): Response

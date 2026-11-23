@@ -1,23 +1,25 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Console\Commands;
 
 use App\Models\User;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
 /**
  * For the server owner when someone forgot a password (docs/SELF_HOSTING.md).
  */
+#[Signature('kinlore:reset-password {email} {--password= : New password; asked for when left out}')]
+#[Description('Set a new password for a user and sign them out on all devices')]
 class ResetPassword extends Command
 {
-    protected $signature = 'kinlore:reset-password {email} {--password= : New password; asked for when left out}';
-
-    protected $description = 'Set a new password for a user and sign them out on all devices';
-
     public function handle(): int
     {
         $user = User::where('email', $this->argument('email'))->first();
-        if (!$user) {
+        if (! $user) {
             $this->error('No user has this email address.');
 
             return self::FAILURE;

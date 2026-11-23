@@ -1,6 +1,6 @@
 # Progress Tracker
 
-Last updated: 2026-11-22 (branch `develop`). Item IDs and details are in [ROADMAP.md](ROADMAP.md).
+Last updated: 2026-11-23 (branch `develop`). Item IDs and details are in [ROADMAP.md](ROADMAP.md).
 
 Status: ✅ done · 🔄 in review · ⬜ open · ❓ needs a decision (see [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md))
 
@@ -136,3 +136,17 @@ A full audit of both repos compared the code with these documents. All findings 
 | ✅ | Workflow runs the API tests, the Docker stack in both modes and the host-install guide | `.github/workflows/tests.yml` |
 
 Checked live on Docker in both modes: 50/50 end-to-end checks, `https` links behind a proxy, HTTP/2, the 350 MB upload and download.
+
+## Phase 9: upgrade to Laravel 13 and PHP 8.5 (2026-11-23)
+
+| Status | Item | Notes |
+|---|---|---|
+| ✅ | Laravel 12 → 13, PHPUnit 11 → 13, Intervention Image 3 → 4, all other packages to their newest | Laravel 13 config defaults: JSON sessions, no PHP objects from the cache |
+| ✅ | PHP 8.4 → 8.5 in the image, the host guide and its proof | the workflow also tests PHP 8.6, allowed to fail until Laravel lists it |
+| ✅ | SeaweedFS 4.54 → 4.55, Redis pinned to 8.10 | the old `redis:alpine` tag had already written 8.10 data; an older Redis cannot read it |
+| ✅ | PostgreSQL stays on 18 | owner's choice; 19 came out on 2026-11-19. Tested move steps are in SELF_HOSTING |
+| ✅ | Code on current conventions | enums for roles, types and statuses; Laravel 13 model, queue and console attributes; strict types; Pint with the Laravel preset |
+| ✅ | Unused code removed | model scopes, accessors, relations, service methods, `AuthServiceProvider` |
+| ⬜ | Moment types `text` and `mixed` | the database still allows them; no version of the app wrote them. See the `shortcut:` comment in `app/Enums/MomentType.php` |
+
+Checked: 167 tests three times in a row; on Docker 50/50 end-to-end checks, and the 350 MB original and an old video still served after the storage upgrade; the host-install proof on PHP 8.5; JSON output compared before and after for every payload.

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests\Api;
 
 use App\Enums\Role;
@@ -16,14 +18,12 @@ class StoreInvitationRequest extends FormRequest
         return true;
     }
 
-    /**
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
-     */
+    /** @return array<string, mixed> */
     public function rules(): array
     {
         return [
             'email' => 'nullable|email|max:255|unique:users,email',
-            'role' => ['nullable', Rule::in([Role::Partner, Role::Family])],
+            'role' => ['nullable', Rule::enum(Role::class)->only([Role::Partner, Role::Family])],
             'permissions' => 'nullable|array',
             'permissions.add_content' => 'boolean',
             'permissions.comment' => 'boolean',

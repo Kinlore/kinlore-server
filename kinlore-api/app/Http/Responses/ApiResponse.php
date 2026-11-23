@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Responses;
 
 use Illuminate\Http\JsonResponse;
@@ -7,7 +9,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 class ApiResponse
 {
-    private const NO_DATA = '__API_RESPONSE_NO_DATA__';
+    private const string NO_DATA = '__API_RESPONSE_NO_DATA__';
 
     public static function success(
         mixed $data = self::NO_DATA,
@@ -26,7 +28,7 @@ class ApiResponse
             $payload['data'] = $data;
         }
 
-        if (!empty($meta)) {
+        if (! empty($meta)) {
             $payload['meta'] = $meta;
         }
 
@@ -44,7 +46,7 @@ class ApiResponse
             'message' => $message,
         ], $extra);
 
-        if (!empty($errors)) {
+        if (! empty($errors)) {
             $payload['errors'] = $errors;
         }
 

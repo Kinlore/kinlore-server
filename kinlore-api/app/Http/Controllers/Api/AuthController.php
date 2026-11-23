@@ -1,5 +1,6 @@
 <?php
-// app/Http/Controllers/Api/AuthController.php
+
+declare(strict_types=1);
 
 namespace App\Http\Controllers\Api;
 
@@ -8,13 +9,13 @@ use App\Http\Requests\Api\LoginRequest;
 use App\Http\Requests\Api\RegisterRequest;
 use App\Http\Responses\ApiResponse;
 use App\Services\AuthService;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class AuthController extends Controller
 {
     public function __construct(
-        private AuthService $authService
+        private readonly AuthService $authService,
     ) {}
 
     /**
@@ -32,7 +33,7 @@ class AuthController extends Controller
     {
         $invitation = $this->authService->findPendingInvitation($token);
 
-        if (!$invitation) {
+        if (! $invitation) {
             return ApiResponse::error('Invitation not found, already used or expired', 404);
         }
 
@@ -46,9 +47,6 @@ class AuthController extends Controller
         ]);
     }
 
-    /**
-     * Register a new user.
-     */
     public function register(RegisterRequest $request): JsonResponse
     {
         $validated = $request->validated();
@@ -58,16 +56,14 @@ class AuthController extends Controller
         return ApiResponse::success($result, 'User registered successfully', 201);
     }
 
-    /**
-     * Login user and create token.
-     */
     public function login(LoginRequest $request): JsonResponse
     {
         $validated = $request->validated();
 
         $result = $this->authService->login(
             $validated['email'],
-            $validated['password']
+            // The rule is only `required`, so a JSON number must become a string.
+            $request->string('password')->toString(),
         );
 
         return ApiResponse::success($result, 'Login successful');
@@ -93,9 +89,6 @@ class AuthController extends Controller
         return ApiResponse::success(message: 'Logged out from all devices');
     }
 
-    /**
-     * Get authenticated user info.
-     */
     public function me(Request $request): JsonResponse
     {
         $userData = $this->authService->getUserInfo($request->user());
@@ -126,14 +119,11 @@ class AuthController extends Controller
         return ApiResponse::success($sessions);
     }
 
-    /**
-     * Revoke specific token/session.
-     */
-    public function revokeSession(Request $request, $tokenId): JsonResponse
+    public function revokeSession(Request $request, string $tokenId): JsonResponse
     {
-        $deleted = $this->authService->revokeSession($request->user(), $tokenId);
+        $deleted = $this->authService->revokeSession($request->user(), (int) $tokenId);
 
-        if (!$deleted) {
+        if (! $deleted) {
             return ApiResponse::error('Token not found', 404);
         }
 

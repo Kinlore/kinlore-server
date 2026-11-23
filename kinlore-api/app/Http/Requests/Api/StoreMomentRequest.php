@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests\Api;
 
 use App\Enums\MomentType;
@@ -12,31 +14,24 @@ use Illuminate\Validation\Rule;
 class StoreMomentRequest extends FormRequest
 {
     /** Growth measurements, also used by UpdateMomentRequest. */
-    public const GROWTH_RULES = [
+    public const array GROWTH_RULES = [
         'height_cm' => 'sometimes|nullable|numeric|between:1,250',
         'weight_kg' => 'sometimes|nullable|numeric|between:0.1,200',
         'head_circumference_cm' => 'sometimes|nullable|numeric|between:1,100',
     ];
 
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
-        if (!$this->user()->hasPermission('add_content') || !$this->user()->can('create', Moment::class)) {
+        if (! $this->user()->hasPermission('add_content') || ! $this->user()->can('create', Moment::class)) {
             return false;
         }
 
         $kid = Kid::find($this->input('kid_id'));
 
-        return !$kid || $this->user()->can('view', $kid);
+        return ! $kid || $this->user()->can('view', $kid);
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
-     */
+    /** @return array<string, mixed> */
     public function rules(): array
     {
         $hasFile = $this->hasFile('file');
@@ -44,7 +39,7 @@ class StoreMomentRequest extends FormRequest
 
         $rules = [
             'kid_id' => 'required|uuid|exists:kids,id',
-            'moment_type' => ['nullable', Rule::in(MomentType::cases())],
+            'moment_type' => ['nullable', Rule::enum(MomentType::class)],
             'title' => 'nullable|string|max:255',
             'description' => 'nullable|string|max:5000',
             'exif_date' => 'nullable|date',
@@ -78,7 +73,8 @@ class StoreMomentRequest extends FormRequest
         return $rules;
     }
 
-    protected function failedAuthorization(): void
+    #[\Override]
+    protected function failedAuthorization(): never
     {
         throw new AuthorizationException('You do not have permission to add content.');
     }

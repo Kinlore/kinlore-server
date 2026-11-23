@@ -62,7 +62,7 @@ class Kid extends Model
     {
         return Attribute::make(get: function (): ?string {
             $dob = $this->date_of_birth;
-            if (!$dob) {
+            if (! $dob) {
                 return null;
             }
 
@@ -73,11 +73,11 @@ class Kid extends Model
             $months = (int) $dob->copy()->addYears($years)->diffInMonths($now);
 
             if ($years > 0) {
-                return $years . ' year' . ($years > 1 ? 's' : '') .
-                       ($months > 0 ? ', ' . $months . ' month' . ($months > 1 ? 's' : '') : '');
+                return $years.' year'.($years > 1 ? 's' : '').
+                       ($months > 0 ? ', '.$months.' month'.($months > 1 ? 's' : '') : '');
             }
 
-            return $months . ' month' . ($months > 1 ? 's' : '');
+            return $months.' month'.($months > 1 ? 's' : '');
         });
     }
 
@@ -111,7 +111,7 @@ class Kid extends Model
         });
 
         static::updated(function (Kid $kid): void {
-            if (!$kid->isDirty('synced_at')) {
+            if (! $kid->isDirty('synced_at')) {
                 $kid->synced_at = now()->timestamp * 1000;
                 $kid->saveQuietly();
             }

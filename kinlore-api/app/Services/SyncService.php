@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services;
 
 use App\Enums\MomentType;
@@ -22,12 +24,10 @@ class SyncService
     private const PUSH_MOMENT_TYPES = [MomentType::Story->value, MomentType::Milestone->value, MomentType::Growth->value];
 
     public function __construct(
-        private MomentService $momentService
+        private readonly MomentService $momentService,
     ) {}
 
     /**
-     * Pull changes from server since last sync.
-     *
      * @return array{changes: array, timestamp: int}
      */
     public function pull(User $user, ?int $lastPulledAt, ?string $cursor = null, int $limit = self::PULL_PAGE_SIZE): array
@@ -53,30 +53,13 @@ class SyncService
         ];
     }
 
-    /**
-     * Get kids changes since last sync.
-     */
     private function getKidsChanges(?Carbon $since): array
     {
         $kids = Kid::withTrashed()
             ->when($since, fn ($q) => $q->where('updated_at', '>=', $since))
             ->get();
 
-        $created = [];
-        $updated = [];
-        $deleted = [];
-
-        foreach ($kids as $kid) {
-            if ($kid->trashed()) {
-                $deleted[] = $kid->id;
-            } elseif (!$since || $kid->created_at >= $since) {
-                $created[] = $this->formatKidForSync($kid);
-            } else {
-                $updated[] = $this->formatKidForSync($kid);
-            }
-        }
-
-        return compact('created', 'updated', 'deleted');
+        return $this->sortChanges($kids, $since, $this->formatKidForSync(...), fn (Kid $kid): bool => $kid->trashed());
     }
 
     /**
@@ -103,26 +86,12 @@ class SyncService
             $nextCursor = $moments->last()->id;
         }
 
-        $created = [];
-        $updated = [];
-        $deleted = [];
+        $changes = $this->sortChanges($moments, $since, $this->formatMomentForSync(...),
+            fn (Moment $moment): bool => $moment->trashed() || ! $moment->kid || $moment->kid->trashed());
 
-        foreach ($moments as $moment) {
-            if ($moment->trashed() || !$moment->kid || $moment->kid->trashed()) {
-                $deleted[] = $moment->id;
-            } elseif (!$since || $moment->created_at >= $since) {
-                $created[] = $this->formatMomentForSync($moment);
-            } else {
-                $updated[] = $this->formatMomentForSync($moment);
-            }
-        }
-
-        return [compact('created', 'updated', 'deleted'), $nextCursor];
+        return [$changes, $nextCursor];
     }
 
-    /**
-     * Get milestones changes since last sync.
-     */
     private function getMilestonesChanges(?Carbon $since): array
     {
         $milestones = Milestone::query()
@@ -131,22 +100,29 @@ class SyncService
             ->orderBy('sort_order')
             ->get();
 
-        $created = [];
-        $updated = [];
+        return $this->sortChanges($milestones, $since, $this->formatMilestoneForSync(...));
+    }
 
-        foreach ($milestones as $milestone) {
-            if (!$since || $milestone->created_at >= $since) {
-                $created[] = $this->formatMilestoneForSync($milestone);
+    /**
+     * Sort rows into created, updated and deleted for the client: a row made since the last pull is created.
+     *
+     * @return array{created: array, updated: array, deleted: string[]}
+     */
+    private function sortChanges(iterable $rows, ?Carbon $since, \Closure $format, ?\Closure $isDeleted = null): array
+    {
+        $changes = ['created' => [], 'updated' => [], 'deleted' => []];
+
+        foreach ($rows as $row) {
+            if ($isDeleted && $isDeleted($row)) {
+                $changes['deleted'][] = $row->id;
+            } elseif (! $since || $row->created_at >= $since) {
+                $changes['created'][] = $format($row);
             } else {
-                $updated[] = $this->formatMilestoneForSync($milestone);
+                $changes['updated'][] = $format($row);
             }
         }
 
-        return [
-            'created' => $created,
-            'updated' => $updated,
-            'deleted' => [],
-        ];
+        return $changes;
     }
 
     /**
@@ -174,9 +150,7 @@ class SyncService
         return $result;
     }
 
-    /**
-     * Run $change for each row; the closure returns null on success or a reason string.
-     */
+    // Run $change for each row; the closure returns null on success or a reason string.
     private function apply(array &$result, string $table, ?string $createdKey, array $rows, \Closure $change): void
     {
         foreach ($rows as $row) {
@@ -205,7 +179,7 @@ class SyncService
             return 'deleted';
         }
 
-        if ($kid ? !$user->can('update', $kid) : !$user->can('create', Kid::class)) {
+        if ($kid ? ! $user->can('update', $kid) : ! $user->can('create', Kid::class)) {
             return 'forbidden';
         }
 
@@ -222,7 +196,7 @@ class SyncService
             }
         }
 
-        if (empty($kid->name) || (!$kid->date_of_birth && !$kid->due_date)
+        if (empty($kid->name) || (! $kid->date_of_birth && ! $kid->due_date)
             || ($kid->date_of_birth && $kid->date_of_birth->isAfter(today()))) {
             return 'invalid';
         }
@@ -241,7 +215,7 @@ class SyncService
         }
 
         if ($moment) {
-            if (!$user->can('update', $moment)) {
+            if (! $user->can('update', $moment)) {
                 return 'forbidden';
             }
 
@@ -250,11 +224,11 @@ class SyncService
                 ? ['title', 'description', 'milestone_id', 'exif_date', 'height_cm', 'weight_kg', 'head_circumference_cm']
                 : ['title', 'description', 'exif_date'];
         } else {
-            if (!in_array($row['moment_type'] ?? null, self::PUSH_MOMENT_TYPES, true) || !Kid::find($row['kid_id'] ?? null)) {
+            if (! in_array($row['moment_type'] ?? null, self::PUSH_MOMENT_TYPES, true) || ! Kid::find($row['kid_id'] ?? null)) {
                 return 'invalid';
             }
 
-            if (!$user->hasPermission('add_content') || !$user->can('create', Moment::class)) {
+            if (! $user->hasPermission('add_content') || ! $user->can('create', Moment::class)) {
                 return 'forbidden';
             }
 
@@ -275,7 +249,7 @@ class SyncService
         if ($moment->moment_type === MomentType::Story && blank($moment->description)) {
             return 'invalid';
         }
-        if ($moment->moment_type === MomentType::Growth && (!$moment->exif_date
+        if ($moment->moment_type === MomentType::Growth && (! $moment->exif_date
             || ($moment->height_cm === null && $moment->weight_kg === null && $moment->head_circumference_cm === null))) {
             return 'invalid';
         }
@@ -292,11 +266,11 @@ class SyncService
     {
         $moment = Moment::find($id);
 
-        if (!$moment) {
+        if (! $moment) {
             return null; // already gone
         }
 
-        if (!$user->can('delete', $moment)) {
+        if (! $user->can('delete', $moment)) {
             return 'forbidden';
         }
 
@@ -309,11 +283,11 @@ class SyncService
     {
         $kid = Kid::find($id);
 
-        if (!$kid) {
+        if (! $kid) {
             return null;
         }
 
-        if (!$user->can('delete', $kid)) {
+        if (! $user->can('delete', $kid)) {
             return 'forbidden';
         }
 
@@ -334,9 +308,6 @@ class SyncService
         return $date ? Carbon::parse($date->format('Y-m-d'), 'UTC')->getTimestampMs() : null;
     }
 
-    /**
-     * Format kid for sync response.
-     */
     public function formatKidForSync(Kid $kid): array
     {
         return [
@@ -351,9 +322,7 @@ class SyncService
         ];
     }
 
-    /**
-     * Format moment for sync response (load it with Moment::forPayload).
-     */
+    // Load the moment with Moment::forPayload
     public function formatMomentForSync(Moment $moment): array
     {
         return [
@@ -388,9 +357,6 @@ class SyncService
         ];
     }
 
-    /**
-     * Format milestone for sync response.
-     */
     public function formatMilestoneForSync(Milestone $milestone): array
     {
         return [

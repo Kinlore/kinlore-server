@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Api;
 
 use App\Enums\ExportStatus;
@@ -45,17 +47,17 @@ class ExportController extends Controller
     public function download(Export $export): Response
     {
         // Only admins create exports; a family owner who lost the download permission cannot use old links.
-        if ($export->user && !$export->user->hasPermission('download')) {
+        if ($export->user && ! $export->user->hasPermission('download')) {
             return ApiResponse::error('You do not have permission to download.', 403);
         }
 
         $path = $export->fullPath();
 
-        if ($export->status !== ExportStatus::Ready || !$path || !is_file($path)) {
+        if ($export->status !== ExportStatus::Ready || ! $path || ! is_file($path)) {
             return ApiResponse::error('Export not found', 404);
         }
 
-        return response()->download($path, 'kinlore-export-' . $export->created_at->format('Y-m-d') . '.zip', [
+        return response()->download($path, 'kinlore-export-'.$export->created_at->format('Y-m-d').'.zip', [
             'Content-Type' => 'application/zip',
         ]);
     }

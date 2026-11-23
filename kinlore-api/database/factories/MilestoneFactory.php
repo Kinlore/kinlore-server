@@ -16,9 +16,9 @@ class MilestoneFactory extends Factory
             ['key' => 'toddler_1_3y', 'label' => 'Toddlerhood (1–3 years)'],
             ['key' => 'early_childhood_3_6y', 'label' => 'Early Childhood (3–6 years)'],
         ];
-        
+
         $stage = $this->faker->randomElement($stages);
-        
+
         return [
             'id' => $this->faker->unique()->slug(3),
             'title' => $this->faker->sentence(4),

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
@@ -17,12 +19,9 @@ use Illuminate\Http\Request;
 class MomentInteractionController extends Controller
 {
     public function __construct(
-        private InteractionService $interactionService
+        private readonly InteractionService $interactionService,
     ) {}
 
-    /**
-     * Like a moment.
-     */
     public function like(LikeMomentRequest $request, Moment $moment): JsonResponse
     {
         $interaction = $this->interactionService->like($request->user(), $moment);
@@ -34,9 +33,6 @@ class MomentInteractionController extends Controller
         return ApiResponse::success(message: 'Moment liked', status: 201);
     }
 
-    /**
-     * Unlike a moment.
-     */
     public function unlike(UnlikeMomentRequest $request, Moment $moment): JsonResponse
     {
         $deleted = $this->interactionService->unlike($request->user(), $moment);
@@ -48,9 +44,6 @@ class MomentInteractionController extends Controller
         return ApiResponse::error('Not liked yet', 404);
     }
 
-    /**
-     * Post a comment.
-     */
     public function comment(CommentMomentRequest $request, Moment $moment): JsonResponse
     {
         $validated = $request->validated();
@@ -64,15 +57,12 @@ class MomentInteractionController extends Controller
         return ApiResponse::success($interaction, 'Comment posted', 201);
     }
 
-    /**
-     * Delete a comment.
-     */
     public function deleteComment(Request $request, MomentInteraction $interaction): JsonResponse
     {
         // Only the author or the admin can delete a comment
         try {
             $this->interactionService->deleteComment($request->user(), $interaction);
-            
+
             return ApiResponse::success(message: 'Comment deleted');
         } catch (\InvalidArgumentException $e) {
             return ApiResponse::error($e->getMessage(), 400);
@@ -81,9 +71,6 @@ class MomentInteractionController extends Controller
         }
     }
 
-    /**
-     * Get comments for a moment.
-     */
     public function index(ListMomentCommentsRequest $request, Moment $moment): JsonResponse
     {
         $comments = $this->interactionService->getComments($moment);

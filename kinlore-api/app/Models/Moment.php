@@ -133,7 +133,7 @@ class Moment extends Model
 
     protected function hasLocation(): Attribute
     {
-        return Attribute::make(get: fn (): bool => !is_null($this->latitude) && !is_null($this->longitude));
+        return Attribute::make(get: fn (): bool => ! is_null($this->latitude) && ! is_null($this->longitude));
     }
 
     protected function fileSizeFormatted(): Attribute
@@ -142,14 +142,14 @@ class Moment extends Model
             $bytes = $this->file_size;
 
             if ($bytes >= 1073741824) {
-                return number_format($bytes / 1073741824, 2) . ' GB';
+                return number_format($bytes / 1073741824, 2).' GB';
             } elseif ($bytes >= 1048576) {
-                return number_format($bytes / 1048576, 2) . ' MB';
+                return number_format($bytes / 1048576, 2).' MB';
             } elseif ($bytes >= 1024) {
-                return number_format($bytes / 1024, 2) . ' KB';
+                return number_format($bytes / 1024, 2).' KB';
             }
 
-            return $bytes . ' bytes';
+            return $bytes.' bytes';
         });
     }
 
@@ -189,7 +189,8 @@ class Moment extends Model
         try {
             return Storage::disk('seaweedfs')->temporaryUrl($path, now()->addMinutes($expiration));
         } catch (\Exception $e) {
-            Log::error('Failed to generate signed URL: ' . $e->getMessage());
+            Log::error('Failed to generate signed URL: '.$e->getMessage());
+
             return Storage::disk('seaweedfs')->url($path);
         }
     }
@@ -198,7 +199,7 @@ class Moment extends Model
     {
         $tags = $this->tags ?? [];
 
-        if (!in_array($tag, $tags)) {
+        if (! in_array($tag, $tags)) {
             $tags[] = $tag;
             $this->tags = $tags;
             $this->save();
@@ -219,14 +220,7 @@ class Moment extends Model
     #[Scope]
     protected function orderByDate(Builder $query, string $direction = 'desc'): void
     {
-        $query->orderByRaw('COALESCE(exif_date, created_at) ' . $direction);
-    }
-
-    #[Scope]
-    protected function inDateRange(Builder $query, string $startDate, string $endDate): void
-    {
-        $query->whereBetween('exif_date', [$startDate, $endDate])
-              ->orWhereBetween('created_at', [$startDate, $endDate]);
+        $query->orderByRaw('COALESCE(exif_date, created_at) '.$direction);
     }
 
     /** Everything the moment payload needs, without N+1: uploader, counts and the caller's like. */
@@ -238,17 +232,11 @@ class Moment extends Model
             ->withExists(['likes as is_liked' => fn (Builder $q) => $q->where('user_id', $viewer?->id)]);
     }
 
-    #[Scope]
-    protected function byDevice(Builder $query, string $deviceAssetId): void
-    {
-        $query->where('device_asset_id', $deviceAssetId);
-    }
-
     #[\Override]
     protected static function booted(): void
     {
         static::updated(function (Moment $moment): void {
-            if (!$moment->isDirty('synced_at')) {
+            if (! $moment->isDirty('synced_at')) {
                 $moment->synced_at = now()->timestamp * 1000;
                 $moment->saveQuietly();
             }
@@ -262,7 +250,7 @@ class Moment extends Model
                     $moment->attributes['thumbnail_url'],
                 ]);
             } catch (\Exception $e) {
-                Log::error('Failed to delete moment files: ' . $e->getMessage());
+                Log::error('Failed to delete moment files: '.$e->getMessage());
             }
         });
     }

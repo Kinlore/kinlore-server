@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Api;
 
 use App\Enums\Role;
@@ -15,9 +17,6 @@ use Illuminate\Support\Str;
  */
 class InvitationController extends Controller
 {
-    /**
-     * List pending invitations.
-     */
     public function index(): JsonResponse
     {
         return ApiResponse::success(Invitation::pending()->with('inviter')->latest()->get()->map->toItem());

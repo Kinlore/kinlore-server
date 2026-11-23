@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tests\Feature;
 
 use Illuminate\Support\Facades\Route;
@@ -20,20 +22,20 @@ class OpenApiRoutesTest extends TestCase
             } elseif (preg_match('#^\S#', $line)) {
                 $path = null;
             } elseif ($path !== null && preg_match('#^    (get|post|put|patch|delete):#', $line, $m)) {
-                $documented[] = strtoupper($m[1]) . ' ' . $this->normalize($path);
+                $documented[] = strtoupper($m[1]).' '.$this->normalize($path);
             }
         }
 
         $served = [];
         foreach (Route::getRoutes() as $route) {
-            $uri = '/' . ltrim($route->uri(), '/');
+            $uri = '/'.ltrim($route->uri(), '/');
             if (str_starts_with($uri, '/api')) {
                 $uri = substr($uri, 4) ?: '/';
-            } elseif (!in_array($uri, ['/', '/setup'], true) && !str_starts_with($uri, '/invite')) {
+            } elseif (! in_array($uri, ['/', '/setup'], true) && ! str_starts_with($uri, '/invite')) {
                 continue; // framework routes such as /up and /storage
             }
             foreach (array_diff($route->methods(), ['HEAD']) as $method) {
-                $served[] = $method . ' ' . $this->normalize($uri);
+                $served[] = $method.' '.$this->normalize($uri);
             }
         }
 

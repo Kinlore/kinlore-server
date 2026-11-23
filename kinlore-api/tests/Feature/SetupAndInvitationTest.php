@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tests\Feature;
 
 use App\Models\Invitation;
@@ -30,7 +32,7 @@ class SetupAndInvitationTest extends TestCase
     private function invitation(array $attributes = []): Invitation
     {
         return Invitation::create($attributes + [
-            'token' => 'tok-' . uniqid(),
+            'token' => 'tok-'.uniqid(),
             'role' => 'family',
             'invited_by' => User::factory()->admin()->create(['name' => 'Ann'])->id,
             'expires_at' => now()->addDays(7),
@@ -58,7 +60,7 @@ class SetupAndInvitationTest extends TestCase
     {
         config(['app.setup_token' => 'secret']);
 
-        $this->register()->assertStatus(403)->assertJsonPath('message', 'Finish setup in a web browser at ' . url('/setup'));
+        $this->register()->assertStatus(403)->assertJsonPath('message', 'Finish setup in a web browser at '.url('/setup'));
         $this->register(['setup_token' => 'secret', 'invite_token' => 'anything'])->assertStatus(403);
         $this->assertDatabaseCount('users', 0);
     }
@@ -101,7 +103,7 @@ class SetupAndInvitationTest extends TestCase
             ->assertDontSee('<script>', false)
             ->assertSee('https://kin.example.test')
             ->assertSee($invitation->token)
-            ->assertSee('kinlore://invite/' . $invitation->token . '?server=https%3A%2F%2Fkin.example.test', false);
+            ->assertSee('kinlore://invite/'.$invitation->token.'?server=https%3A%2F%2Fkin.example.test', false);
 
         $used = $this->invitation(['accepted_at' => now()]);
         $this->get("/invite/{$used->token}")->assertNotFound()->assertSee('Invitation not found');

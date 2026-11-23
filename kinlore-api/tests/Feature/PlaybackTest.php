@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tests\Feature;
 
 use App\Enums\VideoStatus;
@@ -53,7 +55,7 @@ class PlaybackTest extends TestCase
         $variantUrl = collect(explode("\n", $master))->first(fn ($l) => str_contains($l, 'playlist_0_2500.m3u8'));
         $this->assertStringContainsString('signature=', $variantUrl);
         parse_str(parse_url($data['hls_url'], PHP_URL_QUERY), $query);
-        $this->assertStringContainsString('expires=' . $query['expires'], $variantUrl); // same expiry as the master
+        $this->assertStringContainsString('expires='.$query['expires'], $variantUrl); // same expiry as the master
 
         $variant = $this->get($variantUrl)->assertOk()->getContent();
         $segmentUrl = collect(explode("\n", $variant))->first(fn ($l) => str_contains($l, '.ts'));

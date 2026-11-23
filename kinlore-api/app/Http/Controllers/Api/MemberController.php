@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Api;
 
 use App\Enums\Role;
@@ -20,7 +22,7 @@ class MemberController extends Controller
     /**
      * Other tables whose rows are deleted with their user (cascade), so they move to the admin.
      */
-    private const REASSIGNED_ON_DELETE = [
+    private const array REASSIGNED_ON_DELETE = [
         'media' => 'user_id',
         'videos' => 'user_id',
         'custom_milestones' => 'user_id',
@@ -49,8 +51,8 @@ class MemberController extends Controller
             return ApiResponse::error('You cannot change your own role. Make another member admin instead.', 422);
         }
 
-        DB::transaction(function () use ($admin, $user, $role, $validated) {
-            if ($role !== null && !$user->is($admin)) {
+        DB::transaction(function () use ($admin, $user, $role, $validated): void {
+            if ($role !== null && ! $user->is($admin)) {
                 $user->role = $role;
                 if ($role === Role::Admin) {
                     $admin->update(['role' => Role::Partner]);
@@ -62,7 +64,7 @@ class MemberController extends Controller
             }
 
             // A new password signs the member out everywhere; the admin keeps the session that made the change.
-            if (!empty($validated['password'])) {
+            if (! empty($validated['password'])) {
                 $user->password = $validated['password'];
                 $keep = $user->is($admin) ? $admin->currentAccessToken()?->id : null;
                 $user->tokens()->when($keep, fn ($q) => $q->where('id', '!=', $keep))->delete();
@@ -86,7 +88,7 @@ class MemberController extends Controller
             return ApiResponse::error('You cannot remove yourself.', 422);
         }
 
-        DB::transaction(function () use ($admin, $user) {
+        DB::transaction(function () use ($admin, $user): void {
             // kids.user_id cascades on delete, so move the kids first. updated_at makes the apps sync the change.
             DB::table('kids')->where('user_id', $user->id)->update(['user_id' => $admin->id, 'updated_at' => now()]);
             DB::table('moments')->where('user_id', $user->id)->update(['user_id' => null, 'updated_at' => now()]);
@@ -103,6 +105,7 @@ class MemberController extends Controller
         return ApiResponse::success(null, 'Member removed');
     }
 
+    /** @return array<string, mixed> */
     private function item(User $member): array
     {
         return $member->toPayload() + ['moments_count' => $member->uploaded_moments_count];

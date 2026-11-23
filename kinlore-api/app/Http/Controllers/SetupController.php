@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers;
 
 use App\Http\Requests\Web\SetupRequest;
@@ -14,12 +16,12 @@ use Illuminate\View\View;
 class SetupController extends Controller
 {
     public function __construct(
-        private AuthService $authService
+        private readonly AuthService $authService,
     ) {}
 
     public function home(): View|RedirectResponse
     {
-        if (!User::exists()) {
+        if (! User::exists()) {
             return redirect('/setup');
         }
 

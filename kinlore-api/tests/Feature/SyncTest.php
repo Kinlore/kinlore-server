@@ -1,15 +1,17 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tests\Feature;
 
-use Tests\TestCase;
 use App\Enums\MomentType;
-use App\Models\User;
 use App\Models\Kid;
 use App\Models\Moment;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Laravel\Sanctum\Sanctum;
+use Tests\TestCase;
 
 class SyncTest extends TestCase
 {
@@ -20,7 +22,7 @@ class SyncTest extends TestCase
         $user = User::factory()->create();
         $kid = Kid::factory()->create(['user_id' => $user->id]);
         Moment::factory()->count(3)->create(['kid_id' => $kid->id]);
-        
+
         Sanctum::actingAs($user);
 
         $response = $this->postJson('/api/v1/sync/pull', [
@@ -46,11 +48,11 @@ class SyncTest extends TestCase
     {
         $user = User::factory()->create();
         $kid = Kid::factory()->create(['user_id' => $user->id]);
-        
+
         Sanctum::actingAs($user);
 
         $lastPulledAt = now()->subHours(1)->timestamp * 1000;
-        
+
         // Create moment after lastPulledAt
         Moment::factory()->create(['kid_id' => $kid->id]);
 
@@ -66,7 +68,7 @@ class SyncTest extends TestCase
     public function test_user_can_push_changes(): void
     {
         $user = User::factory()->create();
-        
+
         Sanctum::actingAs($user);
 
         $response = $this->postJson('/api/v1/sync/push', [
@@ -264,7 +266,7 @@ class SyncTest extends TestCase
 
         $row = $response->json('changes.moments.created.0');
         foreach (['orientation', 'likes_count', 'comments_count', 'is_liked', 'duration', 'video_status', 'uploader_name',
-                  'height_cm', 'weight_kg', 'head_circumference_cm', 'device_asset_id', 'user_id'] as $field) {
+            'height_cm', 'weight_kg', 'head_circumference_cm', 'device_asset_id', 'user_id'] as $field) {
             $this->assertArrayHasKey($field, $row);
         }
         $this->assertNull($row['exif_date']);

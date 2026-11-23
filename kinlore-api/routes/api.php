@@ -1,16 +1,19 @@
 <?php
 
-use App\Http\Controllers\Api\HealthController;
+declare(strict_types=1);
+
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\ExportController;
+use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\InvitationController;
 use App\Http\Controllers\Api\KidController;
-use App\Http\Controllers\Api\MomentController;
-use App\Http\Controllers\Api\SyncController;
-use App\Http\Controllers\Api\MilestoneController;
-use App\Http\Controllers\Api\MomentInteractionController;
-use App\Http\Controllers\Api\MemberController;
 use App\Http\Controllers\Api\LookbackController;
-use App\Http\Controllers\Api\ExportController;
+use App\Http\Controllers\Api\MemberController;
+use App\Http\Controllers\Api\MilestoneController;
+use App\Http\Controllers\Api\MomentController;
+use App\Http\Controllers\Api\MomentInteractionController;
+use App\Http\Controllers\Api\SyncController;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -18,13 +21,11 @@ use Illuminate\Support\Facades\Route;
 | Health Check Routes (Public)
 |--------------------------------------------------------------------------
 */
-Route::get('/health', function () {
-    return response()->json([
-        'status' => 'ok',
-        'timestamp' => now()->toIso8601String(),
-        'service' => 'kinlore-api',
-    ]);
-});
+Route::get('/health', fn (): JsonResponse => response()->json([
+    'status' => 'ok',
+    'timestamp' => now()->toIso8601String(),
+    'service' => 'kinlore-api',
+]));
 
 Route::get('/health/detailed', [HealthController::class, 'detailed'])
     ->name('health.detailed')
@@ -43,7 +44,7 @@ Route::prefix('auth')->group(function () {
         ->middleware('throttle:10,1');
     Route::post('/login', [AuthController::class, 'login'])
         ->middleware('throttle:5,1'); // 5 attempts per minute
-    
+
     // Protected auth routes
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
@@ -109,10 +110,10 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
 
     // Look-back: on this day, then and now
     Route::get('/lookback', [LookbackController::class, 'index']);
-    
+
     // Uploaded identifiers per kid (for duplicate detection)
     Route::get('/kids/{kid}/moments/uploaded-identifiers', [MomentController::class, 'uploadedIdentifiers']);
-    
+
     // Invitations (instance admin only)
     Route::middleware('can:admin')->group(function () {
         Route::get('/invitations', [InvitationController::class, 'index']);

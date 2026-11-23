@@ -1,13 +1,15 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tests\Unit\Models;
 
-use Tests\TestCase;
 use App\Models\Kid;
-use App\Models\User;
 use App\Models\Moment;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
 
 class KidTest extends TestCase
 {

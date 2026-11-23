@@ -1,27 +1,22 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests\Api;
 
+use App\Http\Responses\ApiResponse;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
-use App\Http\Responses\ApiResponse;
 
 class ServeMomentHlsFileRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
-     */
+    /** @return array<string, mixed> */
     public function rules(): array
     {
         return [
@@ -30,12 +25,14 @@ class ServeMomentHlsFileRequest extends FormRequest
     }
 
     /** The filename comes from the route, not the query string. */
+    #[\Override]
     protected function prepareForValidation(): void
     {
         $this->merge(['filename' => $this->route('filename')]);
     }
 
-    protected function failedValidation(Validator $validator): void
+    #[\Override]
+    protected function failedValidation(Validator $validator): never
     {
         throw new HttpResponseException(ApiResponse::error('Invalid filename format', 400));
     }
