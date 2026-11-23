@@ -20,7 +20,7 @@ Kinlore is a self-hosted family photo journal. One family keeps the photos, vide
 
 ## Project status
 
-Kinlore is before version 1.0. There is no release yet. The API can still change. The mobile app has been tested on the iOS simulator only. Planned work is in [docs/ROADMAP.md](docs/ROADMAP.md).
+Version 1.0.0 is the first release. Releases follow [Semantic Versioning](https://semver.org/): from 1.0.0 on, a breaking change of the API needs a new major version. Changes are listed in [CHANGELOG.md](CHANGELOG.md). The mobile app has been tested on the iOS simulator only. Planned work is in [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Quick start with Docker
 

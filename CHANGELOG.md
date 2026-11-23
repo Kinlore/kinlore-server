@@ -2,11 +2,14 @@
 
 All notable changes to this project are listed in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-The first release will contain:
+## [1.0.0] - 2026-11-23
+
+First release.
 
 ### Added
 
@@ -23,3 +26,6 @@ The first release will contain:
 - Docker Compose stack with PostgreSQL, SeaweedFS, Redis and Caddy with optional built-in HTTPS.
 - Guide and configuration files for an install directly on a Linux host, with SQLite and the local disk.
 - OpenAPI description of the API.
+
+[Unreleased]: https://github.com/elyess/kinlore-server/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/elyess/kinlore-server/releases/tag/v1.0.0

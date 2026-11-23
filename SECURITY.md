@@ -2,7 +2,11 @@
 
 ## Supported versions
 
-Kinlore has no numbered release yet. Security fixes go to the `develop` branch and from there to `main`. Run the newest code to have all fixes.
+| Version | Security fixes |
+| --- | --- |
+| 1.0.x | Yes |
+
+Fixes are released as a new patch version (1.0.1, 1.0.2 and so on). Always run the newest release.
 
 ## Report a vulnerability
 
