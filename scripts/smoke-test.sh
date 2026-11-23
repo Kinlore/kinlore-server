@@ -2,6 +2,7 @@
 # End-to-end check of a running Kinlore API against docs/API_CONTRACT.md.
 # Usage: scripts/smoke-test.sh <base url> <admin email> <admin password>
 #   e.g. scripts/smoke-test.sh http://localhost:8088 admin@example.test 'TestPassword123!'
+# Optional: SMOKE_EXPORT_WAIT=<seconds> when the instance already holds large videos.
 # Needs: curl, jq, uuidgen. Video checks need ffmpeg, or a test video in SMOKE_VIDEO=/path/to/file.mp4.
 # It creates test data (kids, moments, one invited user). Use it on a test instance only.
 set -uo pipefail
@@ -142,7 +143,8 @@ check "then_and_now present" '.data|has("then_and_now")' "$(body "$r")"
 echo "== Export"
 r=$(req POST /v1/exports "$ADMIN"); EXP=$(body "$r" | jq -r '.data.id // empty')
 [ "$(status "$r")" = "202" ] && ok "export started" || bad "export started" "$r"
-for _ in $(seq 1 30); do
+# The export copies every original into one ZIP: allow SMOKE_EXPORT_WAIT seconds (default 60) on an instance with large videos
+for _ in $(seq 1 $(( ${SMOKE_EXPORT_WAIT:-60} / 2 ))); do
   E=$(body "$(req GET /v1/exports "$ADMIN")" | jq -c "[.data[]|select(.id==\"$EXP\")][0]")
   s=$(echo "$E" | jq -r .status); [ "$s" = "ready" ] || [ "$s" = "failed" ] && break; sleep 2
 done

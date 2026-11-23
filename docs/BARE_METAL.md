@@ -175,7 +175,7 @@ sudo apt install -y jq uuid-runtime
 /srv/kinlore/scripts/smoke-test.sh https://photos.example.com you@example.com 'your-admin-password'
 ```
 
-The last line must say `Failed: 0`.
+The last line must say `Failed: 0`. When the server already holds many large videos, the export step needs longer: put `SMOKE_EXPORT_WAIT=600` in front of the command.
 
 ## 10. Update
 

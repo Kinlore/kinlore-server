@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Proves docs/BARE_METAL.md: runs the guide's commands on a clean Debian 13 in a throwaway
+# Proves docs/BARE_METAL.md (the export of the two 300 MB test videos needs several minutes on a small machine): runs the guide's commands on a clean Debian 13 in a throwaway
 # container (no Docker Compose, no services of this repo), then runs the end-to-end smoke test
 # against the result, once through Caddy and once through nginx.
 # Usage: scripts/test-bare-metal.sh        Needs: docker.
@@ -138,11 +138,11 @@ test "$(curl -fsS http://localhost/api/v1/kids -H "Authorization: Bearer $TOKEN"
 
 step "13. End-to-end smoke test through Caddy"
 sleep 61   # sign-in limit: 5 per minute
-bash /srv/kinlore/scripts/smoke-test.sh http://localhost "$SEED_USER_EMAIL" "$SEED_USER_PASSWORD" </dev/null | grep -A2 -E "FAIL|Passed:"
+SMOKE_EXPORT_WAIT=900 bash /srv/kinlore/scripts/smoke-test.sh http://localhost "$SEED_USER_EMAIL" "$SEED_USER_PASSWORD" </dev/null | grep -A2 -E "FAIL|Passed:"
 
 step "14. End-to-end smoke test through nginx"
 sleep 61
-bash /srv/kinlore/scripts/smoke-test.sh http://localhost:8081 "$SEED_USER_EMAIL" "$SEED_USER_PASSWORD" </dev/null | grep -A2 -E "FAIL|Passed:"
+SMOKE_EXPORT_WAIT=900 bash /srv/kinlore/scripts/smoke-test.sh http://localhost:8081 "$SEED_USER_EMAIL" "$SEED_USER_PASSWORD" </dev/null | grep -A2 -E "FAIL|Passed:"
 
 echo; echo "BARE METAL GUIDE: ALL STEPS PASSED"
 INNER
