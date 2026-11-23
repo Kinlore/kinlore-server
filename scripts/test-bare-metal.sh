@@ -96,6 +96,14 @@ for base in http://localhost http://localhost:8081; do
 done
 rm -f /tmp/big.mp4
 
+step "10b. Wait until the worker has converted the two large videos (slow on a small machine)"
+# Before the backup: a backup taken in the middle of a conversion restores a job that nobody works on
+for _ in $(seq 1 180); do
+  LEFT=$(sqlite3 /var/lib/kinlore/database.sqlite "select count(*) from jobs")
+  [ "$LEFT" = 0 ] && break; sleep 10
+done
+echo "jobs left: $LEFT"; test "$LEFT" = 0
+
 step "11. Backup script"
 sh ../deploy/bare-metal/kinlore-backup.sh /tmp/kinlore-backup
 test -s /tmp/kinlore-backup/database.sqlite && test -d /tmp/kinlore-backup/media && test -s /tmp/kinlore-backup/env
@@ -124,11 +132,11 @@ test "$(curl -fsS http://localhost/api/v1/kids -H "Authorization: Bearer $TOKEN"
 
 step "13. End-to-end smoke test through Caddy"
 sleep 61   # sign-in limit: 5 per minute
-bash /srv/kinlore/scripts/smoke-test.sh http://localhost "$SEED_USER_EMAIL" "$SEED_USER_PASSWORD" </dev/null | tail -3
+bash /srv/kinlore/scripts/smoke-test.sh http://localhost "$SEED_USER_EMAIL" "$SEED_USER_PASSWORD" </dev/null | grep -A2 -E "FAIL|Passed:"
 
 step "14. End-to-end smoke test through nginx"
 sleep 61
-bash /srv/kinlore/scripts/smoke-test.sh http://localhost:8081 "$SEED_USER_EMAIL" "$SEED_USER_PASSWORD" </dev/null | tail -3
+bash /srv/kinlore/scripts/smoke-test.sh http://localhost:8081 "$SEED_USER_EMAIL" "$SEED_USER_PASSWORD" </dev/null | grep -A2 -E "FAIL|Passed:"
 
 echo; echo "BARE METAL GUIDE: ALL STEPS PASSED"
 INNER

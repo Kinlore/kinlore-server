@@ -207,6 +207,8 @@ cd /srv/kinlore/kinlore-api && sudo -u www-data php artisan migrate --force && s
 sudo systemctl start php8.4-fpm kinlore-queue
 ```
 
+A video that was being converted at the moment of the backup stays at "processing" for about an hour after a restore and then shows as failed. Delete it in the app and upload it again; the original file is not lost.
+
 The admin can also make a full ZIP export of all memories in the app (Settings → Export).
 
 ## 12. Everyday commands
