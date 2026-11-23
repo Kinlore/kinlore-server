@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Api;
 
+use App\Enums\MomentType;
 use App\Models\Moment;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -34,11 +35,11 @@ class UpdateMomentRequest extends FormRequest
             'exif_date' => 'sometimes|nullable|date',
         ];
 
-        if ($type === 'milestone') {
+        if ($type === MomentType::Milestone) {
             $rules['milestone_id'] = 'sometimes|required|string|exists:milestones,id';
         }
 
-        if ($type === 'growth') {
+        if ($type === MomentType::Growth) {
             $rules += StoreMomentRequest::GROWTH_RULES;
             $rules['exif_date'] = 'sometimes|required|date';
         }

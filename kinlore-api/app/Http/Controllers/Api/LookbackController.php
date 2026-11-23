@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\MomentType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\IndexLookbackRequest;
 use App\Http\Responses\ApiResponse;
@@ -41,7 +42,7 @@ class LookbackController extends Controller
 
         return Moment::has('kid')
             ->forPayload($user)
-            ->whereIn('moment_type', ['photo', 'video', 'story'])
+            ->whereIn('moment_type', [MomentType::Photo, MomentType::Video, MomentType::Story])
             ->whereRaw("{$monthDay} = ?", [$date->format('m-d')])
             ->whereRaw(self::DISPLAY_DATE . ' < ?', [$date->copy()->startOfYear()->toDateTimeString()])
             ->orderByDate('desc')
@@ -64,7 +65,7 @@ class LookbackController extends Controller
         $pairs = [];
 
         foreach (Kid::orderBy('created_at')->get() as $kid) {
-            $photos = fn () => Moment::forPayload($user)->where('kid_id', $kid->id)->where('moment_type', 'photo');
+            $photos = fn () => Moment::forPayload($user)->where('kid_id', $kid->id)->where('moment_type', MomentType::Photo);
             $then = $photos()->orderByDate('asc')->first();
             $now = $photos()->orderByDate('desc')->first();
 

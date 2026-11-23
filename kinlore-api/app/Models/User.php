@@ -1,66 +1,44 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
+use App\Enums\Role;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-
+#[Fillable(['name', 'email', 'password', 'role', 'can_add_content', 'can_comment', 'can_like', 'can_download'])]
+#[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
-     */
-    protected $fillable = [
-        'name',
-        'email',
-        'password',
-        'role',
-        'can_add_content',
-        'can_comment',
-        'can_like',
-        'can_download',
-    ];
+    public const array PERMISSIONS = ['add_content', 'comment', 'like', 'download'];
 
     /** Same defaults as the columns, so a new model has them before it is reloaded. */
     protected $attributes = [
-        'role' => 'family',
+        'role' => Role::Family->value,
         'can_add_content' => true,
         'can_comment' => true,
         'can_like' => true,
         'can_download' => true,
     ];
 
-    public const ROLES = ['admin', 'partner', 'family'];
-
-    public const PERMISSIONS = ['add_content', 'comment', 'like', 'download'];
-
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var array<int, string>
-     */
-    protected $hidden = [
-        'password',
-        'remember_token',
-    ];
-
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
+    #[\Override]
     protected function casts(): array
     {
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'role' => Role::class,
             'can_add_content' => 'boolean',
             'can_comment' => 'boolean',
             'can_like' => 'boolean',
@@ -68,25 +46,21 @@ class User extends Authenticatable
         ];
     }
 
-    /**
-     * Roles and permissions (docs/API_CONTRACT.md section 1)
-     */
-
+    // Roles and permissions: docs/API_CONTRACT.md section 1.
     // is_admin is derived from role; setting it keeps older call sites working
-    public function getIsAdminAttribute(): bool
+    protected function isAdmin(): Attribute
     {
-        return $this->role === 'admin';
+        return Attribute::make(
+            get: fn (): bool => $this->role === Role::Admin,
+            set: fn (mixed $value, array $attributes): array => [
+                'role' => $value ? Role::Admin->value : ($attributes['role'] ?? Role::Family->value),
+            ],
+        );
     }
 
-    public function setIsAdminAttribute($value): void
-    {
-        $this->attributes['role'] = $value ? 'admin' : ($this->attributes['role'] ?? 'family');
-    }
-
-    /** Admin and partner may change any kid and any content. */
     public function canManageContent(): bool
     {
-        return in_array($this->role, ['admin', 'partner'], true);
+        return $this->role->canManageContent();
     }
 
     /** @param string $permission one of self::PERMISSIONS */
@@ -102,7 +76,7 @@ class User extends Authenticatable
     /** @return array{add_content: bool, comment: bool, like: bool, download: bool} */
     public function permissionsArray(): array
     {
-        return array_combine(self::PERMISSIONS, array_map(fn ($p) => $this->hasPermission($p), self::PERMISSIONS));
+        return array_combine(self::PERMISSIONS, array_map($this->hasPermission(...), self::PERMISSIONS));
     }
 
     /** User payload shared by login, register, /auth/me and members (docs/API_CONTRACT.md section 2). */
@@ -112,56 +86,48 @@ class User extends Authenticatable
             'id' => $this->id,
             'name' => $this->name,
             'email' => $this->email,
-            'role' => $this->role,
+            'role' => $this->role->value,
             'is_admin' => $this->is_admin,
             'permissions' => $this->permissionsArray(),
             'created_at' => $this->created_at?->toIso8601String(),
         ];
     }
 
-    /**
-     * Relationships
-     */
-    
-    public function kids()
+    public function kids(): HasMany
     {
         return $this->hasMany(Kid::class);
     }
 
-    public function moments()
+    public function moments(): HasManyThrough
     {
         return $this->hasManyThrough(Moment::class, Kid::class);
     }
 
     /** Moments this user uploaded (moments.user_id). */
-    public function uploadedMoments()
+    public function uploadedMoments(): HasMany
     {
         return $this->hasMany(Moment::class, 'user_id');
     }
 
-    public function interactions()
+    public function interactions(): HasMany
     {
         return $this->hasMany(MomentInteraction::class);
     }
 
-    /**
-     * Helper Methods
-     */
-    
-    public function getTotalMomentsCount()
+    public function getTotalMomentsCount(): int
     {
         return $this->moments()->count();
     }
 
-    public function getStorageUsed()
+    public function getStorageUsed(): int
     {
-        return $this->moments()->sum('file_size');
+        return (int) $this->moments()->sum('file_size');
     }
 
-    public function getStorageUsedFormatted()
+    public function getStorageUsedFormatted(): string
     {
         $bytes = $this->getStorageUsed();
-        
+
         if ($bytes >= 1073741824) {
             return number_format($bytes / 1073741824, 2) . ' GB';
         } elseif ($bytes >= 1048576) {
@@ -169,7 +135,7 @@ class User extends Authenticatable
         } elseif ($bytes >= 1024) {
             return number_format($bytes / 1024, 2) . ' KB';
         }
-        
+
         return $bytes . ' bytes';
     }
 }

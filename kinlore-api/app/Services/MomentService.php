@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Enums\MomentType;
+use App\Enums\VideoStatus;
 use App\Models\Kid;
 use App\Models\Media;
 use App\Models\Moment;
@@ -49,25 +51,25 @@ class MomentService
     public function create(User $user, Kid $kid, array $data, ?UploadedFile $file = null): array
     {
         // Determine moment type
-        $momentType = $data['moment_type'] ?? $this->detectMomentType($file);
+        $rawType = $data['moment_type'] ?? $this->detectMomentType($file)->value;
+        $momentType = MomentType::tryFrom($rawType) ?? throw new \InvalidArgumentException("Invalid moment_type: {$rawType}");
 
         Log::info('Creating moment', [
-            'type' => $momentType,
+            'type' => $momentType->value,
             'kid_id' => $kid->id,
             'has_file' => !is_null($file),
         ]);
 
         return match($momentType) {
-            'photo', 'video' => $this->createMediaMoment($user, $kid, $file, $data, $momentType),
-            'story', 'milestone', 'growth' => $this->createTextMoment($user, $kid, $data, $momentType),
-            default => throw new \InvalidArgumentException("Invalid moment_type: {$momentType}"),
+            MomentType::Photo, MomentType::Video => $this->createMediaMoment($user, $kid, $file, $data, $momentType),
+            MomentType::Story, MomentType::Milestone, MomentType::Growth => $this->createTextMoment($user, $kid, $data, $momentType),
         };
     }
 
     /**
      * Detect moment type from uploaded file.
      */
-    private function detectMomentType(?UploadedFile $file): string
+    private function detectMomentType(?UploadedFile $file): MomentType
     {
         if (!$file) {
             throw new \InvalidArgumentException('moment_type is required when no file is uploaded');
@@ -76,11 +78,11 @@ class MomentService
         $mimeType = $file->getMimeType();
 
         if (in_array($mimeType, self::PHOTO_MIMES)) {
-            return 'photo';
+            return MomentType::Photo;
         }
 
         if (in_array($mimeType, self::VIDEO_MIMES)) {
-            return 'video';
+            return MomentType::Video;
         }
 
         throw new \InvalidArgumentException(
@@ -93,7 +95,7 @@ class MomentService
      *
      * @return array{moment: Moment, media: Media}
      */
-    private function createMediaMoment(User $user, Kid $kid, UploadedFile $file, array $data, string $type): array
+    private function createMediaMoment(User $user, Kid $kid, UploadedFile $file, array $data, MomentType $type): array
     {
         $mimeType = $file->getMimeType();
         $mediaId = Str::uuid()->toString();
@@ -113,7 +115,7 @@ class MomentService
             'id' => $mediaId,
             'kid_id' => $kid->id,
             'user_id' => $user->id,
-            'type' => $type,
+            'type' => $type->value,
             'original_filename' => $file->getClientOriginalName(),
             'file_path' => $originalPath,
             'mime_type' => $mimeType,
@@ -126,7 +128,7 @@ class MomentService
         ]);
 
         // Videos are processed by a queued job so the upload returns at once
-        if ($type === 'photo') {
+        if ($type === MomentType::Photo) {
             $this->processPhoto($media, $file, $basePath);
         }
 
@@ -142,7 +144,7 @@ class MomentService
             'photo_url' => $media->getRawFilePath(),
             'thumbnail_url' => $media->getRawThumbnailUrl(),
             'medium_url' => $media->getRawMediumUrl(),
-            'hls_url' => $type === 'video' ? $media->getRawHlsUrl() : null,
+            'hls_url' => $type === MomentType::Video ? $media->getRawHlsUrl() : null,
             'file_size' => $media->file_size,
             'mime_type' => $media->mime_type,
             'original_filename' => $media->original_filename,
@@ -154,11 +156,11 @@ class MomentService
             'orientation' => $media->orientation,
             'camera_make' => $media->camera_make,
             'camera_model' => $media->camera_model,
-            'video_status' => $type === 'video' ? 'processing' : null,
+            'video_status' => $type === MomentType::Video ? VideoStatus::Processing : null,
             'synced_at' => now()->timestamp * 1000,
         ]);
 
-        if ($type === 'video') {
+        if ($type === MomentType::Video) {
             ProcessVideoJob::dispatch($media->id);
         }
 
@@ -170,13 +172,13 @@ class MomentService
      *
      * @return array{moment: Moment}
      */
-    private function createTextMoment(User $user, Kid $kid, array $data, string $type): array
+    private function createTextMoment(User $user, Kid $kid, array $data, MomentType $type): array
     {
         $moment = Moment::create([
             'kid_id' => $kid->id,
             'user_id' => $user->id,
             'moment_type' => $type,
-            'milestone_id' => $type === 'milestone' ? $data['milestone_id'] : null,
+            'milestone_id' => $type === MomentType::Milestone ? $data['milestone_id'] : null,
             'title' => $data['title'] ?? null,
             'description' => $data['description'] ?? null,
             'height_cm' => $data['height_cm'] ?? null,
@@ -192,7 +194,7 @@ class MomentService
             'synced_at' => now()->timestamp * 1000,
         ]);
 
-        Log::info('Moment created', ['moment_id' => $moment->id, 'type' => $type]);
+        Log::info('Moment created', ['moment_id' => $moment->id, 'type' => $type->value]);
 
         return ['moment' => $moment];
     }
@@ -243,7 +245,7 @@ class MomentService
         try {
             $this->processVideo($media);
         } catch (\Throwable $e) {
-            $media->moments()->update(['video_status' => 'failed']);
+            $media->moments()->update(['video_status' => VideoStatus::Failed]);
             return;
         }
 
@@ -253,7 +255,7 @@ class MomentService
             'medium_url' => $media->getRawMediumUrl(),
             'hls_url' => $media->getRawHlsUrl(),
             'duration' => $media->duration,
-            'video_status' => 'ready',
+            'video_status' => VideoStatus::Ready,
         ]);
     }
 
@@ -941,7 +943,7 @@ class MomentService
     public function getUploadedIdentifiers(Kid $kid): Collection
     {
         return $kid->moments()
-            ->whereIn('moment_type', ['photo', 'video'])
+            ->whereIn('moment_type', [MomentType::Photo, MomentType::Video])
             ->where(fn($q) => $q->whereNotNull('device_asset_id')->orWhereNotNull('device_fingerprint'))
             ->get(['device_asset_id', 'device_fingerprint', 'file_size', 'original_filename'])
             ->map(fn($m) => [

@@ -15,8 +15,14 @@ step() { echo; echo "=== $*"; }
 
 step "1. Packages"
 apt-get update -qq
-apt-get install -y -qq php8.4-fpm php8.4-cli php8.4-sqlite3 php8.4-pgsql php8.4-gd php8.4-zip \
-  php8.4-intl php8.4-mbstring php8.4-bcmath php8.4-xml php8.4-curl \
+# Debian has no PHP 8.5 package yet: add the PHP package source, as the guide does
+apt-get install -y -qq curl ca-certificates lsb-release >/dev/null
+curl -sSLo /tmp/debsuryorg-archive-keyring.deb https://packages.sury.org/debsuryorg-archive-keyring.deb
+dpkg -i /tmp/debsuryorg-archive-keyring.deb >/dev/null
+echo "deb [signed-by=/usr/share/keyrings/debsuryorg-archive-keyring.gpg] https://packages.sury.org/php/ $(lsb_release -sc) main" > /etc/apt/sources.list.d/php.list
+apt-get update -qq
+apt-get install -y -qq php8.5-fpm php8.5-cli php8.5-sqlite3 php8.5-pgsql php8.5-gd php8.5-zip \
+  php8.5-intl php8.5-mbstring php8.5-bcmath php8.5-xml php8.5-curl \
   ffmpeg composer git unzip curl jq uuid-runtime sqlite3 rsync caddy nginx >/dev/null
 
 step "2. Code and data folders"
@@ -37,8 +43,8 @@ chown -R www-data:www-data storage bootstrap/cache
 chown root:www-data .env && chmod 640 .env
 
 step "4. PHP limits"
-cp ../deploy/bare-metal/php-kinlore.ini /etc/php/8.4/fpm/conf.d/99-kinlore.ini
-cp ../deploy/bare-metal/php-kinlore.ini /etc/php/8.4/cli/conf.d/99-kinlore.ini
+cp ../deploy/bare-metal/php-kinlore.ini /etc/php/8.5/fpm/conf.d/99-kinlore.ini
+cp ../deploy/bare-metal/php-kinlore.ini /etc/php/8.5/cli/conf.d/99-kinlore.ini
 
 step "5. Database"
 export SEED_USER_NAME="Test Admin" SEED_USER_EMAIL=admin@example.test SEED_USER_PASSWORD='BareMetal-12345'
@@ -48,7 +54,7 @@ runuser -u www-data -- php artisan route:cache
 runuser -u www-data -- php artisan view:cache
 
 step "6. PHP-FPM (systemd does this on a real host)"
-mkdir -p /run/php && php-fpm8.4 --daemonize
+mkdir -p /run/php && php-fpm8.5 --daemonize
 
 step "7a. Caddy"
 usermod -aG www-data caddy

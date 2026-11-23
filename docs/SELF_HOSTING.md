@@ -48,7 +48,43 @@ Settings you can put in a `.env` file next to `docker-compose.yml`:
 
 **Security defaults.** PostgreSQL, Redis and the SeaweedFS S3 port listen only on `127.0.0.1`. Change the SeaweedFS keys in `kinlore-api/docker/s3.json` together with `SEAWEEDFS_KEY` and `SEAWEEDFS_SECRET` before you set `BIND_ADDRESS=0.0.0.0`.
 
-**Upgrading from PostgreSQL 17 or older.** The PostgreSQL 18 image keeps its data in `/var/lib/postgresql/18/...`. An old data volume does not start with it. Back up with `pg_dump`, start a fresh volume and restore. Do not delete the old volume before the restore works.
+## Versions
+
+| Part | Version | Notes |
+|---|---|---|
+| Laravel | 13 | bug fixes until the third quarter of 2027, security fixes until March 2028 |
+| PHP | 8.5 | in the image; supported until the end of 2029 |
+| PostgreSQL | 18 | newest patch at each `docker compose pull`; supported until November 2030 |
+| SeaweedFS | 4.55 | pinned, because it holds all media; read its release notes before you raise it |
+| Redis | 8.8 | cache and rate limits only; safe to raise |
+| Caddy | 2.11 | comes with the image |
+
+PHP 8.6 and PostgreSQL 19 came out on 19 November 2026. Kinlore stays on 8.5 and 18 until they have had their first fixes. The workflow already tests the code on PHP 8.6.
+
+### Move PostgreSQL to a new major version
+
+A new major version cannot read the data folder of an old one, and its image refuses to start on a volume that holds old data. Move the data with a dump and a restore. The example moves from 18 to 19; the steps are tested.
+
+```sh
+# 1. Save everything while the old version runs. Keep this file until the new version works.
+docker compose exec -T postgres pg_dumpall -U kinlore_user > kinlore-db.sql
+docker compose down
+```
+
+2. In `docker-compose.yml`, change `postgres:18-alpine` to `postgres:19-alpine`, and rename the volume `postgres_data` to `postgres_data_19` in both places (the `postgres` service and the `volumes` list at the end). The old volume stays untouched.
+
+```sh
+# 3. Start the new, empty database and load the data
+docker compose up -d postgres
+docker compose exec -T postgres psql -U kinlore_user -d postgres < kinlore-db.sql
+# 4. Start the rest and check
+docker compose up -d
+curl -fsS http://localhost/api/health
+```
+
+The restore prints `role "kinlore_user" already exists`; that is normal. Open the app and check that your memories are there. Only then remove the old volume: `docker volume ls` shows it, with a name that ends in `_postgres_data`.
+
+The same steps apply to a data volume from PostgreSQL 17 or older.
 
 ## HTTPS and reverse proxies
 

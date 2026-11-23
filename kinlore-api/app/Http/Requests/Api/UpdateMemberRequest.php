@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests\Api;
 
+use App\Enums\Role;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateMemberRequest extends FormRequest
 {
@@ -20,7 +22,7 @@ class UpdateMemberRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'role' => 'nullable|in:admin,partner,family',
+            'role' => ['nullable', Rule::in(Role::cases())],
             'permissions' => 'nullable|array',
             'permissions.add_content' => 'boolean',
             'permissions.comment' => 'boolean',

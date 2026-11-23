@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Enums\VideoStatus;
 use App\Models\Media;
 use App\Services\MomentService;
 use Illuminate\Bus\Queueable;
@@ -53,6 +54,6 @@ class ProcessVideoJob implements ShouldQueue
 
         $media = Media::find($this->mediaId);
         $media?->markAsFailed($exception->getMessage());
-        $media?->moments()->update(['video_status' => 'failed']);
+        $media?->moments()->update(['video_status' => VideoStatus::Failed]);
     }
 }

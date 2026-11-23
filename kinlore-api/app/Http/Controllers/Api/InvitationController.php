@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\Role;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\StoreInvitationRequest;
 use App\Http\Responses\ApiResponse;
@@ -35,7 +36,7 @@ class InvitationController extends Controller
         $invitation = Invitation::create([
             'token' => $token,
             'email' => $validated['email'] ?? null,
-            'role' => $validated['role'] ?? 'family',
+            'role' => $validated['role'] ?? Role::Family,
             'can_add_content' => $permissions['add_content'] ?? true,
             'can_comment' => $permissions['comment'] ?? true,
             'can_like' => $permissions['like'] ?? true,

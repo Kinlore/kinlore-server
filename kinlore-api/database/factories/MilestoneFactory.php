@@ -1,14 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Factories;
 
-use App\Models\Milestone;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class MilestoneFactory extends Factory
 {
-    protected $model = Milestone::class;
-
+    #[\Override]
     public function definition(): array
     {
         $stages = [

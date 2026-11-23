@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\InteractionType;
 use App\Models\Moment;
 use App\Models\MomentInteraction;
 use App\Models\User;
@@ -28,7 +29,7 @@ class InteractionService
         $interaction = new MomentInteraction([
             'user_id' => $user->id,
             'moment_id' => $moment->id,
-            'type' => 'like',
+            'type' => InteractionType::Like,
         ]);
         
         $interaction->save();
@@ -67,7 +68,7 @@ class InteractionService
         $interaction = new MomentInteraction([
             'user_id' => $user->id,
             'moment_id' => $moment->id,
-            'type' => 'comment',
+            'type' => InteractionType::Comment,
             'content' => $content,
         ]);
 
@@ -84,7 +85,7 @@ class InteractionService
      */
     public function deleteComment(User $user, MomentInteraction $interaction): void
     {
-        if ($interaction->type !== 'comment') {
+        if ($interaction->type !== InteractionType::Comment) {
             throw new \InvalidArgumentException('Invalid interaction type');
         }
 

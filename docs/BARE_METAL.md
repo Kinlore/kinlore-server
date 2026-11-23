@@ -5,13 +5,14 @@ This guide installs the full Kinlore server directly on a Linux machine: PHP, th
 The commands of this guide are run by `scripts/test-bare-metal.sh` on a clean Debian 13, with both web servers, on each change of the code. "Test this guide" at the end lists what the script covers and what it cannot.
 
 - **System:** Debian 13 or Ubuntu 24.04 or later. The commands need `sudo`.
+- **Versions:** PHP 8.5 and Laravel 13. PostgreSQL is optional; any supported version from 15 works, and SQLite needs no server.
 - **What you get:** the code in `/srv/kinlore`, the data in `/var/lib/kinlore`, PHP-FPM as user `www-data`, Caddy or nginx in front, a `systemd` service for the worker.
 - **Ready-made files:** all configuration files are in [`deploy/bare-metal/`](../deploy/bare-metal).
 
 | File | Goes to | Purpose |
 |---|---|---|
 | `env.example` | `kinlore-api/.env` | Settings: SQLite, local media, no Redis |
-| `php-kinlore.ini` | `/etc/php/8.4/{fpm,cli}/conf.d/99-kinlore.ini` | Upload size and memory limits |
+| `php-kinlore.ini` | `/etc/php/8.5/{fpm,cli}/conf.d/99-kinlore.ini` | Upload size and memory limits |
 | `Caddyfile` | `/etc/caddy/Caddyfile` | Web server with automatic HTTPS (recommended) |
 | `nginx.conf` | `/etc/nginx/sites-available/kinlore` | Web server, if you prefer nginx |
 | `kinlore-queue.service` | `/etc/systemd/system/` | Worker for videos and exports |
@@ -19,16 +20,28 @@ The commands of this guide are run by `scripts/test-bare-metal.sh` on a clean De
 
 ## 1. Install the packages
 
-Kinlore needs PHP 8.4, Composer, FFmpeg and a web server.
+Kinlore needs PHP 8.5, Composer, FFmpeg and a web server. Debian 13 and Ubuntu 24.04 do not ship PHP 8.5, so add the PHP package source first.
+
+Debian:
+
+```sh
+sudo apt update && sudo apt install -y curl ca-certificates lsb-release
+sudo curl -sSLo /tmp/debsuryorg-archive-keyring.deb https://packages.sury.org/debsuryorg-archive-keyring.deb
+sudo dpkg -i /tmp/debsuryorg-archive-keyring.deb
+echo "deb [signed-by=/usr/share/keyrings/debsuryorg-archive-keyring.gpg] https://packages.sury.org/php/ $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/php.list
+```
+
+Ubuntu: `sudo add-apt-repository ppa:ondrej/php`
+
+Then, on both:
 
 ```sh
 sudo apt update
-sudo apt install -y php8.4-fpm php8.4-cli php8.4-sqlite3 php8.4-pgsql php8.4-gd php8.4-zip \
-  php8.4-intl php8.4-mbstring php8.4-bcmath php8.4-xml php8.4-curl \
+sudo apt install -y php8.5-fpm php8.5-cli php8.5-sqlite3 php8.5-pgsql php8.5-gd php8.5-zip \
+  php8.5-intl php8.5-mbstring php8.5-bcmath php8.5-xml php8.5-curl \
   ffmpeg composer git unzip curl sqlite3 rsync
 ```
 
-- **Ubuntu 24.04** has no PHP 8.4 package. Add the PHP repository first: `sudo add-apt-repository ppa:ondrej/php && sudo apt update`.
 - **Web server:** install one of them: `sudo apt install -y caddy` or `sudo apt install -y nginx certbot python3-certbot-nginx`.
 
 ## 2. Get the code and make the data folder
@@ -68,9 +81,9 @@ The settings file uses SQLite and the local disk, so no database server, Redis o
 ## 4. Allow large uploads in PHP
 
 ```sh
-sudo cp ../deploy/bare-metal/php-kinlore.ini /etc/php/8.4/fpm/conf.d/99-kinlore.ini
-sudo cp ../deploy/bare-metal/php-kinlore.ini /etc/php/8.4/cli/conf.d/99-kinlore.ini
-sudo systemctl restart php8.4-fpm
+sudo cp ../deploy/bare-metal/php-kinlore.ini /etc/php/8.5/fpm/conf.d/99-kinlore.ini
+sudo cp ../deploy/bare-metal/php-kinlore.ini /etc/php/8.5/cli/conf.d/99-kinlore.ini
+sudo systemctl restart php8.5-fpm
 ```
 
 One photo or video can be up to 512 MB. Files are read as streams, so the memory limit of 256 MB is enough.
@@ -152,7 +165,7 @@ curl -fsS https://photos.example.com/api/health              # {"status":"ok",..
 curl -fsS https://photos.example.com/api/auth/setup-status   # needs_setup is false after step 8
 curl -s -o /dev/null -w '%{http_code}\n' https://photos.example.com/.env   # must be 404
 sudo -u www-data php artisan about --only=environment        # Environment: production, Debug Mode: OFF
-systemctl is-active php8.4-fpm kinlore-queue caddy           # or nginx
+systemctl is-active php8.5-fpm kinlore-queue caddy           # or nginx
 ```
 
 Full end-to-end test. It signs in as the admin and tries every feature: children, uploads, video conversion and playback, likes and comments, members and permissions, sync, look-back and export. **It creates test data** (children named "Smoke Mia", "Bump" and "Offline kid", and a test member), so run it before the family starts, or delete that data afterwards in the app.
@@ -173,7 +186,7 @@ sudo composer install --no-dev --optimize-autoloader --no-interaction
 sudo -u www-data php artisan migrate --force
 sudo -u www-data php artisan config:cache && sudo -u www-data php artisan route:cache && sudo -u www-data php artisan view:cache
 sudo systemctl restart kinlore-queue
-sudo systemctl reload php8.4-fpm
+sudo systemctl reload php8.5-fpm
 ```
 
 Make a backup first.
@@ -197,14 +210,14 @@ With PostgreSQL, replace the database line by `pg_dump -U kinlore kinlore > "$DE
 **Restore** on a fresh install (steps 1 to 4 done):
 
 ```sh
-sudo systemctl stop kinlore-queue php8.4-fpm
+sudo systemctl stop kinlore-queue php8.5-fpm
 sudo cp /mnt/backup/kinlore/database.sqlite /var/lib/kinlore/database.sqlite
 sudo rsync -a /mnt/backup/kinlore/media/ /var/lib/kinlore/media/
 sudo cp /mnt/backup/kinlore/env /srv/kinlore/kinlore-api/.env
 sudo chown -R www-data:www-data /var/lib/kinlore
 sudo chown root:www-data /srv/kinlore/kinlore-api/.env
 cd /srv/kinlore/kinlore-api && sudo -u www-data php artisan migrate --force && sudo -u www-data php artisan config:cache
-sudo systemctl start php8.4-fpm kinlore-queue
+sudo systemctl start php8.5-fpm kinlore-queue
 ```
 
 A video that was being converted at the moment of the backup stays at "processing" for about an hour after a restore and then shows as failed. Delete it in the app and upload it again; the original file is not lost.
@@ -228,7 +241,7 @@ Run them in `/srv/kinlore/kinlore-api`.
 
 | What you see | Cause and fix |
 |---|---|
-| The browser shows "502" or "Bad Gateway" | PHP-FPM is not running, or the web server cannot reach its socket. Run `systemctl status php8.4-fpm`. For Caddy, check step 6: `usermod -aG www-data caddy`, then restart Caddy. |
+| The browser shows "502" or "Bad Gateway" | PHP-FPM is not running, or the web server cannot reach its socket. Run `systemctl status php8.5-fpm`. For Caddy, check step 6: `usermod -aG www-data caddy`, then restart Caddy. |
 | A page shows "500" | Read the server's log (table above). Often `storage` or `/var/lib/kinlore` is not owned by `www-data`. |
 | A changed setting has no effect | Run `sudo -u www-data php artisan config:cache`. |
 | A large upload fails with "413" or "POST data is too large" | Step 4 is missing, or PHP-FPM was not restarted. The limit is 512 MB per file. |

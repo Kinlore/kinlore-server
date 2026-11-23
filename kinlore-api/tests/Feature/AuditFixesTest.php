@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\Role;
 use App\Models\Kid;
 use App\Models\Moment;
 use App\Models\User;
@@ -71,7 +72,7 @@ class AuditFixesTest extends TestCase
         $member->refresh();
         $this->assertTrue(Hash::check('new-password-1', $member->password));
         $this->assertSame(0, $member->tokens()->count());
-        $this->assertSame('family', $member->role, 'the role is not touched');
+        $this->assertSame(Role::Family, $member->role, 'the role is not touched');
     }
 
     public function test_only_the_admin_sets_passwords(): void

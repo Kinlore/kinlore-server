@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\Role;
 use App\Models\Invitation;
 use App\Models\Kid;
 use App\Models\Moment;
@@ -62,7 +63,7 @@ class AuthService
                 'name' => $data['name'],
                 'email' => $data['email'],
                 'password' => Hash::make($data['password']),
-                'role' => 'admin',
+                'role' => Role::Admin,
             ]);
         }));
     }

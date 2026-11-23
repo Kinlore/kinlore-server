@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use Tests\TestCase;
+use App\Enums\MomentType;
 use App\Models\User;
 use App\Models\Kid;
 use App\Models\Moment;
@@ -170,7 +171,7 @@ class SyncTest extends TestCase
 
         $this->assertSame('2024-03-15', Kid::find($kidId)->date_of_birth->toDateString());
         $moment = Moment::find($momentId);
-        $this->assertSame('growth', $moment->moment_type);
+        $this->assertSame(MomentType::Growth, $moment->moment_type);
         $this->assertSame($user->id, $moment->user_id);
         $this->assertSame(55.5, $moment->height_cm);
         $this->assertSame('2024-04-01 09:00:00', $moment->exif_date->toDateTimeString());

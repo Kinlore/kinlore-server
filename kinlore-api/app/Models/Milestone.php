@@ -1,100 +1,83 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
 
+#[Fillable([
+    'id',
+    'title',
+    'description',
+    'category',
+    'stage_key',
+    'stage_label',
+    'age_min_months',
+    'age_max_months',
+    'sort_order',
+])]
 class Milestone extends Model
 {
     use HasFactory;
 
-    /**
-     * The table associated with the model.
-     */
-    protected $table = 'milestones';
-
-    /**
-     * Indicates if the IDs are auto-incrementing.
-     */
+    // ids are string keys from database/seeders/milestones.json
     public $incrementing = false;
 
-    /**
-     * The data type of the primary key.
-     */
     protected $keyType = 'string';
 
-    /**
-     * The attributes that are mass assignable.
-     */
-    protected $fillable = [
-        'id',
-        'title',
-        'description',
-        'category',
-        'stage_key',
-        'stage_label',
-        'age_min_months',
-        'age_max_months',
-        'sort_order',
-    ];
-
-    /**
-     * The attributes that should be cast.
-     */
-    protected $casts = [
-        'age_min_months' => 'integer',
-        'age_max_months' => 'integer',
-        'sort_order' => 'integer',
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
-    ];
-
-    /**
-     * Scopes
-     */
-    
-    public function scopeByCategory($query, string $category)
+    #[\Override]
+    protected function casts(): array
     {
-        return $query->where('category', $category);
+        return [
+            'age_min_months' => 'integer',
+            'age_max_months' => 'integer',
+            'sort_order' => 'integer',
+        ];
     }
 
-    public function scopeByStage($query, string $stageKey)
+    #[Scope]
+    protected function byCategory(Builder $query, string $category): void
     {
-        return $query->where('stage_key', $stageKey);
+        $query->where('category', $category);
     }
 
-    public function scopeOrdered($query)
+    #[Scope]
+    protected function byStage(Builder $query, string $stageKey): void
     {
-        return $query->orderBy('stage_key')->orderBy('sort_order');
+        $query->where('stage_key', $stageKey);
     }
 
-    /**
-     * Milestones grouped by stage. No cache: the list is about a hundred rows and rarely read.
-     */
-    public static function getGroupedByStage()
+    #[Scope]
+    protected function ordered(Builder $query): void
     {
-        return static::ordered()->get()->groupBy('stage_key')->map(fn ($stageMilestones, $stageKey) => [
+        $query->orderBy('stage_key')->orderBy('sort_order');
+    }
+
+    /** No cache: the list is about a hundred rows and rarely read. */
+    public static function getGroupedByStage(): Collection
+    {
+        return static::query()->ordered()->get()->groupBy('stage_key')->map(fn (Collection $stageMilestones, string $stageKey): array => [
             'stage_key' => $stageKey,
             'stage_label' => $stageMilestones->first()->stage_label,
             'milestones' => $stageMilestones->values(),
         ])->values();
     }
 
-    /**
-     * Milestones grouped by category.
-     */
-    public static function getGroupedByCategory()
+    public static function getGroupedByCategory(): Collection
     {
-        return static::ordered()->get()->groupBy('category')->map(fn ($categoryMilestones, $category) => [
+        return static::query()->ordered()->get()->groupBy('category')->map(fn (Collection $categoryMilestones, string $category): array => [
             'category' => $category,
             'milestones' => $categoryMilestones->values(),
         ])->values();
     }
 
-    /**
-     * API Resource formatting
-     */
+    #[\Override]
     public function toArray(): array
     {
         return [

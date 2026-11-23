@@ -1,5 +1,5 @@
 # PHP-FPM behind Caddy, plus the queue worker
-FROM php:8.4-fpm-alpine
+FROM php:8.5-fpm-alpine
 
 # Install system dependencies
 RUN apk add --no-cache \
@@ -35,10 +35,9 @@ RUN docker-php-ext-install \
     bcmath \
     gd \
     zip \
-    opcache \
     intl
 
-# Enable OPcache for performance
+# OPcache is part of PHP since 8.5; only its settings are needed
 RUN echo "opcache.enable=1" >> /usr/local/etc/php/conf.d/opcache.ini \
     && echo "opcache.memory_consumption=128" >> /usr/local/etc/php/conf.d/opcache.ini \
     && echo "opcache.interned_strings_buffer=8" >> /usr/local/etc/php/conf.d/opcache.ini \

@@ -2,10 +2,12 @@
 
 namespace App\Http\Requests\Api;
 
+use App\Enums\MomentType;
 use App\Models\Kid;
 use App\Models\Moment;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreMomentRequest extends FormRequest
 {
@@ -42,7 +44,7 @@ class StoreMomentRequest extends FormRequest
 
         $rules = [
             'kid_id' => 'required|uuid|exists:kids,id',
-            'moment_type' => 'nullable|in:photo,video,story,milestone,growth',
+            'moment_type' => ['nullable', Rule::in(MomentType::cases())],
             'title' => 'nullable|string|max:255',
             'description' => 'nullable|string|max:5000',
             'exif_date' => 'nullable|date',
@@ -53,21 +55,21 @@ class StoreMomentRequest extends FormRequest
             'orientation' => 'nullable|integer|between:1,8',
         ];
 
-        if ($hasFile || in_array($momentType, ['photo', 'video', null], true)) {
+        if ($hasFile || in_array($momentType, [MomentType::Photo->value, MomentType::Video->value, null], true)) {
             $rules['file'] = 'required_without:moment_type|file|max:512000|mimes:jpeg,jpg,png,gif,webp,heic,heif,mp4,mov,avi,webm,mkv,m4v';
             $rules['device_asset_id'] = 'nullable|string|max:255';
         }
 
-        if ($momentType === 'story') {
+        if ($momentType === MomentType::Story->value) {
             $rules['description'] = 'required|string|max:5000';
         }
 
-        if ($momentType === 'milestone') {
+        if ($momentType === MomentType::Milestone->value) {
             $rules['milestone_id'] = 'required|string|exists:milestones,id';
             $rules['description'] = 'nullable|string|max:5000';
         }
 
-        if ($momentType === 'growth') {
+        if ($momentType === MomentType::Growth->value) {
             $rules['exif_date'] = 'required|date';
             $rules += self::GROWTH_RULES;
             $rules['height_cm'] = 'required_without_all:weight_kg,head_circumference_cm|nullable|numeric|between:1,250';

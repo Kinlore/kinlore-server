@@ -2,6 +2,8 @@
 
 namespace App\Jobs;
 
+use App\Enums\ExportStatus;
+use App\Enums\MomentType;
 use App\Models\Export;
 use App\Models\Kid;
 use App\Models\Moment;
@@ -43,14 +45,14 @@ class BuildExportJob implements ShouldQueue
             return;
         }
 
-        $export->update(['status' => Export::STATUS_PROCESSING]);
+        $export->update(['status' => ExportStatus::Processing]);
 
         try {
             $export->path = "exports/{$export->id}.zip";
             $this->build($export->fullPath());
 
             $export->update([
-                'status' => Export::STATUS_READY,
+                'status' => ExportStatus::Ready,
                 'path' => $export->path,
                 'size_bytes' => filesize($export->fullPath()),
                 'completed_at' => now(),
@@ -58,7 +60,7 @@ class BuildExportJob implements ShouldQueue
         } catch (\Throwable $e) {
             Log::error('BuildExportJob: Export failed', ['export_id' => $export->id, 'error' => $e->getMessage()]);
             @unlink($export->fullPath());
-            $export->update(['status' => Export::STATUS_FAILED, 'path' => null, 'error' => $e->getMessage(), 'completed_at' => now()]);
+            $export->update(['status' => ExportStatus::Failed, 'path' => null, 'error' => $e->getMessage(), 'completed_at' => now()]);
         } finally {
             array_map('unlink', array_filter($this->tempFiles, 'file_exists'));
         }
@@ -130,7 +132,7 @@ class BuildExportJob implements ShouldQueue
     {
         $source = $moment->getRawOriginal('photo_url');
 
-        if (!in_array($moment->moment_type, ['photo', 'video'], true) || empty($source)) {
+        if (!in_array($moment->moment_type, [MomentType::Photo, MomentType::Video], true) || empty($source)) {
             return null;
         }
 
@@ -150,7 +152,7 @@ class BuildExportJob implements ShouldQueue
 
         $date = $moment->display_date;
         $ext = pathinfo($source, PATHINFO_EXTENSION) ?: 'bin';
-        $name = sprintf('%s/%s/%s_%s_%s.%s', $folder, $date->format('Y'), $date->format('Y-m-d'), $moment->moment_type, self::shortId($moment->id), $ext);
+        $name = sprintf('%s/%s/%s_%s_%s.%s', $folder, $date->format('Y'), $date->format('Y-m-d'), $moment->moment_type->value, self::shortId($moment->id), $ext);
         $zip->addFile($temp, $name);
 
         return $name;

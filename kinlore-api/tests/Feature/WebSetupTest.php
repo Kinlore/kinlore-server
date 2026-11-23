@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -48,7 +49,7 @@ class WebSetupTest extends TestCase
         $this->post('/setup', self::FORM)->assertOk()->assertSee('Your admin account is ready');
 
         $this->assertDatabaseCount('users', 1);
-        $this->assertSame('admin', User::first()->role);
+        $this->assertSame(Role::Admin, User::first()->role);
         $this->assertTrue(User::first()->is_admin);
     }
 

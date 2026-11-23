@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\VideoStatus;
 use App\Jobs\ProcessVideoJob;
 use App\Models\Kid;
 use App\Models\Moment;
@@ -112,6 +113,6 @@ class PlaybackTest extends TestCase
             'file' => UploadedFile::fake()->create('clip.mp4', 10, 'video/mp4'),
         ], ['Accept' => 'application/json'])->assertStatus(201);
 
-        $this->assertSame('failed', Moment::find($response->json('data.moment.id'))->video_status);
+        $this->assertSame(VideoStatus::Failed, Moment::find($response->json('data.moment.id'))->video_status);
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\MomentType;
 use App\Models\Kid;
 use App\Models\Milestone;
 use App\Models\Moment;
@@ -18,7 +19,7 @@ class SyncService
     /** Most moments in one pull response (docs/API_CONTRACT.md section 9). */
     public const PULL_PAGE_SIZE = 2000;
 
-    private const PUSH_MOMENT_TYPES = ['story', 'milestone', 'growth'];
+    private const PUSH_MOMENT_TYPES = [MomentType::Story->value, MomentType::Milestone->value, MomentType::Growth->value];
 
     public function __construct(
         private MomentService $momentService
@@ -245,7 +246,7 @@ class SyncService
             }
 
             // Photo and video rows come from uploads; sync may only change their text and date.
-            $fields = in_array($moment->moment_type, self::PUSH_MOMENT_TYPES, true)
+            $fields = in_array($moment->moment_type?->value, self::PUSH_MOMENT_TYPES, true)
                 ? ['title', 'description', 'milestone_id', 'exif_date', 'height_cm', 'weight_kg', 'head_circumference_cm']
                 : ['title', 'description', 'exif_date'];
         } else {
@@ -271,14 +272,14 @@ class SyncService
         }
 
         // Same rules as REST (StoreMomentRequest): a story needs text; growth needs a date and one measurement.
-        if ($moment->moment_type === 'story' && blank($moment->description)) {
+        if ($moment->moment_type === MomentType::Story && blank($moment->description)) {
             return 'invalid';
         }
-        if ($moment->moment_type === 'growth' && (!$moment->exif_date
+        if ($moment->moment_type === MomentType::Growth && (!$moment->exif_date
             || ($moment->height_cm === null && $moment->weight_kg === null && $moment->head_circumference_cm === null))) {
             return 'invalid';
         }
-        if ($moment->moment_type === 'milestone' && blank($moment->milestone_id)) {
+        if ($moment->moment_type === MomentType::Milestone && blank($moment->milestone_id)) {
             return 'invalid';
         }
 
@@ -360,7 +361,7 @@ class SyncService
             'kid_id' => $moment->kid_id,
             'user_id' => $moment->user_id,
             'uploader_name' => $moment->user?->name,
-            'moment_type' => $moment->moment_type ?? 'photo',
+            'moment_type' => ($moment->moment_type ?? MomentType::Photo)->value,
             'title' => $moment->title,
             'description' => $moment->description,
             'milestone_id' => $moment->milestone_id,
@@ -369,7 +370,7 @@ class SyncService
             'longitude' => $moment->longitude,
             'orientation' => $moment->orientation,
             'duration' => $moment->duration,
-            'video_status' => $moment->video_status,
+            'video_status' => $moment->video_status?->value,
             'height_cm' => $moment->height_cm,
             'weight_kg' => $moment->weight_kg,
             'head_circumference_cm' => $moment->head_circumference_cm,

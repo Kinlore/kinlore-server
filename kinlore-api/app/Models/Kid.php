@@ -1,192 +1,124 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
+use App\Policies\KidPolicy;
+use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Attributes\Appends;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\UsePolicy;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Carbon\Carbon;
 
+#[Fillable(['user_id', 'name', 'date_of_birth', 'due_date', 'avatar_color', 'synced_at'])]
+#[Appends(['age'])]
+#[UsePolicy(KidPolicy::class)]
 class Kid extends Model
 {
     use HasFactory, HasUuids, SoftDeletes;
 
-    /**
-     * The table associated with the model.
-     */
-    protected $table = 'kids';
+    #[\Override]
+    protected function casts(): array
+    {
+        return [
+            'date_of_birth' => 'date',
+            'due_date' => 'date',
+            'synced_at' => 'integer',
+        ];
+    }
 
-    /**
-     * Indicates if the IDs are auto-incrementing.
-     */
-    public $incrementing = false;
-
-    /**
-     * The data type of the primary key.
-     */
-    protected $keyType = 'string';
-
-    /**
-     * The attributes that are mass assignable.
-     */
-    protected $fillable = [
-        'user_id',
-        'name',
-        'date_of_birth',
-        'due_date',
-        'avatar_color',
-        'synced_at',
-    ];
-
-    /**
-     * The attributes that should be cast.
-     */
-    protected $casts = [
-        'date_of_birth' => 'date',
-        'due_date' => 'date',
-        'synced_at' => 'integer',
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
-        'deleted_at' => 'datetime',
-    ];
-
-    /**
-     * The accessors to append to the model's array form.
-     */
-    protected $appends = [
-        'age',
-    ];
-
-    /**
-     * Relationships
-     */
-    
-    public function user()
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
-    public function moments()
+    public function moments(): HasMany
     {
         return $this->hasMany(Moment::class);
     }
 
-    /**
-     * Computed Attributes
-     */
-    
-    public function getAgeAttribute()
+    protected function age(): Attribute
     {
-        if (!$this->date_of_birth) {
-            return null;
-        }
-
-        $now = Carbon::now();
-        $dob = Carbon::parse($this->date_of_birth);
-        
-        return (int) $dob->diffInYears($now);
+        return Attribute::make(
+            get: fn (): ?int => $this->date_of_birth ? (int) $this->date_of_birth->diffInYears(Carbon::now()) : null,
+        );
     }
 
-    public function getAgeInMonthsAttribute()
+    protected function ageInMonths(): Attribute
     {
-        if (!$this->date_of_birth) {
-            return null;
-        }
-
-        return (int) Carbon::parse($this->date_of_birth)->diffInMonths(Carbon::now());
+        return Attribute::make(
+            get: fn (): ?int => $this->date_of_birth ? (int) $this->date_of_birth->diffInMonths(Carbon::now()) : null,
+        );
     }
 
-    public function getAgeDetailedAttribute()
+    protected function ageDetailed(): Attribute
     {
-        if (!$this->date_of_birth) {
-            return null;
-        }
+        return Attribute::make(get: function (): ?string {
+            $dob = $this->date_of_birth;
+            if (!$dob) {
+                return null;
+            }
 
-        $now = Carbon::now();
-        $dob = Carbon::parse($this->date_of_birth);
-        
-        // Carbon 3 returns floats; whole numbers only
-        $years = (int) $dob->diffInYears($now);
-        $months = (int) $dob->copy()->addYears($years)->diffInMonths($now);
-        
-        if ($years > 0) {
-            return $years . ' year' . ($years > 1 ? 's' : '') . 
-                   ($months > 0 ? ', ' . $months . ' month' . ($months > 1 ? 's' : '') : '');
-        }
-        
-        return $months . ' month' . ($months > 1 ? 's' : '');
+            $now = Carbon::now();
+
+            // Carbon 3 returns floats; whole numbers only
+            $years = (int) $dob->diffInYears($now);
+            $months = (int) $dob->copy()->addYears($years)->diffInMonths($now);
+
+            if ($years > 0) {
+                return $years . ' year' . ($years > 1 ? 's' : '') .
+                       ($months > 0 ? ', ' . $months . ' month' . ($months > 1 ? 's' : '') : '');
+            }
+
+            return $months . ' month' . ($months > 1 ? 's' : '');
+        });
     }
 
-    /**
-     * Helper Methods
-     */
-    
-    public function getMomentsCount()
+    protected function isExpecting(): Attribute
+    {
+        return Attribute::make(get: fn (): bool => $this->date_of_birth === null);
+    }
+
+    public function getMomentsCount(): int
     {
         return $this->moments()->count();
     }
 
-    public function getLatestMoment()
+    public function getLatestMoment(): ?Moment
     {
-        return $this->moments()
-            ->orderBy('exif_date', 'desc')
-            ->first();
+        return $this->moments()->orderBy('exif_date', 'desc')->first();
     }
 
-    public function getFirstMoment()
+    public function getFirstMoment(): ?Moment
     {
-        return $this->moments()
-            ->orderBy('exif_date', 'asc')
-            ->first();
+        return $this->moments()->orderBy('exif_date', 'asc')->first();
     }
 
-    /**
-     * Scopes
-     */
-    
-    public function scopeForUser($query, $userId)
+    #[\Override]
+    protected static function booted(): void
     {
-        return $query->where('user_id', $userId);
-    }
-
-    public function scopeWithMomentsCount($query)
-    {
-        return $query->withCount('moments');
-    }
-
-    public function scopeUpdatedSince($query, $timestamp)
-    {
-        return $query->where('updated_at', '>', Carbon::createFromTimestamp($timestamp / 1000));
-    }
-
-    /**
-     * Boot method
-     */
-    protected static function boot()
-    {
-        parent::boot();
-
-        // Set default avatar color if not provided
-        static::creating(function ($kid) {
+        static::creating(function (Kid $kid): void {
             if (empty($kid->avatar_color)) {
                 $kid->avatar_color = self::randomAvatarColor();
             }
         });
 
-        // Update synced_at on update
-        static::updated(function ($kid) {
+        static::updated(function (Kid $kid): void {
             if (!$kid->isDirty('synced_at')) {
                 $kid->synced_at = now()->timestamp * 1000;
-                $kid->saveQuietly(); // Save without triggering events
+                $kid->saveQuietly();
             }
         });
     }
 
-    /**
-     * Generate random avatar color
-     */
-    public static function randomAvatarColor()
+    public static function randomAvatarColor(): string
     {
         $colors = [
             '#FF6B6B', // Red
@@ -204,15 +136,9 @@ class Kid extends Model
         return $colors[array_rand($colors)];
     }
 
-    public function getIsExpectingAttribute(): bool
-    {
-        return $this->date_of_birth === null;
-    }
-
-    /**
-     * API Resource formatting (docs/API_CONTRACT.md section 5)
-     */
-    public function toArray()
+    /** API resource format (docs/API_CONTRACT.md section 5). */
+    #[\Override]
+    public function toArray(): array
     {
         return [
             'id' => $this->id,

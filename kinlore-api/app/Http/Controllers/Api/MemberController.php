@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\Role;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\UpdateMemberRequest;
 use App\Http\Responses\ApiResponse;
@@ -41,18 +42,18 @@ class MemberController extends Controller
     {
         $admin = $request->user();
         $validated = $request->validated();
-        $role = $validated['role'] ?? null;
+        $role = isset($validated['role']) ? Role::from($validated['role']) : null;
 
         // The admin can only give the role away, so there is always exactly one admin.
-        if ($user->is($admin) && $role !== null && $role !== 'admin') {
+        if ($user->is($admin) && $role !== null && $role !== Role::Admin) {
             return ApiResponse::error('You cannot change your own role. Make another member admin instead.', 422);
         }
 
         DB::transaction(function () use ($admin, $user, $role, $validated) {
             if ($role !== null && !$user->is($admin)) {
                 $user->role = $role;
-                if ($role === 'admin') {
-                    $admin->update(['role' => 'partner']);
+                if ($role === Role::Admin) {
+                    $admin->update(['role' => Role::Partner]);
                 }
             }
 

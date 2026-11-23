@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Factories;
 
 use App\Models\Kid;
@@ -8,6 +10,7 @@ use Illuminate\Support\Str;
 
 class MomentFactory extends Factory
 {
+    #[\Override]
     public function definition(): array
     {
         return [
@@ -29,7 +32,7 @@ class MomentFactory extends Factory
 
     public function withLocation(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (): array => [
             'latitude' => fake()->latitude(),
             'longitude' => fake()->longitude(),
         ]);

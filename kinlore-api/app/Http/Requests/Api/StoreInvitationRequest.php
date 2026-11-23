@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests\Api;
 
+use App\Enums\Role;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreInvitationRequest extends FormRequest
 {
@@ -21,7 +23,7 @@ class StoreInvitationRequest extends FormRequest
     {
         return [
             'email' => 'nullable|email|max:255|unique:users,email',
-            'role' => 'nullable|in:partner,family',
+            'role' => ['nullable', Rule::in([Role::Partner, Role::Family])],
             'permissions' => 'nullable|array',
             'permissions.add_content' => 'boolean',
             'permissions.comment' => 'boolean',

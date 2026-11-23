@@ -1,116 +1,69 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
+use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Attributes\Appends;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
+#[Fillable([
+    'kid_id',
+    'user_id',
+    'type',
+    'original_filename',
+    'file_path',
+    'mime_type',
+    'file_size',
+    'exif_data',
+    'video_metadata',
+    'thumbnail_url',
+    'medium_url',
+    'hls_url',
+    'status',
+    'processing_error',
+    'processing_started_at',
+    'processing_completed_at',
+    'device_asset_id',
+    'device_fingerprint',
+])]
+#[Appends(['file_size_formatted', 'is_ready', 'has_location'])]
 class Media extends Model
 {
-    use HasFactory, HasUuids, SoftDeletes;
+    use HasUuids, SoftDeletes;
 
-    /**
-     * Status constants
-     */
-    public const STATUS_UPLOADING = 'uploading';
-    public const STATUS_PROCESSING = 'processing';
-    public const STATUS_COMPLETED = 'completed';
-    public const STATUS_FAILED = 'failed';
+    public const string STATUS_PROCESSING = 'processing';
+    public const string STATUS_COMPLETED = 'completed';
+    public const string STATUS_FAILED = 'failed';
 
-    /**
-     * Type constants
-     */
-    public const TYPE_PHOTO = 'photo';
-    public const TYPE_VIDEO = 'video';
+    public const string TYPE_PHOTO = 'photo';
+    public const string TYPE_VIDEO = 'video';
 
-    /**
-     * The table associated with the model.
-     */
-    protected $table = 'media';
-
-    /**
-     * Indicates if the IDs are auto-incrementing.
-     */
-    public $incrementing = false;
-
-    /**
-     * The data type of the primary key.
-     */
-    protected $keyType = 'string';
-
-    /**
-     * The attributes that are mass assignable.
-     */
-    protected $fillable = [
-        'kid_id',
-        'user_id',
-        'type',
-        'original_filename',
-        'file_path',
-        'mime_type',
-        'file_size',
-        'exif_data',
-        'video_metadata',
-        'thumbnail_url',
-        'medium_url',
-        'hls_url',
-        'status',
-        'processing_error',
-        'processing_started_at',
-        'processing_completed_at',
-        'device_asset_id',
-        'device_fingerprint',
-    ];
-
-    /**
-     * The attributes that should be cast.
-     */
-    protected $casts = [
-        'file_size' => 'integer',
-        'exif_data' => 'array',
-        'video_metadata' => 'array',
-        'processing_started_at' => 'datetime',
-        'processing_completed_at' => 'datetime',
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
-        'deleted_at' => 'datetime',
-    ];
-
-    /**
-     * The accessors to append to the model's array form.
-     */
-    protected $appends = [
-        'file_size_formatted',
-        'is_ready',
-        'has_location',
-    ];
-
-    /**
-     * Relationships
-     */
-    
-    public function kid()
+    #[\Override]
+    protected function casts(): array
     {
-        return $this->belongsTo(Kid::class);
+        return [
+            'file_size' => 'integer',
+            'exif_data' => 'array',
+            'video_metadata' => 'array',
+            'processing_started_at' => 'datetime',
+            'processing_completed_at' => 'datetime',
+        ];
     }
 
-    public function user()
-    {
-        return $this->belongsTo(User::class);
-    }
-
-    public function moments()
+    public function moments(): HasMany
     {
         return $this->hasMany(Moment::class);
     }
 
-    /**
-     * Type Checking Helpers
-     */
-    
     public function isPhoto(): bool
     {
         return $this->type === self::TYPE_PHOTO;
@@ -119,20 +72,6 @@ class Media extends Model
     public function isVideo(): bool
     {
         return $this->type === self::TYPE_VIDEO;
-    }
-
-    /**
-     * Status Helpers
-     */
-    
-    public function isUploading(): bool
-    {
-        return $this->status === self::STATUS_UPLOADING;
-    }
-
-    public function isProcessing(): bool
-    {
-        return $this->status === self::STATUS_PROCESSING;
     }
 
     public function isCompleted(): bool
@@ -145,21 +84,9 @@ class Media extends Model
         return $this->status === self::STATUS_FAILED;
     }
 
-    public function getIsReadyAttribute(): bool
+    protected function isReady(): Attribute
     {
-        return $this->isCompleted();
-    }
-
-    /**
-     * Status Transition Methods
-     */
-    
-    public function markAsProcessing(): void
-    {
-        $this->update([
-            'status' => self::STATUS_PROCESSING,
-            'processing_started_at' => now(),
-        ]);
+        return Attribute::make(get: fn (): bool => $this->isCompleted());
     }
 
     public function markAsCompleted(array $data = []): void
@@ -179,117 +106,93 @@ class Media extends Model
         ]);
     }
 
-    /**
-     * EXIF Data Accessors (for photos)
-     */
-    
-    public function getLatitudeAttribute(): ?float
+    // EXIF values come from form fields, so they are strings until cast here.
+    protected function latitude(): Attribute
     {
-        return $this->exif_data['latitude'] ?? null;
+        return Attribute::make(get: fn (): ?float => isset($this->exif_data['latitude']) ? (float) $this->exif_data['latitude'] : null);
     }
 
-    public function getLongitudeAttribute(): ?float
+    protected function longitude(): Attribute
     {
-        return $this->exif_data['longitude'] ?? null;
+        return Attribute::make(get: fn (): ?float => isset($this->exif_data['longitude']) ? (float) $this->exif_data['longitude'] : null);
     }
 
-    public function getOrientationAttribute(): ?int
+    protected function orientation(): Attribute
     {
-        return $this->exif_data['orientation'] ?? null;
+        return Attribute::make(get: fn (): ?int => isset($this->exif_data['orientation']) ? (int) $this->exif_data['orientation'] : null);
     }
 
-    public function getCameraMakeAttribute(): ?string
+    protected function cameraMake(): Attribute
     {
-        return $this->exif_data['camera_make'] ?? null;
+        return Attribute::make(get: fn (): ?string => $this->exif_data['camera_make'] ?? null);
     }
 
-    public function getCameraModelAttribute(): ?string
+    protected function cameraModel(): Attribute
     {
-        return $this->exif_data['camera_model'] ?? null;
+        return Attribute::make(get: fn (): ?string => $this->exif_data['camera_model'] ?? null);
     }
 
-    public function getExifDateAttribute()
+    protected function exifDate(): Attribute
     {
-        $date = $this->exif_data['exif_date'] ?? null;
-        return $date ? \Carbon\Carbon::parse($date) : null;
+        return Attribute::make(get: function (): ?Carbon {
+            $date = $this->exif_data['exif_date'] ?? null;
+            return $date ? Carbon::parse($date) : null;
+        })->withoutObjectCaching();
     }
 
-    public function getHasLocationAttribute(): bool
+    protected function hasLocation(): Attribute
     {
-        return !is_null($this->latitude) && !is_null($this->longitude);
+        return Attribute::make(get: fn (): bool => !is_null($this->latitude) && !is_null($this->longitude));
     }
 
-    /**
-     * Video Metadata Accessors (for videos)
-     */
-    
-    public function getDurationAttribute(): ?float
+    protected function duration(): Attribute
     {
-        return $this->video_metadata['duration'] ?? null;
+        return Attribute::make(get: fn (): ?float => isset($this->video_metadata['duration']) ? (float) $this->video_metadata['duration'] : null);
     }
 
-    public function getFpsAttribute(): ?float
+    protected function width(): Attribute
     {
-        return $this->video_metadata['fps'] ?? null;
+        return Attribute::make(get: fn (): ?int => isset($this->video_metadata['width']) ? (int) $this->video_metadata['width'] : null);
     }
 
-    public function getWidthAttribute(): ?int
+    protected function height(): Attribute
     {
-        return $this->video_metadata['width'] ?? null;
+        return Attribute::make(get: fn (): ?int => isset($this->video_metadata['height']) ? (int) $this->video_metadata['height'] : null);
     }
 
-    public function getHeightAttribute(): ?int
+    protected function durationFormatted(): Attribute
     {
-        return $this->video_metadata['height'] ?? null;
+        return Attribute::make(get: function (): ?string {
+            $duration = $this->duration;
+            if (!$duration) {
+                return null;
+            }
+
+            $minutes = floor($duration / 60);
+            $seconds = floor($duration % 60);
+
+            return sprintf('%d:%02d', $minutes, $seconds);
+        });
     }
 
-    public function getCodecAttribute(): ?string
+    protected function fileSizeFormatted(): Attribute
     {
-        return $this->video_metadata['codec'] ?? null;
+        return Attribute::make(get: function (): string {
+            $bytes = $this->file_size;
+
+            if ($bytes >= 1073741824) {
+                return number_format($bytes / 1073741824, 2) . ' GB';
+            } elseif ($bytes >= 1048576) {
+                return number_format($bytes / 1048576, 2) . ' MB';
+            } elseif ($bytes >= 1024) {
+                return number_format($bytes / 1024, 2) . ' KB';
+            }
+
+            return $bytes . ' bytes';
+        });
     }
 
-    public function getDurationFormattedAttribute(): ?string
-    {
-        $duration = $this->duration;
-        if (!$duration) {
-            return null;
-        }
-
-        $minutes = floor($duration / 60);
-        $seconds = floor($duration % 60);
-        
-        return sprintf('%d:%02d', $minutes, $seconds);
-    }
-
-    /**
-     * Computed Attributes
-     */
-    
-    public function getFileSizeFormattedAttribute(): string
-    {
-        $bytes = $this->file_size;
-        
-        if ($bytes >= 1073741824) {
-            return number_format($bytes / 1073741824, 2) . ' GB';
-        } elseif ($bytes >= 1048576) {
-            return number_format($bytes / 1048576, 2) . ' MB';
-        } elseif ($bytes >= 1024) {
-            return number_format($bytes / 1024, 2) . ' KB';
-        }
-        
-        return $bytes . ' bytes';
-    }
-
-    public function getDisplayDateAttribute()
-    {
-        // Prefer EXIF date for photos, otherwise created_at
-        return $this->exif_date ?? $this->created_at;
-    }
-
-    /**
-     * URL Generation (raw paths, not signed)
-     */
-    
+    // Raw storage paths, not signed URLs.
     public function getRawFilePath(): string
     {
         return $this->attributes['file_path'];
@@ -310,78 +213,6 @@ class Media extends Model
         return $this->attributes['hls_url'] ?? null;
     }
 
-    /**
-     * Signed URL generation for secure access
-     */
-    protected function generateSignedUrl(?string $path, int $expiration = 60): ?string
-    {
-        if (empty($path)) {
-            return null;
-        }
-
-        try {
-            return Storage::disk('seaweedfs')->temporaryUrl(
-                $path,
-                now()->addMinutes($expiration)
-            );
-        } catch (\Exception $e) {
-            \Log::error('Failed to generate signed URL for media: ' . $e->getMessage());
-            return Storage::disk('seaweedfs')->url($path);
-        }
-    }
-
-    /**
-     * Scopes
-     */
-    
-    public function scopeForKid($query, $kidId)
-    {
-        return $query->where('kid_id', $kidId);
-    }
-
-    public function scopeForUser($query, $userId)
-    {
-        return $query->where('user_id', $userId);
-    }
-
-    public function scopePhotos($query)
-    {
-        return $query->where('type', self::TYPE_PHOTO);
-    }
-
-    public function scopeVideos($query)
-    {
-        return $query->where('type', self::TYPE_VIDEO);
-    }
-
-    public function scopeCompleted($query)
-    {
-        return $query->where('status', self::STATUS_COMPLETED);
-    }
-
-    public function scopeProcessing($query)
-    {
-        return $query->where('status', self::STATUS_PROCESSING);
-    }
-
-    public function scopeFailed($query)
-    {
-        return $query->where('status', self::STATUS_FAILED);
-    }
-
-    public function scopePending($query)
-    {
-        return $query->whereIn('status', [self::STATUS_UPLOADING, self::STATUS_PROCESSING]);
-    }
-
-    public function scopeByDevice($query, $deviceAssetId)
-    {
-        return $query->where('device_asset_id', $deviceAssetId);
-    }
-
-    /**
-     * Delete media and associated files
-     */
     public function deleteWithFiles(): bool
     {
         try {
@@ -391,32 +222,25 @@ class Media extends Model
                 $this->getRawMediumUrl(),
             ]);
 
-            // For videos, also delete HLS files
+            // A video's HLS stream is a directory of segments
             if ($this->isVideo() && $this->getRawHlsUrl()) {
-                // Delete HLS directory
-                $hlsDir = dirname($this->getRawHlsUrl());
-                Storage::disk('seaweedfs')->deleteDirectory($hlsDir);
+                Storage::disk('seaweedfs')->deleteDirectory(dirname($this->getRawHlsUrl()));
             }
 
             if (!empty($filesToDelete)) {
                 Storage::disk('seaweedfs')->delete($filesToDelete);
             }
         } catch (\Exception $e) {
-            \Log::error('Failed to delete media files: ' . $e->getMessage());
+            Log::error('Failed to delete media files: ' . $e->getMessage());
         }
 
         return $this->delete();
     }
 
-    /**
-     * Boot method
-     */
-    protected static function boot()
+    #[\Override]
+    protected static function booted(): void
     {
-        parent::boot();
-
-        // Delete files when media is force deleted
-        static::forceDeleted(function ($media) {
+        static::forceDeleted(function (Media $media): void {
             try {
                 $filesToDelete = array_filter([
                     $media->attributes['file_path'] ?? null,
@@ -425,22 +249,19 @@ class Media extends Model
                 ]);
 
                 if ($media->type === self::TYPE_VIDEO && !empty($media->attributes['hls_url'])) {
-                    $hlsDir = dirname($media->attributes['hls_url']);
-                    Storage::disk('seaweedfs')->deleteDirectory($hlsDir);
+                    Storage::disk('seaweedfs')->deleteDirectory(dirname($media->attributes['hls_url']));
                 }
 
                 if (!empty($filesToDelete)) {
                     Storage::disk('seaweedfs')->delete($filesToDelete);
                 }
             } catch (\Exception $e) {
-                \Log::error('Failed to delete media files: ' . $e->getMessage());
+                Log::error('Failed to delete media files: ' . $e->getMessage());
             }
         });
     }
 
-    /**
-     * API Resource formatting
-     */
+    #[\Override]
     public function toArray(): array
     {
         $data = [
@@ -459,7 +280,6 @@ class Media extends Model
             'updated_at' => $this->updated_at->toIso8601String(),
         ];
 
-        // Photo-specific fields
         if ($this->isPhoto()) {
             $data['medium_url'] = $this->medium_url;
             $data['exif_data'] = $this->exif_data;
@@ -471,7 +291,6 @@ class Media extends Model
             $data['exif_date'] = $this->exif_date?->toIso8601String();
         }
 
-        // Video-specific fields
         if ($this->isVideo()) {
             $data['hls_url'] = $this->hls_url;
             $data['video_metadata'] = $this->video_metadata;
@@ -481,7 +300,6 @@ class Media extends Model
             $data['height'] = $this->height;
         }
 
-        // Error info if failed
         if ($this->isFailed()) {
             $data['processing_error'] = $this->processing_error;
         }

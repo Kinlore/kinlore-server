@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\MomentType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\CheckMomentFileStatusRequest;
 use App\Http\Requests\Api\DestroyMomentRequest;
@@ -253,14 +254,14 @@ class MomentController extends Controller
     /**
      * Get success message based on moment type.
      */
-    private function getSuccessMessage(string $type): string
+    private function getSuccessMessage(?MomentType $type): string
     {
         return match($type) {
-            'photo' => 'Photo uploaded successfully',
-            'video' => 'Video uploaded, processing started',
-            'story' => 'Story created successfully',
-            'milestone' => 'Milestone created successfully',
-            'growth' => 'Growth measurement created successfully',
+            MomentType::Photo => 'Photo uploaded successfully',
+            MomentType::Video => 'Video uploaded, processing started',
+            MomentType::Story => 'Story created successfully',
+            MomentType::Milestone => 'Milestone created successfully',
+            MomentType::Growth => 'Growth measurement created successfully',
             default => 'Moment created successfully',
         };
     }

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\ExportStatus;
 use App\Jobs\BuildExportJob;
 use App\Models\Export;
 use App\Models\Kid;
@@ -73,12 +74,12 @@ class HardeningTest extends TestCase
     {
         Queue::fake();
         $admin = User::factory()->admin()->create();
-        $stuck = Export::create(['user_id' => $admin->id, 'status' => Export::STATUS_PROCESSING]);
+        $stuck = Export::create(['user_id' => $admin->id, 'status' => ExportStatus::Processing]);
         Export::whereKey($stuck->id)->update(['updated_at' => now()->subHours(7)]);
         Sanctum::actingAs($admin);
 
         $this->postJson('/api/v1/exports')->assertStatus(202);
-        $this->assertSame(Export::STATUS_FAILED, $stuck->fresh()->status);
+        $this->assertSame(ExportStatus::Failed, $stuck->fresh()->status);
         Queue::assertPushed(BuildExportJob::class);
     }
 
@@ -86,7 +87,7 @@ class HardeningTest extends TestCase
     {
         Queue::fake();
         $admin = User::factory()->admin()->create();
-        Export::create(['user_id' => $admin->id, 'status' => Export::STATUS_PROCESSING]);
+        Export::create(['user_id' => $admin->id, 'status' => ExportStatus::Processing]);
         Sanctum::actingAs($admin);
 
         $this->postJson('/api/v1/exports')->assertStatus(409);

@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Enums\Role;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -34,7 +35,7 @@ class UserSeeder extends Seeder
         ]);
         $user->email_verified_at = now();
         if (!User::exists()) {
-            $user->role = 'admin'; // the instance's first user is its admin
+            $user->role = Role::Admin; // the instance's first user is its admin
         }
         $user->save();
 

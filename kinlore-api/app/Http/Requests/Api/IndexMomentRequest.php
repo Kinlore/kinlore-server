@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Api;
 
+use App\Enums\MomentType;
 use Illuminate\Foundation\Http\FormRequest;
 
 class IndexMomentRequest extends FormRequest
@@ -21,9 +22,11 @@ class IndexMomentRequest extends FormRequest
      */
     public function rules(): array
     {
+        $types = implode('|', array_column(MomentType::cases(), 'value'));
+
         return [
             'kid_id' => 'nullable|uuid|exists:kids,id',
-            'moment_type' => ['nullable', 'string', 'regex:/^(photo|video|story|milestone|growth)(,(photo|video|story|milestone|growth))*$/'],
+            'moment_type' => ['nullable', 'string', "regex:/^({$types})(,({$types}))*$/"],
             'liked' => 'nullable|in:true,false,1,0',
             'from' => 'nullable|date_format:Y-m-d',
             'to' => 'nullable|date_format:Y-m-d|after_or_equal:from',

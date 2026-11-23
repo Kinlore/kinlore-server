@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\ExportStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Responses\ApiResponse;
 use App\Jobs\BuildExportJob;
@@ -26,15 +27,15 @@ class ExportController extends Controller
     public function store(Request $request): JsonResponse
     {
         // shortcut: a worker that died leaves its export stuck; after 6 hours it counts as failed. Add a heartbeat if exports ever take longer.
-        Export::whereIn('status', [Export::STATUS_PENDING, Export::STATUS_PROCESSING])
+        Export::whereIn('status', [ExportStatus::Pending, ExportStatus::Processing])
             ->where('updated_at', '<', now()->subHours(6))
-            ->update(['status' => Export::STATUS_FAILED, 'error' => 'The export did not finish in time. Is the queue worker running?']);
+            ->update(['status' => ExportStatus::Failed, 'error' => 'The export did not finish in time. Is the queue worker running?']);
 
-        if (Export::whereIn('status', [Export::STATUS_PENDING, Export::STATUS_PROCESSING])->exists()) {
+        if (Export::whereIn('status', [ExportStatus::Pending, ExportStatus::Processing])->exists()) {
             return ApiResponse::error('An export is already running', 409);
         }
 
-        $export = Export::create(['user_id' => $request->user()->id, 'status' => Export::STATUS_PENDING]);
+        $export = Export::create(['user_id' => $request->user()->id, 'status' => ExportStatus::Pending]);
 
         BuildExportJob::dispatch($export->id);
 
@@ -50,7 +51,7 @@ class ExportController extends Controller
 
         $path = $export->fullPath();
 
-        if ($export->status !== Export::STATUS_READY || !$path || !is_file($path)) {
+        if ($export->status !== ExportStatus::Ready || !$path || !is_file($path)) {
             return ApiResponse::error('Export not found', 404);
         }
 

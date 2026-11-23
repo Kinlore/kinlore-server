@@ -1,259 +1,203 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
+use App\Enums\InteractionType;
+use App\Enums\MomentType;
+use App\Enums\VideoStatus;
+use App\Policies\MomentPolicy;
+use Illuminate\Database\Eloquent\Attributes\Appends;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Attributes\UsePolicy;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Carbon\Carbon;
 
+#[Fillable([
+    'kid_id',
+    'user_id',
+    'video_id',
+    'media_id',
+    'moment_type',
+    'milestone_id',
+    'custom_milestone_id',
+    'title',
+    'description',
+    'story_text',
+    'photo_url',
+    'thumbnail_url',
+    'medium_url',
+    'hls_url',
+    'file_size',
+    'mime_type',
+    'original_filename',
+    'device_asset_id',
+    'device_fingerprint',
+    'uploaded_from_device',
+    'uploaded_from_ip',
+    'exif_date',
+    'latitude',
+    'longitude',
+    'orientation',
+    'camera_make',
+    'camera_model',
+    'tags',
+    'synced_at',
+    'duration',
+    'video_status',
+    'height_cm',
+    'weight_kg',
+    'head_circumference_cm',
+])]
+#[Appends(['has_location', 'file_size_formatted'])]
+#[UsePolicy(MomentPolicy::class)]
 class Moment extends Model
 {
     use HasFactory, HasUuids, SoftDeletes;
 
-    /**
-     * The table associated with the model.
-     */
-    protected $table = 'moments';
+    #[\Override]
+    protected function casts(): array
+    {
+        return [
+            'file_size' => 'integer',
+            'exif_date' => 'datetime',
+            'latitude' => 'float',
+            'longitude' => 'float',
+            'duration' => 'float',
+            'height_cm' => 'float',
+            'weight_kg' => 'float',
+            'head_circumference_cm' => 'float',
+            'orientation' => 'integer',
+            'tags' => 'array',
+            'synced_at' => 'integer',
+            'moment_type' => MomentType::class,
+            'video_status' => VideoStatus::class,
+        ];
+    }
 
-    /**
-     * Indicates if the IDs are auto-incrementing.
-     */
-    public $incrementing = false;
-
-    /**
-     * The data type of the primary key.
-     */
-    protected $keyType = 'string';
-
-    /**
-     * The attributes that are mass assignable.
-     */
-    protected $fillable = [
-        'kid_id',
-        'user_id',
-        'video_id',
-        'media_id',
-        'moment_type',
-        'milestone_id',
-        'custom_milestone_id',
-        'title',
-        'description',
-        'story_text',
-        'photo_url',
-        'thumbnail_url',
-        'medium_url',
-        'hls_url',
-        'file_size',
-        'mime_type',
-        'original_filename',
-        'device_asset_id',
-        'device_fingerprint',
-        'uploaded_from_device',
-        'uploaded_from_ip',
-        'exif_date',
-        'latitude',
-        'longitude',
-        'orientation',
-        'camera_make',
-        'camera_model',
-        'tags',
-        'synced_at',
-        'duration',
-        'video_status',
-        'height_cm',
-        'weight_kg',
-        'head_circumference_cm',
-    ];
-
-    /**
-     * The attributes that should be cast.
-     */
-    protected $casts = [
-        'file_size' => 'integer',
-        'exif_date' => 'datetime',
-        'latitude' => 'float',
-        'longitude' => 'float',
-        'duration' => 'float',
-        'height_cm' => 'float',
-        'weight_kg' => 'float',
-        'head_circumference_cm' => 'float',
-        'orientation' => 'integer',
-        'tags' => 'array',
-        'synced_at' => 'integer',
-        'moment_type' => 'string',
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
-        'deleted_at' => 'datetime',
-    ];
-
-    /**
-     * The accessors to append to the model's array form.
-     */
-    protected $appends = [
-        'has_location',
-        'file_size_formatted',
-    ];
-
-    /**
-     * Relationships
-     */
-    
-    public function kid()
+    public function kid(): BelongsTo
     {
         return $this->belongsTo(Kid::class);
     }
 
     /** The uploader (moments.user_id). */
-    public function user()
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
-    public function interactions()
+    public function interactions(): HasMany
     {
         return $this->hasMany(MomentInteraction::class);
     }
 
-    public function likes()
+    public function likes(): HasMany
     {
-        return $this->interactions()->where('type', 'like');
+        return $this->interactions()->where('type', InteractionType::Like);
     }
 
-    public function comments()
+    public function comments(): HasMany
     {
-        return $this->interactions()->where('type', 'comment');
+        return $this->interactions()->where('type', InteractionType::Comment);
     }
 
-    public function isLikedBy(User $user)
+    public function isLikedBy(User $user): bool
     {
         return $this->likes()->where('user_id', $user->id)->exists();
     }
 
-    public function media()
+    public function media(): BelongsTo
     {
         return $this->belongsTo(Media::class);
     }
 
-    public function milestone()
+    public function milestone(): BelongsTo
     {
         return $this->belongsTo(Milestone::class);
     }
 
-    /**
-     * Check if moment is a video type
-     */
     public function isVideo(): bool
     {
-        return $this->moment_type === 'video';
+        return $this->moment_type === MomentType::Video;
     }
 
-    /**
-     * Get the milestone (either system or custom)
-     */
-    public function getAssociatedMilestone()
+    protected function hasLocation(): Attribute
     {
-        return $this->milestone ?? $this->customMilestone;
+        return Attribute::make(get: fn (): bool => !is_null($this->latitude) && !is_null($this->longitude));
     }
 
-    /**
-     * Computed Attributes
-     */
-    
-    public function getHasLocationAttribute()
+    protected function fileSizeFormatted(): Attribute
     {
-        return !is_null($this->latitude) && !is_null($this->longitude);
+        return Attribute::make(get: function (): string {
+            $bytes = $this->file_size;
+
+            if ($bytes >= 1073741824) {
+                return number_format($bytes / 1073741824, 2) . ' GB';
+            } elseif ($bytes >= 1048576) {
+                return number_format($bytes / 1048576, 2) . ' MB';
+            } elseif ($bytes >= 1024) {
+                return number_format($bytes / 1024, 2) . ' KB';
+            }
+
+            return $bytes . ' bytes';
+        });
     }
 
-    public function getFileSizeFormattedAttribute()
-    {
-        $bytes = $this->file_size;
-        
-        if ($bytes >= 1073741824) {
-            return number_format($bytes / 1073741824, 2) . ' GB';
-        } elseif ($bytes >= 1048576) {
-            return number_format($bytes / 1048576, 2) . ' MB';
-        } elseif ($bytes >= 1024) {
-            return number_format($bytes / 1024, 2) . ' KB';
-        }
-        
-        return $bytes . ' bytes';
-    }
-
-    public function getDisplayDateAttribute()
+    protected function displayDate(): Attribute
     {
         // Prefer EXIF date over created_at
-        return $this->exif_date ?? $this->created_at;
+        return Attribute::make(get: fn (): mixed => $this->exif_date ?? $this->created_at)->withoutObjectCaching();
     }
 
-    /**
-     * URL Generation (Signed URLs for security)
-     */
-    
-    public function getPhotoUrlAttribute($value)
+    // The stored values are storage paths; reading them gives signed URLs.
+    protected function photoUrl(): Attribute
     {
-        return $this->generateSignedUrl($value);
+        return Attribute::make(get: fn (?string $value): ?string => $this->generateSignedUrl($value));
     }
 
-    public function getMediumUrlAttribute($value)
+    protected function mediumUrl(): Attribute
     {
-        return $this->generateSignedUrl($value);
+        return Attribute::make(get: fn (?string $value): ?string => $this->generateSignedUrl($value));
     }
 
-    public function getThumbnailUrlAttribute($value)
+    protected function thumbnailUrl(): Attribute
     {
-        return $this->generateSignedUrl($value);
+        return Attribute::make(get: fn (?string $value): ?string => $this->generateSignedUrl($value));
     }
 
-    public function getHlsUrlAttribute($value)
+    protected function hlsUrl(): Attribute
     {
-        return $this->generateSignedUrl($value);
+        return Attribute::make(get: fn (?string $value): ?string => $this->generateSignedUrl($value));
     }
 
-    protected function generateSignedUrl($path, $expiration = 60)
+    protected function generateSignedUrl(?string $path, int $expiration = 60): ?string
     {
         if (empty($path)) {
             return null;
         }
 
         try {
-            return Storage::disk('seaweedfs')->temporaryUrl(
-                $path,
-                now()->addMinutes($expiration)
-            );
+            return Storage::disk('seaweedfs')->temporaryUrl($path, now()->addMinutes($expiration));
         } catch (\Exception $e) {
-            \Log::error('Failed to generate signed URL: ' . $e->getMessage());
+            Log::error('Failed to generate signed URL: ' . $e->getMessage());
             return Storage::disk('seaweedfs')->url($path);
         }
     }
 
-    /**
-     * Helper Methods
-     */
-    
-    public function deleteWithFiles()
-    {
-        // Delete files from MinIO
-        try {
-            Storage::disk('seaweedfs')->delete([
-                $this->attributes['photo_url'],
-                $this->attributes['medium_url'],
-                $this->attributes['thumbnail_url'],
-            ]);
-        } catch (\Exception $e) {
-            \Log::error('Failed to delete files from MinIO: ' . $e->getMessage());
-        }
-
-        // Delete database record
-        return $this->delete();
-    }
-
-    public function addTag($tag)
+    public function addTag(string $tag): void
     {
         $tags = $this->tags ?? [];
-        
+
         if (!in_array($tag, $tags)) {
             $tags[] = $tag;
             $this->tags = $tags;
@@ -261,10 +205,10 @@ class Moment extends Model
         }
     }
 
-    public function removeTag($tag)
+    public function removeTag(string $tag): void
     {
         $tags = $this->tags ?? [];
-        
+
         if (($key = array_search($tag, $tags)) !== false) {
             unset($tags[$key]);
             $this->tags = array_values($tags);
@@ -272,69 +216,45 @@ class Moment extends Model
         }
     }
 
-    /**
-     * Scopes
-     */
-    
-    public function scopeForKid($query, $kidId)
+    #[Scope]
+    protected function orderByDate(Builder $query, string $direction = 'desc'): void
     {
-        return $query->where('kid_id', $kidId);
+        $query->orderByRaw('COALESCE(exif_date, created_at) ' . $direction);
     }
 
-    public function scopeWithLocation($query)
+    #[Scope]
+    protected function inDateRange(Builder $query, string $startDate, string $endDate): void
     {
-        return $query->whereNotNull('latitude')
-                     ->whereNotNull('longitude');
+        $query->whereBetween('exif_date', [$startDate, $endDate])
+              ->orWhereBetween('created_at', [$startDate, $endDate]);
     }
 
-    public function scopeOrderByDate($query, $direction = 'desc')
+    /** Everything the moment payload needs, without N+1: uploader, counts and the caller's like. */
+    #[Scope]
+    protected function forPayload(Builder $query, ?User $viewer = null): void
     {
-        return $query->orderByRaw('COALESCE(exif_date, created_at) ' . $direction);
-    }
-
-    public function scopeInDateRange($query, $startDate, $endDate)
-    {
-        return $query->whereBetween('exif_date', [$startDate, $endDate])
-                     ->orWhereBetween('created_at', [$startDate, $endDate]);
-    }
-
-    /**
-     * Everything the moment payload needs, without N+1: uploader, counts and the caller's like.
-     */
-    public function scopeForPayload($query, ?User $viewer = null)
-    {
-        return $query->with(['user:id,name', 'milestone'])
+        $query->with(['user:id,name', 'milestone'])
             ->withCount(['likes', 'comments'])
-            ->withExists(['likes as is_liked' => fn ($q) => $q->where('user_id', $viewer?->id)]);
+            ->withExists(['likes as is_liked' => fn (Builder $q) => $q->where('user_id', $viewer?->id)]);
     }
 
-    public function scopeUpdatedSince($query, $timestamp)
+    #[Scope]
+    protected function byDevice(Builder $query, string $deviceAssetId): void
     {
-        return $query->where('updated_at', '>', Carbon::createFromTimestamp($timestamp / 1000));
+        $query->where('device_asset_id', $deviceAssetId);
     }
 
-    public function scopeByDevice($query, $deviceAssetId)
+    #[\Override]
+    protected static function booted(): void
     {
-        return $query->where('device_asset_id', $deviceAssetId);
-    }
-
-    /**
-     * Boot method
-     */
-    protected static function boot()
-    {
-        parent::boot();
-
-        // Update synced_at on update
-        static::updated(function ($moment) {
+        static::updated(function (Moment $moment): void {
             if (!$moment->isDirty('synced_at')) {
                 $moment->synced_at = now()->timestamp * 1000;
                 $moment->saveQuietly();
             }
         });
 
-        // Delete files when moment is force deleted
-        static::forceDeleted(function ($moment) {
+        static::forceDeleted(function (Moment $moment): void {
             try {
                 Storage::disk('seaweedfs')->delete([
                     $moment->attributes['photo_url'],
@@ -342,15 +262,13 @@ class Moment extends Model
                     $moment->attributes['thumbnail_url'],
                 ]);
             } catch (\Exception $e) {
-                \Log::error('Failed to delete moment files: ' . $e->getMessage());
+                Log::error('Failed to delete moment files: ' . $e->getMessage());
             }
         });
     }
 
-    /**
-     * API Resource formatting
-     */
-    public function toArray()
+    #[\Override]
+    public function toArray(): array
     {
         $data = [
             'id' => $this->id,
@@ -358,7 +276,7 @@ class Moment extends Model
             'user_id' => $this->user_id,
             'uploader_name' => $this->user?->name,
             'video_id' => $this->video_id,
-            'moment_type' => $this->moment_type ?? 'photo',
+            'moment_type' => ($this->moment_type ?? MomentType::Photo)->value,
             'milestone_id' => $this->milestone_id,
             'custom_milestone_id' => $this->custom_milestone_id,
             'title' => $this->title,
@@ -382,19 +300,18 @@ class Moment extends Model
             'camera_make' => $this->camera_make,
             'camera_model' => $this->camera_model,
             'duration' => $this->duration,
-            'video_status' => $this->video_status,
+            'video_status' => $this->video_status?->value,
             'height_cm' => $this->height_cm,
             'weight_kg' => $this->weight_kg,
             'head_circumference_cm' => $this->head_circumference_cm,
-            'likes_count' => $this->interactionStat('likes_count', fn () => $this->likes()->count()),
-            'comments_count' => $this->interactionStat('comments_count', fn () => $this->comments()->count()),
-            'is_liked' => (bool) $this->interactionStat('is_liked', fn () => ($viewer = auth()->user()) ? $this->isLikedBy($viewer) : false),
+            'likes_count' => $this->interactionStat('likes_count', fn (): int => $this->likes()->count()),
+            'comments_count' => $this->interactionStat('comments_count', fn (): int => $this->comments()->count()),
+            'is_liked' => (bool) $this->interactionStat('is_liked', fn (): bool => ($viewer = auth()->user()) ? $this->isLikedBy($viewer) : false),
             'tags' => $this->tags,
             'created_at' => $this->created_at->toIso8601String(),
             'updated_at' => $this->updated_at->toIso8601String(),
         ];
 
-        // Include milestone details if loaded
         if ($this->relationLoaded('milestone') && $this->milestone) {
             $data['milestone'] = $this->milestone->toArray();
         }
@@ -402,7 +319,7 @@ class Moment extends Model
         return $data;
     }
 
-    /** Value from scopeForPayload, or one query when the scope was not used. */
+    /** Value from the forPayload scope, or one query when the scope was not used. */
     private function interactionStat(string $key, \Closure $fallback): mixed
     {
         return array_key_exists($key, $this->attributes) ? $this->attributes[$key] : $fallback();

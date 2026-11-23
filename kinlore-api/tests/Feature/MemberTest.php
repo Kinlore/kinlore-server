@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\Role;
 use App\Models\Kid;
 use App\Models\Moment;
 use App\Models\MomentInteraction;
@@ -70,7 +71,7 @@ class MemberTest extends TestCase
         $this->patchJson("/api/v1/members/{$member->id}", ['role' => 'admin'])
             ->assertOk()->assertJsonPath('data.role', 'admin')->assertJsonPath('data.is_admin', true);
 
-        $this->assertSame('partner', $admin->fresh()->role);
+        $this->assertSame(Role::Partner, $admin->fresh()->role);
         $this->assertSame(1, User::where('role', 'admin')->count());
     }
 
@@ -84,7 +85,7 @@ class MemberTest extends TestCase
         $this->patchJson("/api/v1/members/{$admin->id}", ['role' => 'admin'])->assertOk();
         $this->deleteJson("/api/v1/members/{$admin->id}")->assertStatus(422);
 
-        $this->assertSame('admin', $admin->fresh()->role);
+        $this->assertSame(Role::Admin, $admin->fresh()->role);
         $this->assertSame(1, User::where('role', 'admin')->count());
     }
 
