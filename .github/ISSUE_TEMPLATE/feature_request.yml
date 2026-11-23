@@ -1,0 +1,35 @@
+name: Feature request
+description: Propose a new feature or a change.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Check docs/ROADMAP.md first. The work may already be planned.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What does the family want to do, and what stops them today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: How could Kinlore solve it?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives
+      description: Other ways to solve it that you considered.
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Does it need a change in the mobile app?
+      options:
+        - "Yes"
+        - "No"
+        - Not sure

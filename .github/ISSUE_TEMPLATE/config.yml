@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/elyess/kinlore-server/blob/develop/SECURITY.md
+    about: Do not open a public issue. Follow the steps in SECURITY.md.
+  - name: Problem with the mobile app
+    url: https://github.com/elyess/kinlore-mobile/issues
+    about: Report problems of the app in the kinlore-mobile repository.

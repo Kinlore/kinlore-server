@@ -59,7 +59,7 @@ Settings you can put in a `.env` file next to `docker-compose.yml`:
 | Redis | 8.10 | cache and rate limits only; safe to raise, never to lower (an older Redis cannot read the data of a newer one) |
 | Caddy | 2.11 | comes with the image |
 
-PHP 8.6 and PostgreSQL 19 came out on 19 November 2026. Kinlore stays on 8.5 and 18 until they have had their first fixes. The workflow already tests the code on PHP 8.6.
+Kinlore does not support PHP 8.6 or PostgreSQL 19 yet. The test workflow also runs the unit and feature tests on PHP 8.6, as a look ahead.
 
 ### Move PostgreSQL to a new major version
 

@@ -1,6 +1,10 @@
-# Kinlore API Contract (v2, 2026-11-21)
+# Kinlore API Contract
 
-This file is the agreement between `kinlore-api` and `kinlore-mobile`. When the code and this file disagree, fix the code, or change this file on purpose in both repos. `openapi.yaml` is written by hand from this file and the code; a check compares its paths with the server's routes.
+This document lists the behaviour rules of the Kinlore API that the OpenAPI file cannot express: who may do what, which fields a payload holds, how sync pages its data, how signed links work, and similar rules. The server (`kinlore-api`) and the mobile app ([kinlore-mobile](https://github.com/elyess/kinlore-mobile)) both follow it.
+
+[`kinlore-api/openapi.yaml`](../kinlore-api/openapi.yaml) lists every endpoint with its parameters. It is written by hand from this file and the code. The test `tests/Feature/OpenApiRoutesTest.php` compares its paths with the server's routes.
+
+When the code and this file disagree, fix the code, or change this file on purpose together with the app. Code comments refer to the numbered sections of this file, so keep the numbers.
 
 Conventions:
 - Base path `/api`. Authenticated routes use `Authorization: Bearer <token>` (Sanctum).
@@ -22,7 +26,7 @@ Permissions (columns on `users`, booleans, default `true`): `can_add_content`, `
 
 `User::hasPermission(string $permission): bool` with `$permission` in `add_content`, `comment`, `like`, `download` is the single check that all code uses.
 
-`is_admin` stays in every user payload as a derived value (`role === 'admin'`).
+`is_admin` is in every user payload as a derived value (`role === 'admin'`).
 
 Rules:
 - Kid update/delete: admin, partner, or the kid's creator (`kids.user_id`). Kid create: admin or partner.
@@ -57,8 +61,8 @@ Returned by login, register and `/auth/me` (`/auth/me` adds the count fields):
 **First admin: web setup only.** The mobile app never creates the admin. After installing the server (Docker or bare metal), the owner opens `APP_URL` in a web browser:
 - `GET /` (web): when the instance has no user, redirects to `/setup`. Otherwise a small status page: "Kinlore is running", the server address to type in the app, and the app's sign-in steps. No user data.
 - `GET /setup` (web): the setup form (name, email, password, password confirmation, and a setup token field when `SETUP_TOKEN` is set). When the instance already has a user: redirect to `/`.
-- `POST /setup` (web, CSRF-protected, throttled 5/min): creates the admin under the same lock as before, so two parallel setups cannot both succeed. Validation errors show on the form. Success shows "Your admin account is ready" with the server address and the email to use in the app. It never shows the password.
-- The seeded admin (`SEED_USER_*`) still works and skips the web setup.
+- `POST /setup` (web, CSRF-protected, throttled 5/min): creates the admin under a lock, so two parallel setups cannot both succeed. Validation errors show on the form. Success shows "Your admin account is ready" with the server address and the email to use in the app. It never shows the password.
+- The seeded admin (`SEED_USER_*`) also works and skips the web setup.
 - Behind a reverse proxy, the pages and form action use the proxy's `https` address (trusted proxies, section 10).
 
 API:

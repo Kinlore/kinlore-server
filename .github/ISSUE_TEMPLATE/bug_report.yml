@@ -1,0 +1,58 @@
+name: Bug report
+description: Something in the Kinlore server does not work as documented.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for the report. Do not report security problems here; follow SECURITY.md.
+        Remove passwords, tokens, email addresses and private photos from everything you paste.
+  - type: dropdown
+    id: install
+    attributes:
+      label: How do you run the server?
+      options:
+        - Docker (docs/SELF_HOSTING.md)
+        - Host install without Docker (docs/BARE_METAL.md)
+        - Local development setup
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The commit or branch you run, for example the output of `git rev-parse --short HEAD`.
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: System
+      description: Operating system, and the reverse proxy if you use one.
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. ...
+        2. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened?
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Server log
+      description: "Docker: `docker compose logs api`. Host install: the newest file in `kinlore-api/storage/logs/`."
+      render: text

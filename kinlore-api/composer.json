@@ -7,7 +7,7 @@
         "kinlore",
         "laravel"
     ],
-    "license": "MIT",
+    "license": "AGPL-3.0-only",
     "require": {
         "php": "^8.5",
         "aws/aws-sdk-php": "^3.368",
