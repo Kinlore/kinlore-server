@@ -46,37 +46,6 @@ class MomentTest extends TestCase
         $this->assertFalse($momentWithoutLocation->has_location);
     }
 
-    public function test_moment_can_add_tags(): void
-    {
-        $moment = Moment::factory()->create(['tags' => null]);
-
-        $moment->addTag('birthday');
-        $moment->addTag('family');
-
-        $this->assertCount(2, $moment->tags);
-        $this->assertContains('birthday', $moment->tags);
-        $this->assertContains('family', $moment->tags);
-    }
-
-    public function test_moment_does_not_add_duplicate_tags(): void
-    {
-        $moment = Moment::factory()->create(['tags' => ['birthday']]);
-
-        $moment->addTag('birthday');
-
-        $this->assertCount(1, $moment->tags);
-    }
-
-    public function test_moment_can_remove_tags(): void
-    {
-        $moment = Moment::factory()->create(['tags' => ['birthday', 'family']]);
-
-        $moment->removeTag('birthday');
-
-        $this->assertCount(1, $moment->tags);
-        $this->assertNotContains('birthday', $moment->tags);
-    }
-
     public function test_moment_uses_exif_date_as_display_date_when_available(): void
     {
         $exifDate = now()->subDays(5);

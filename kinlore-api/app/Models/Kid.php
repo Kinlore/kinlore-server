@@ -17,7 +17,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-#[Fillable(['user_id', 'name', 'date_of_birth', 'due_date', 'avatar_color', 'synced_at'])]
+#[Fillable(['user_id', 'name', 'date_of_birth', 'due_date', 'avatar_color'])]
 #[Appends(['age'])]
 #[UsePolicy(KidPolicy::class)]
 class Kid extends Model
@@ -30,7 +30,6 @@ class Kid extends Model
         return [
             'date_of_birth' => 'date',
             'due_date' => 'date',
-            'synced_at' => 'integer',
         ];
     }
 
@@ -107,13 +106,6 @@ class Kid extends Model
         static::creating(function (Kid $kid): void {
             if (empty($kid->avatar_color)) {
                 $kid->avatar_color = self::randomAvatarColor();
-            }
-        });
-
-        static::updated(function (Kid $kid): void {
-            if (! $kid->isDirty('synced_at')) {
-                $kid->synced_at = now()->timestamp * 1000;
-                $kid->saveQuietly();
             }
         });
     }

@@ -220,7 +220,7 @@ class MomentTest extends TestCase
 
     public function test_admin_can_delete_another_users_moment(): void
     {
-        $admin = User::factory()->create(['is_admin' => true]);
+        $admin = User::factory()->admin()->create();
         $otherUser = User::factory()->create();
         $kid = Kid::factory()->create(['user_id' => $otherUser->id]);
         $moment = Moment::factory()->create(['kid_id' => $kid->id]);

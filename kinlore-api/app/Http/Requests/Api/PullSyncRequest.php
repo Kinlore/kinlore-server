@@ -19,8 +19,6 @@ class PullSyncRequest extends FormRequest
     {
         return [
             'lastPulledAt' => 'nullable|integer',
-            'schemaVersion' => 'required|integer',
-            'migration' => 'nullable',
             'cursor' => 'nullable|uuid',
             'limit' => 'nullable|integer|min:1|max:'.SyncService::PULL_PAGE_SIZE,
         ];

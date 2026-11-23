@@ -26,14 +26,11 @@ use Illuminate\Support\Facades\Storage;
 #[Fillable([
     'kid_id',
     'user_id',
-    'video_id',
     'media_id',
     'moment_type',
     'milestone_id',
-    'custom_milestone_id',
     'title',
     'description',
-    'story_text',
     'photo_url',
     'thumbnail_url',
     'medium_url',
@@ -43,16 +40,12 @@ use Illuminate\Support\Facades\Storage;
     'original_filename',
     'device_asset_id',
     'device_fingerprint',
-    'uploaded_from_device',
-    'uploaded_from_ip',
     'exif_date',
     'latitude',
     'longitude',
     'orientation',
     'camera_make',
     'camera_model',
-    'tags',
-    'synced_at',
     'duration',
     'video_status',
     'height_cm',
@@ -78,8 +71,6 @@ class Moment extends Model
             'weight_kg' => 'float',
             'head_circumference_cm' => 'float',
             'orientation' => 'integer',
-            'tags' => 'array',
-            'synced_at' => 'integer',
             'moment_type' => MomentType::class,
             'video_status' => VideoStatus::class,
         ];
@@ -195,28 +186,6 @@ class Moment extends Model
         }
     }
 
-    public function addTag(string $tag): void
-    {
-        $tags = $this->tags ?? [];
-
-        if (! in_array($tag, $tags)) {
-            $tags[] = $tag;
-            $this->tags = $tags;
-            $this->save();
-        }
-    }
-
-    public function removeTag(string $tag): void
-    {
-        $tags = $this->tags ?? [];
-
-        if (($key = array_search($tag, $tags)) !== false) {
-            unset($tags[$key]);
-            $this->tags = array_values($tags);
-            $this->save();
-        }
-    }
-
     #[Scope]
     protected function orderByDate(Builder $query, string $direction = 'desc'): void
     {
@@ -235,13 +204,6 @@ class Moment extends Model
     #[\Override]
     protected static function booted(): void
     {
-        static::updated(function (Moment $moment): void {
-            if (! $moment->isDirty('synced_at')) {
-                $moment->synced_at = now()->timestamp * 1000;
-                $moment->saveQuietly();
-            }
-        });
-
         static::forceDeleted(function (Moment $moment): void {
             try {
                 Storage::disk('seaweedfs')->delete([
@@ -263,13 +225,10 @@ class Moment extends Model
             'kid_id' => $this->kid_id,
             'user_id' => $this->user_id,
             'uploader_name' => $this->user?->name,
-            'video_id' => $this->video_id,
             'moment_type' => ($this->moment_type ?? MomentType::Photo)->value,
             'milestone_id' => $this->milestone_id,
-            'custom_milestone_id' => $this->custom_milestone_id,
             'title' => $this->title,
             'description' => $this->description,
-            'story_text' => $this->story_text,
             'photo_url' => $this->photo_url,
             'medium_url' => $this->medium_url,
             'thumbnail_url' => $this->thumbnail_url,
@@ -295,7 +254,6 @@ class Moment extends Model
             'likes_count' => $this->interactionStat('likes_count', fn (): int => $this->likes()->count()),
             'comments_count' => $this->interactionStat('comments_count', fn (): int => $this->comments()->count()),
             'is_liked' => (bool) $this->interactionStat('is_liked', fn (): bool => ($viewer = auth()->user()) ? $this->isLikedBy($viewer) : false),
-            'tags' => $this->tags,
             'created_at' => $this->created_at->toIso8601String(),
             'updated_at' => $this->updated_at->toIso8601String(),
         ];

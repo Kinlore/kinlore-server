@@ -17,6 +17,12 @@ return new class extends Migration
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
+            // Roles and permissions: docs/API_CONTRACT.md section 1.
+            $table->string('role', 16)->default('family');
+            $table->boolean('can_add_content')->default(true);
+            $table->boolean('can_comment')->default(true);
+            $table->boolean('can_like')->default(true);
+            $table->boolean('can_download')->default(true);
             $table->rememberToken();
             $table->timestamps();
         });

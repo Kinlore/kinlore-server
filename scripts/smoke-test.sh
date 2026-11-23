@@ -120,14 +120,14 @@ r=$(req POST /v1/sync/push "$ADMIN" -H 'Content-Type: application/json' -d "{\"l
 check "push keeps ids" '.data.kids_created[0].id=="'"$OKID"'" and .data.moments_created[0].id=="'"$OMOM"'"' "$(body "$r")"
 r=$(req GET "/v1/kids/$OKID" "$ADMIN"); check "pushed kid date stored as a date" '.data.date_of_birth=="2020-05-03"' "$(body "$r")"
 # Paging: a tiny page size shows has_more and the cursor; kids come with the first page only
-r=$(req POST /v1/sync/pull "$ADMIN" -H 'Content-Type: application/json' -d '{"lastPulledAt":null,"schemaVersion":2,"limit":1}')
+r=$(req POST /v1/sync/pull "$ADMIN" -H 'Content-Type: application/json' -d '{"lastPulledAt":null,"limit":1}')
 P="$(body "$r")"
 check "pull page 1 has more and a cursor" '.has_more==true and (.next_cursor|type=="string") and (.changes.kids.created|length)>0' "$P"
 CUR=$(printf '%s' "$P" | jq -r '.next_cursor')
-r=$(req POST /v1/sync/pull "$ADMIN" -H 'Content-Type: application/json' -d "{\"lastPulledAt\":null,\"schemaVersion\":2,\"limit\":1,\"cursor\":\"$CUR\"}")
+r=$(req POST /v1/sync/pull "$ADMIN" -H 'Content-Type: application/json' -d "{\"lastPulledAt\":null,\"limit\":1,\"cursor\":\"$CUR\"}")
 check "pull page 2 holds moments only" '(.changes.kids.created|length)==0 and ([.changes.moments.created[],.changes.moments.updated[],.changes.moments.deleted[]]|length)==1' "$(body "$r")"
 # Changes of this run only, so the rows fit in one page on any instance
-r=$(req POST /v1/sync/pull "$ADMIN" -H 'Content-Type: application/json' -d "{\"lastPulledAt\":$START_MS,\"schemaVersion\":2,\"migration\":null}")
+r=$(req POST /v1/sync/pull "$ADMIN" -H 'Content-Type: application/json' -d "{\"lastPulledAt\":$START_MS}")
 P="$(body "$r")"
 check "pull shape and ms timestamp" '(.timestamp|type=="number") and .timestamp>1700000000000' "$P"
 check "pull moment rows carry contract fields" '[.changes.moments.created[],.changes.moments.updated[]]|map(select(.id=="'"$PHOTO"'"))[0]|has("likes_count") and has("is_liked") and has("uploader_name") and has("video_status")' "$P"

@@ -32,7 +32,7 @@ Rules:
 - `GET /v1/moments/{id}/file/original` and the export download: need `download`. `thumbnail`, `medium` and video playback need no extra permission.
 - A failed permission check returns `403` with a message.
 
-Migration of existing data: the existing admin keeps `role=admin`; every other existing user becomes `partner` (they could create and edit kids before). New invitations default to `family`.
+New invitations default to `family`.
 
 ## 2. User payload
 
@@ -63,7 +63,7 @@ Returned by login, register and `/auth/me` (`/auth/me` adds the count fields):
 
 API:
 - `GET /auth/setup-status` (public): `{ needs_setup: bool, setup_token_required: bool, instance_name: string, setup_url: string }`. `setup_url` is `{APP_URL}/setup`. The app uses it to tell the user to finish setup in a browser.
-- `POST /auth/register`: `name, email, password, password_confirmation, invite_token` (required). It only registers invited users and gives them the role and permissions of the invitation. On an instance with no user it returns `403` with the message "Finish setup in a web browser at {setup_url}". `setup_token` is no longer accepted here.
+- `POST /auth/register`: `name, email, password, password_confirmation, invite_token` (required). It only registers invited users and gives them the role and permissions of the invitation. On an instance with no user it returns `403` with the message "Finish setup in a web browser at {setup_url}".
 - `GET /auth/invitations/{token}` (public, throttled 10/min): `200 { valid: true, email: string|null, role, invited_by: { name }, expires_at, instance_name }`, or `404` when unknown, used or expired.
 - Invitation item (admin endpoints): `{ id, email, role, permissions: {...}, invited_by: { id, name }, expires_at, created_at }`.
 - `POST /v1/invitations` (admin): `{ email?, role?: partner|family (default family), permissions?: { add_content?, comment?, like?, download? }, expires_in_days?: 1..30 (default 7) }` → `201` invitation item plus `token`, `invite_link`, `invite_url`:
@@ -128,7 +128,7 @@ Moment payload (REST and the inside of `data.moment`):
 
 ## 9. Sync
 
-`POST /v1/sync/pull` request: `{ lastPulledAt: number|null, schemaVersion: 2, migration: null, cursor?: string|null, limit?: 1..2000 }`.
+`POST /v1/sync/pull` request: `{ lastPulledAt: number|null, cursor?: string|null, limit?: 1..2000 }`.
 
 Response: `{ changes: { kids: {created, updated, deleted}, moments: {created, updated, deleted}, milestones: {created, updated, deleted} }, timestamp: number, has_more: bool, next_cursor: string|null }`.
 - **Paging:** one response holds at most 2000 moments (`limit`), in id order. While `has_more` is true, the client pulls again with the same `lastPulledAt` and `cursor = next_cursor`. Kids and milestones come whole with the first page (no cursor); later pages have them empty. The client applies each page, and after the last page stores the `timestamp` of the **first** page. When a page fails, it stores nothing and starts again at the next sync.

@@ -24,9 +24,6 @@ class MemberController extends Controller
      */
     private const array REASSIGNED_ON_DELETE = [
         'media' => 'user_id',
-        'videos' => 'user_id',
-        'custom_milestones' => 'user_id',
-        'user_milestones' => 'user_id',
         'invitations' => 'invited_by',
     ];
 

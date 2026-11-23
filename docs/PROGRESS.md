@@ -147,6 +147,18 @@ Checked live on Docker in both modes: 50/50 end-to-end checks, `https` links beh
 | ✅ | PostgreSQL stays on 18 | owner's choice; 19 came out on 2026-11-19. Tested move steps are in SELF_HOSTING |
 | ✅ | Code on current conventions | enums for roles, types and statuses; Laravel 13 model, queue and console attributes; strict types; Pint with the Laravel preset |
 | ✅ | Unused code removed | model scopes, accessors, relations, service methods, `AuthServiceProvider` |
-| ⬜ | Moment types `text` and `mixed` | the database still allows them; no version of the app wrote them. See the `shortcut:` comment in `app/Enums/MomentType.php` |
+| ✅ | Moment types `text` and `mixed` | removed with the migration rewrite in phase 10 |
 
 Checked: 167 tests three times in a row; on Docker 50/50 end-to-end checks, and the 350 MB original and an old video still served after the storage upgrade; the host-install proof on PHP 8.5; JSON output compared before and after for every payload.
+
+## Phase 10: fresh-install baseline (2026-11-23)
+
+No install of the app or the server exists yet, so nothing has to be migrated.
+
+| Status | Item | Notes |
+|---|---|---|
+| ✅ | 23 follow-up migrations folded into one | `2026_01_01_000001_create_kinlore_tables.php` creates the final tables; the users table has its roles and permissions from the start |
+| ✅ | Unused tables dropped | `albums`, `album_moment`, `images`, `videos`, `stories`, `custom_milestones`, `user_milestones` |
+| ✅ | Unused moment and kid columns dropped | `video_id`, `custom_milestone_id`, `story_text`, `tags`, `uploaded_from_device`, `uploaded_from_ip`, `synced_at` (written on every save, never read) |
+| ✅ | Old request forms removed | `milestone_date` and `notes` aliases on moment update; `schemaVersion` and `migration` on sync pull |
+| ✅ | Mobile: one local database schema, no legacy storage keys | see the mobile repo |

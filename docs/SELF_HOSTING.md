@@ -170,11 +170,6 @@ labels:
 ```
 Traefik must share a Docker network with the API. Raise its `respondingTimeouts` for long uploads.
 
-### Moving from an older setup
-
-- **You used `docker compose --profile proxy`:** the separate Caddy container is gone. Remove `--profile proxy`, `PROXY_HTTP_PORT` and `PROXY_HTTPS_PORT`, set `APP_PORT=80` and `APP_SSL_PORT=443` (or remove them), keep `KINLORE_DOMAIN`, and run `docker compose up -d --build --remove-orphans`. The certificate is reused, because it stays in the `caddy_data` volume.
-- **You used the bundled certbot:** it is gone too. Set `KINLORE_DOMAIN` to your host name; Caddy gets a new certificate at the first start. The old `letsencrypt` volume is no longer used.
-
 ## Without Docker
 
 The full guide for an install directly on a Linux host is **[BARE_METAL.md](BARE_METAL.md)**. Check any running instance, Docker or not, with the end-to-end script. It creates test data, so use it before the family starts: `scripts/smoke-test.sh https://photos.example.com <admin email> <admin password>`.

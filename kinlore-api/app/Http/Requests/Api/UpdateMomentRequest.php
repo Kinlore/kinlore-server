@@ -39,19 +39,4 @@ class UpdateMomentRequest extends FormRequest
 
         return $rules;
     }
-
-    /**
-     * Older clients sent milestone_date and notes for milestones.
-     */
-    #[\Override]
-    protected function prepareForValidation(): void
-    {
-        if ($this->has('milestone_date') && ! $this->has('exif_date')) {
-            $this->merge(['exif_date' => $this->input('milestone_date')]);
-        }
-
-        if ($this->has('notes') && ! $this->has('description')) {
-            $this->merge(['description' => $this->input('notes')]);
-        }
-    }
 }

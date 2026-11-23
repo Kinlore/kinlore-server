@@ -71,7 +71,7 @@ tags:
   - name: Milestones
     description: Predefined milestone list (read only)
   - name: Sync
-    description: WatermelonDB sync (times in milliseconds)
+    description: Offline sync for the app (times in milliseconds)
 
 security:
   - bearerAuth: []
@@ -996,7 +996,7 @@ paths:
         Role `admin` or `partner`, the uploader (`moments.user_id`), or the creator of the
         moment's kid. Accepted fields depend on the moment type: `milestone_id` only for
         milestones, the growth fields only for growth (where `exif_date` cannot be cleared).
-        Other fields are ignored. Aliases: `milestone_date` for `exif_date`, `notes` for `description`.
+        Other fields are ignored.
       requestBody:
         required: true
         content:
@@ -2141,23 +2141,14 @@ components:
           description: Uploader. `null` after the uploader was removed.
         uploader_name:
           type: [string, 'null']
-        video_id:
-          type: [string, 'null']
-          description: Legacy.
         moment_type:
           $ref: '#/components/schemas/MomentType'
         milestone_id:
           type: [string, 'null']
-        custom_milestone_id:
-          type: [string, 'null']
-          description: Legacy, always null for new moments.
         title:
           type: [string, 'null']
         description:
           type: [string, 'null']
-        story_text:
-          type: [string, 'null']
-          description: Legacy.
         photo_url:
           type: [string, 'null']
         medium_url:
@@ -2222,10 +2213,6 @@ components:
         is_liked:
           type: boolean
           description: Liked by the caller.
-        tags:
-          type: [array, 'null']
-          items:
-            type: string
         created_at:
           type: string
           format: date-time
@@ -2401,14 +2388,6 @@ components:
           minimum: 1
           maximum: 100
           description: Growth moments only.
-        milestone_date:
-          type: string
-          description: Alias of `exif_date`.
-          deprecated: true
-        notes:
-          type: string
-          description: Alias of `description`.
-          deprecated: true
 
     Media:
       type: object
@@ -2720,9 +2699,6 @@ components:
               type: object
             php:
               type: object
-        user:
-          type: array
-          maxItems: 0
 
     SyncChangeSet:
       type: object
@@ -2870,16 +2846,10 @@ components:
 
     SyncPullRequest:
       type: object
-      required: [schemaVersion]
       properties:
         lastPulledAt:
           type: [integer, 'null']
           description: Milliseconds; the `timestamp` of the previous pull, or null for a full pull.
-        schemaVersion:
-          type: integer
-          description: The app's local schema version (currently 2). Any integer is accepted.
-        migration:
-          description: Old migration info. Ignored.
         cursor:
           type: [string, 'null']
           format: uuid

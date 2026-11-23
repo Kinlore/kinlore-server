@@ -33,7 +33,7 @@ class AuditFixesTest extends TestCase
         $cursor = null;
         $pages = 0;
         do {
-            $page = $this->postJson('/api/v1/sync/pull', ['lastPulledAt' => null, 'schemaVersion' => 2, 'cursor' => $cursor, 'limit' => 2])
+            $page = $this->postJson('/api/v1/sync/pull', ['lastPulledAt' => null, 'cursor' => $cursor, 'limit' => 2])
                 ->assertOk()->json();
             $pages++;
             $this->assertCount($cursor === null ? 1 : 0, $page['changes']['kids']['created'], 'kids come with the first page only');
@@ -54,7 +54,7 @@ class AuditFixesTest extends TestCase
         Moment::factory()->count(3)->create(['kid_id' => $kid->id]);
         Sanctum::actingAs($user);
 
-        $this->postJson('/api/v1/sync/pull', ['lastPulledAt' => null, 'schemaVersion' => 2])
+        $this->postJson('/api/v1/sync/pull', ['lastPulledAt' => null])
             ->assertOk()
             ->assertJsonCount(3, 'changes.moments.created')
             ->assertJsonPath('has_more', false)

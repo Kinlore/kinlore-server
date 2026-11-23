@@ -18,7 +18,7 @@ class SyncController extends Controller
     ) {}
 
     /**
-     * Pull changes from server (WatermelonDB sync).
+     * Pull changes from server.
      */
     public function pull(PullSyncRequest $request): JsonResponse
     {
@@ -36,7 +36,7 @@ class SyncController extends Controller
     }
 
     /**
-     * Push changes to server (WatermelonDB sync).
+     * Push changes to server.
      */
     public function push(PushSyncRequest $request): JsonResponse
     {

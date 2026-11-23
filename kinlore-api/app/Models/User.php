@@ -47,15 +47,9 @@ class User extends Authenticatable
     }
 
     // Roles and permissions: docs/API_CONTRACT.md section 1.
-    // is_admin is derived from role; setting it keeps older call sites working
     protected function isAdmin(): Attribute
     {
-        return Attribute::make(
-            get: fn (): bool => $this->role === Role::Admin,
-            set: fn (mixed $value, array $attributes): array => [
-                'role' => $value ? Role::Admin->value : ($attributes['role'] ?? Role::Family->value),
-            ],
-        );
+        return Attribute::make(get: fn (): bool => $this->role === Role::Admin);
     }
 
     public function canManageContent(): bool

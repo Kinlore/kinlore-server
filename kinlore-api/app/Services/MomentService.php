@@ -148,7 +148,6 @@ class MomentService
             'camera_make' => $media->camera_make,
             'camera_model' => $media->camera_model,
             'video_status' => $type === MomentType::Video ? VideoStatus::Processing : null,
-            'synced_at' => now()->timestamp * 1000,
         ]);
 
         if ($type === MomentType::Video) {
@@ -180,7 +179,6 @@ class MomentService
             'camera_make' => $data['camera_make'] ?? null,
             'camera_model' => $data['camera_model'] ?? null,
             'orientation' => $data['orientation'] ?? null,
-            'synced_at' => now()->timestamp * 1000,
         ]);
 
         Log::info('Moment created', ['moment_id' => $moment->id, 'type' => $type->value]);

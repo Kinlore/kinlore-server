@@ -6,7 +6,6 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -17,7 +16,7 @@ class HealthController extends Controller
      * Detailed health check (requires authentication)
      * Shows all system components status
      */
-    public function detailed(Request $request): JsonResponse
+    public function detailed(): JsonResponse
     {
         $checks = [];
         $overallStatus = 'healthy';
@@ -28,7 +27,7 @@ class HealthController extends Controller
             $overallStatus = 'unhealthy';
         }
 
-        // 2. Storage (MinIO)
+        // 2. Storage (SeaweedFS)
         $checks['storage'] = $this->checkStorage();
         if ($checks['storage']['status'] !== 'ok') {
             $overallStatus = 'degraded';
@@ -56,10 +55,6 @@ class HealthController extends Controller
             'status' => $overallStatus,
             'timestamp' => now()->toIso8601String(),
             'checks' => $checks,
-            'user' => [
-                // 'id' => $request->user()->id,
-                // 'email' => $request->user()->email,
-            ],
         ], $overallStatus === 'healthy' ? 200 : 503);
     }
 

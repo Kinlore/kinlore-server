@@ -27,7 +27,6 @@ class SyncTest extends TestCase
 
         $response = $this->postJson('/api/v1/sync/pull', [
             'lastPulledAt' => null,
-            'schemaVersion' => 1,
         ]);
 
         $response->assertStatus(200);
@@ -58,7 +57,6 @@ class SyncTest extends TestCase
 
         $response = $this->postJson('/api/v1/sync/pull', [
             'lastPulledAt' => $lastPulledAt,
-            'schemaVersion' => 1,
         ]);
 
         $response->assertStatus(200);
@@ -105,24 +103,10 @@ class SyncTest extends TestCase
         ]);
     }
 
-    public function test_sync_pull_requires_schema_version(): void
-    {
-        $user = User::factory()->create();
-        Sanctum::actingAs($user);
-
-        $response = $this->postJson('/api/v1/sync/pull', [
-            'lastPulledAt' => null,
-        ]);
-
-        $response->assertStatus(422);
-        $response->assertJsonValidationErrors(['schemaVersion']);
-    }
-
     public function test_unauthenticated_user_cannot_sync(): void
     {
         $response = $this->postJson('/api/v1/sync/pull', [
             'lastPulledAt' => null,
-            'schemaVersion' => 1,
         ]);
 
         $response->assertStatus(401);
@@ -257,7 +241,7 @@ class SyncTest extends TestCase
         $moment->interactions()->create(['user_id' => $user->id, 'type' => 'like']);
         Sanctum::actingAs($user);
 
-        $response = $this->postJson('/api/v1/sync/pull', ['lastPulledAt' => null, 'schemaVersion' => 2])->assertOk();
+        $response = $this->postJson('/api/v1/sync/pull', ['lastPulledAt' => null])->assertOk();
 
         $kidRow = $response->json('changes.kids.created.0');
         $this->assertSame(Carbon::parse('2024-03-15', 'UTC')->getTimestampMs(), $kidRow['date_of_birth']);
@@ -287,7 +271,7 @@ class SyncTest extends TestCase
 
         Sanctum::actingAs(User::factory()->create());
 
-        $response = $this->postJson('/api/v1/sync/pull', ['lastPulledAt' => $lastPulledAt, 'schemaVersion' => 2])->assertOk();
+        $response = $this->postJson('/api/v1/sync/pull', ['lastPulledAt' => $lastPulledAt])->assertOk();
 
         $this->assertSame([$kid->id], $response->json('changes.kids.deleted'));
         $this->assertSame([$moment->id], $response->json('changes.moments.deleted'));

@@ -13,7 +13,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Service for handling WatermelonDB sync operations (docs/API_CONTRACT.md section 9).
+ * Offline sync for the app (docs/API_CONTRACT.md section 9).
  * Every time in a sync payload is integer milliseconds since the epoch, or null.
  */
 class SyncService
