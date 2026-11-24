@@ -23,7 +23,8 @@ echo "deb [signed-by=/usr/share/keyrings/debsuryorg-archive-keyring.gpg] https:/
 apt-get update -qq
 apt-get install -y -qq php8.5-fpm php8.5-cli php8.5-sqlite3 php8.5-pgsql php8.5-gd php8.5-zip \
   php8.5-intl php8.5-mbstring php8.5-bcmath php8.5-xml php8.5-curl \
-  ffmpeg composer git unzip curl jq uuid-runtime sqlite3 rsync caddy nginx >/dev/null
+  ffmpeg libheif-examples composer git unzip curl jq uuid-runtime sqlite3 rsync caddy nginx >/dev/null
+command -v heif-dec >/dev/null   # the HEIC decoder of the guide's package list
 
 step "2. Code and data folders"
 mkdir -p /srv/kinlore && cp -a /src/. /srv/kinlore/
@@ -45,6 +46,7 @@ chown root:www-data .env && chmod 640 .env
 step "4. PHP limits"
 cp ../deploy/bare-metal/php-kinlore.ini /etc/php/8.5/fpm/conf.d/99-kinlore.ini
 cp ../deploy/bare-metal/php-kinlore.ini /etc/php/8.5/cli/conf.d/99-kinlore.ini
+cp ../deploy/bare-metal/php-fpm-kinlore.conf /etc/php/8.5/fpm/pool.d/zz-kinlore.conf
 
 step "5. Database"
 export SEED_USER_NAME="Test Admin" SEED_USER_EMAIL=admin@example.test SEED_USER_PASSWORD='BareMetal-12345'

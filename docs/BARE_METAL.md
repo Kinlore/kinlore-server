@@ -88,7 +88,7 @@ sudo cp ../deploy/bare-metal/php-fpm-kinlore.conf /etc/php/8.5/fpm/pool.d/zz-kin
 sudo systemctl restart php8.5-fpm
 ```
 
-One photo or video can be up to 512 MB. Files are read as streams, so the memory limit of 256 MB is enough.
+One photo or video can be up to 512 MB. The memory limit is 1 GB, because PHP decodes a large photo in memory to make its previews. Videos are copied as streams and do not need it. The pool file gives PHP-FPM 20 workers, because each upload holds one worker until it ends.
 
 ## 5. Create the database
 
@@ -191,7 +191,24 @@ sudo systemctl restart kinlore-queue
 sudo systemctl reload php8.5-fpm
 ```
 
-Make a backup first.
+Make a backup first. Read the "Upgrade notes" of each release in [CHANGELOG.md](../CHANGELOG.md) before you update.
+
+**From 1.0.0 to 1.1.0.** This update has extra steps. Run the first line of the steps above (`git pull`). Then install the HEIC decoder and copy the PHP files of step 4 again (`php-kinlore.ini` changed, `php-fpm-kinlore.conf` is new):
+
+```sh
+sudo apt install -y libheif-examples
+cd /srv/kinlore/kinlore-api
+sudo cp ../deploy/bare-metal/php-kinlore.ini /etc/php/8.5/fpm/conf.d/99-kinlore.ini
+sudo cp ../deploy/bare-metal/php-kinlore.ini /etc/php/8.5/cli/conf.d/99-kinlore.ini
+sudo cp ../deploy/bare-metal/php-fpm-kinlore.conf /etc/php/8.5/fpm/pool.d/zz-kinlore.conf
+```
+
+Then run the other lines of the steps above. In place of the last line, restart PHP-FPM, so the new pool settings apply: `sudo systemctl restart php8.5-fpm`.
+
+Two more checks for this update:
+
+- **Caddy:** remove the lines `read_timeout 30m` and `write_timeout 30m` from `/etc/caddy/Caddyfile`, then run `sudo systemctl reload caddy`. With these lines, Caddy cuts an upload or a download after 30 minutes.
+- **S3 storage:** if `kinlore-api/.env` has `SEAWEEDFS_DRIVER=s3`, it must also have `SEAWEEDFS_KEY` and `SEAWEEDFS_SECRET`. Version 1.0.0 used `admin`/`admin` when they were missing; 1.1.0 has no default.
 
 ## 11. Backups
 

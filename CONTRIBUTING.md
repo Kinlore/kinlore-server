@@ -27,7 +27,7 @@ Open an issue with the "Feature request" form. Describe the problem for the fami
 
 ## Local development setup
 
-You need PHP 8.5 with the extensions `pdo_sqlite`, `gd`, `exif`, `zip`, `intl`, `mbstring` and `bcmath`, and Composer. FFmpeg is needed only to convert videos.
+You need PHP 8.5 with the extensions `pdo_sqlite`, `gd`, `exif`, `zip`, `intl`, `mbstring` and `bcmath`, and Composer. FFmpeg is needed only to convert videos. The `heif-dec` command of libheif (`libheif-examples` on Debian and Ubuntu) is needed only for HEIC and HEIF photos.
 
 The steps below use SQLite and the local disk, so you need no database server, Redis or S3 storage.
 
@@ -79,7 +79,7 @@ There are three kinds of tests. The GitHub workflow runs all three on every push
    cd kinlore-api
    php artisan test
    ```
-   They need the `.env` file and `APP_KEY` from the setup above.
+   They need the `.env` file and `APP_KEY` from the setup above. The HEIC test is skipped when `heif-dec` is not installed. The GitHub workflow installs it.
 
 2. **End-to-end test** of a running server: `scripts/smoke-test.sh`. It signs in as the admin and tries every feature over HTTP. It creates test data, so use a test instance only. It needs `curl`, `jq` and `uuidgen`. The video checks need FFmpeg, or a test video in `SMOKE_VIDEO=/path/to/file.mp4`.
    ```sh
@@ -120,6 +120,20 @@ The mobile app depends on the API. When you add, remove or change an endpoint, a
 - Open the pull request against `develop`. Fill in the checklist of the pull request template.
 - Keep one topic per pull request.
 - The tests must pass before a pull request is merged.
+
+## Releases
+
+Maintainers make a release in these steps:
+
+1. In [CHANGELOG.md](CHANGELOG.md), rename `Unreleased` to the new version with the date, add an empty `Unreleased` section, and update the links at the end of the file. Put manual steps for server owners under "Upgrade notes".
+2. Update the version in "Project status" in [README.md](README.md) and in the table in [SECURITY.md](SECURITY.md).
+3. Commit this on `develop` as `chore: release X.Y.Z`, push, and wait for the tests.
+4. Move `main` to that commit, tag it, and push both:
+   ```sh
+   git checkout main && git merge --ff-only develop
+   git tag -a vX.Y.Z -m "Kinlore X.Y.Z"
+   git push origin main vX.Y.Z
+   ```
 
 ## Commit messages
 

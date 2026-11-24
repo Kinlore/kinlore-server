@@ -54,7 +54,18 @@ services:
       - "127.0.0.1:8333:8333"
 ```
 
-**Upgrade from a version before the storage keys.** Older versions used the fixed keys `admin`/`admin`. Add `SEAWEEDFS_KEY` and `SEAWEEDFS_SECRET` to `.env`, then run `docker compose up -d`. The stored media stays as it is; only the keys change.
+## Update
+
+Make a backup first (see "Backups"). Read the "Upgrade notes" of each release in [CHANGELOG.md](../CHANGELOG.md) before you update.
+
+```sh
+git pull
+docker compose up -d --build
+```
+
+The API container applies the database changes when it starts. A video conversion or an export that is running gets up to one hour to finish before the old container stops.
+
+**From 1.0.0 to 1.1.0.** Version 1.0.0 used the fixed media storage keys `admin`/`admin`. Add `SEAWEEDFS_KEY` and `SEAWEEDFS_SECRET` to `.env` (make each one with `openssl rand -hex 32`) before you run `docker compose up -d --build`. Compose stops with a clear message when one is missing. The stored media stays as it is; only the keys change.
 
 ## Versions
 

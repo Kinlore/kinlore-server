@@ -9,6 +9,7 @@ Read the [root README](../README.md) for an overview of the project, and [CONTRI
 - PHP 8.5 with the extensions `pdo_sqlite`, `gd`, `exif`, `zip`, `intl`, `mbstring` and `bcmath` (`pdo_pgsql` for PostgreSQL)
 - Composer
 - FFmpeg, to convert videos
+- The `heif-dec` command of libheif, to make previews of HEIC and HEIF photos (`libheif-examples` on Debian and Ubuntu)
 
 ## Development commands
 

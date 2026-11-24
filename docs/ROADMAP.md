@@ -18,9 +18,10 @@ A family that wants a second space runs a second deployment. The mobile app can 
 
 Open items, most useful first.
 
-1. Run the app on Android and on real phones (so far: iOS simulator only), and check the comment field with VoiceOver.
+1. Run the app on real phones (so far: iOS simulator and Android emulator), and check the comment field with VoiceOver.
 2. Notifications: push and email for new memories and comments, and a daily digest.
 3. Date-range filter in the app (the API has it).
 4. Tag one memory to several children; access per child for each member.
 5. A web app for viewing and for upload from a desktop.
-6. Smaller items: look-back in the family's time zone, a "Change password" item for every member, a sessions screen (the API can list and revoke sign-ins), cleanup of expired invitations.
+6. Uploads that continue on Android after the system stops the app in the background. iOS does this already; on Android the upload starts again when the app opens.
+7. Smaller items: look-back in the family's time zone, a "Change password" item for every member, a sessions screen (the API can list and revoke sign-ins), cleanup of expired invitations.
