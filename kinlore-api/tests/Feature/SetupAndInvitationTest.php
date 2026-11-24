@@ -8,6 +8,7 @@ use App\Models\Invitation;
 use App\Models\Kid;
 use App\Models\Moment;
 use App\Models\User;
+use App\Services\FamilyService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -76,8 +77,8 @@ class SetupAndInvitationTest extends TestCase
 
     public function test_check_invitation_endpoint(): void
     {
-        config(['app.name' => 'The Smiths']);
         $valid = $this->invitation(['email' => 'grandma@example.test', 'role' => 'partner']);
+        app(FamilyService::class)->rename('The Smiths');
 
         $this->getJson("/api/auth/invitations/{$valid->token}")->assertOk()->assertJson(['data' => [
             'valid' => true, 'email' => 'grandma@example.test', 'role' => 'partner',
@@ -93,8 +94,9 @@ class SetupAndInvitationTest extends TestCase
 
     public function test_invite_page_shows_details_escaped_and_404_otherwise(): void
     {
-        config(['app.name' => 'The <Smiths>', 'app.url' => 'https://kin.example.test']);
+        config(['app.name' => 'Public Name', 'app.url' => 'https://kin.example.test']);
         $invitation = $this->invitation();
+        app(FamilyService::class)->rename('The <Smiths>');
         $invitation->inviter->update(['name' => '<script>alert(1)</script>']);
 
         $this->get("/invite/{$invitation->token}")->assertOk()
@@ -106,7 +108,8 @@ class SetupAndInvitationTest extends TestCase
             ->assertSee('kinlore://invite/'.$invitation->token.'?server=https%3A%2F%2Fkin.example.test', false);
 
         $used = $this->invitation(['accepted_at' => now()]);
-        $this->get("/invite/{$used->token}")->assertNotFound()->assertSee('Invitation not found');
+        // Without a valid invitation the page does not show the family name.
+        $this->get("/invite/{$used->token}")->assertNotFound()->assertSee('Invitation not found')->assertDontSee('Smiths');
         $this->get('/invite/unknown')->assertNotFound();
     }
 

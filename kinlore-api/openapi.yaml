@@ -1310,6 +1310,48 @@ paths:
         '422':
           $ref: '#/components/responses/ValidationFailed'
 
+  /v1/family:
+    put:
+      tags: [Members]
+      operationId: renameFamily
+      summary: Change the family name
+      description: >-
+        Admin only. The family name is the friendly name of this server. Members get it as
+        `family_name` with every sync pull, and the holder of a valid invitation sees it as
+        `instance_name`. Public endpoints never show it.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  maxLength: 60
+      responses:
+        '200':
+          description: The new name
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        type: object
+                        required: [family_name]
+                        properties:
+                          family_name:
+                            type: string
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+
   /v1/exports:
     get:
       tags: [Exports]
@@ -1923,6 +1965,7 @@ components:
           description: True only while `needs_setup` is true and `SETUP_TOKEN` is set.
         instance_name:
           type: string
+          description: The public name `APP_NAME`. Never the family name, because this endpoint needs no sign-in.
 
     InvitationCheck:
       type: object
@@ -1948,6 +1991,7 @@ components:
           format: date-time
         instance_name:
           type: string
+          description: The family name.
 
     Invitation:
       type: object
@@ -2825,8 +2869,11 @@ components:
     SyncPullResponse:
       type: object
       description: No envelope.
-      required: [changes, timestamp, has_more, next_cursor]
+      required: [changes, timestamp, has_more, next_cursor, family_name]
       properties:
+        family_name:
+          type: string
+          description: The friendly name of this server, on every page. The admin changes it with `PUT /v1/family`.
         has_more:
           type: boolean
           description: True when more moments follow; pull again with `next_cursor`.

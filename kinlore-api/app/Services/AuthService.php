@@ -17,6 +17,10 @@ use Illuminate\Validation\ValidationException;
 
 class AuthService
 {
+    public function __construct(
+        private readonly FamilyService $family,
+    ) {}
+
     /**
      * Public setup state for the app's first screen.
      *
@@ -45,7 +49,7 @@ class AuthService
     /**
      * Create the instance's first user as admin (web setup page only).
      *
-     * @param  array{name: string, email: string, password: string, setup_token?: string|null}  $data
+     * @param  array{name: string, email: string, password: string, family_name?: string|null, setup_token?: string|null}  $data
      *
      * @throws ValidationException when SETUP_TOKEN is set and does not match, or the instance already has a user
      */
@@ -59,12 +63,16 @@ class AuthService
 
             $this->checkSetupToken($data['setup_token'] ?? null);
 
-            return User::create([
+            $user = User::create([
                 'name' => $data['name'],
                 'email' => $data['email'],
                 'password' => Hash::make($data['password']),
                 'role' => Role::Admin,
             ]);
+            // Stored now, so the family name does not change when the admin edits their own name.
+            $this->family->rename(filled($data['family_name'] ?? null) ? $data['family_name'] : FamilyService::suggest($user->name));
+
+            return $user;
         }));
     }
 

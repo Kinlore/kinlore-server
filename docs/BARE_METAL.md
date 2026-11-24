@@ -151,7 +151,7 @@ One worker is enough for a family. If you run more, keep `DB_QUEUE_RETRY_AFTER` 
 
 ## 8. Create the admin account
 
-Open your address (`APP_URL`) in a web browser. An empty server sends you to `/setup`. Enter your name, email and password. The app never creates the admin.
+Open your address (`APP_URL`) in a web browser. An empty server sends you to `/setup`. Enter your name, email and password, and a family name if you want one (the default is your name and "Family"). The app never creates the admin.
 
 - **Setup token:** when the server is reachable from the internet before you finish this step, set `SETUP_TOKEN` in `.env` to a long random value first (then run `php artisan config:cache` again). The setup page asks for it.
 - **Without a browser:** add `SEED_USER_NAME`, `SEED_USER_EMAIL` and `SEED_USER_PASSWORD` to `.env` before step 5. The seeder then creates the admin. Remove the three lines afterwards.

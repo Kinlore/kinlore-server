@@ -60,7 +60,7 @@ Returned by login, register and `/auth/me` (`/auth/me` adds the count fields):
 
 **First admin: web setup only.** The mobile app never creates the admin. After installing the server (Docker or bare metal), the owner opens `APP_URL` in a web browser:
 - `GET /` (web): when the instance has no user, redirects to `/setup`. Otherwise a small status page: "Kinlore is running", the server address to type in the app, and the app's sign-in steps. No user data.
-- `GET /setup` (web): the setup form (name, email, password, password confirmation, and a setup token field when `SETUP_TOKEN` is set). When the instance already has a user: redirect to `/`.
+- `GET /setup` (web): the setup form (name, email, an optional family name, password, password confirmation, and a setup token field when `SETUP_TOKEN` is set). When the instance already has a user: redirect to `/`.
 - `POST /setup` (web, CSRF-protected, throttled 5/min): creates the admin under a lock, so two parallel setups cannot both succeed. Validation errors show on the form. Success shows "Your admin account is ready" with the server address and the email to use in the app. It never shows the password.
 - The seeded admin (`SEED_USER_*`) also works and skips the web setup.
 - Behind a reverse proxy, the pages and form action use the proxy's `https` address (trusted proxies, section 10).
@@ -74,6 +74,14 @@ API:
   - `invite_link` = `kinlore://invite/{token}?server={urlencoded APP_URL}`
   - `invite_url` = `{APP_URL}/invite/{token}`: a small public HTML page with an "Open in Kinlore" button (the `invite_link`), the server address and the token, for people who get the link in a message app.
 - `GET /v1/invitations` (admin): pending invitations. `DELETE /v1/invitations/{id}` (admin): revoke.
+
+**Family name.** The family name is the friendly name of this server, at most 60 characters. The app shows it in place of the server address.
+
+- It is stored at setup. An empty field gives the admin's full name and "Family", for example "Anna Example Family". The full name keeps two relatives with the same last name apart. A server set up before version 1.2 uses the same suggestion until the admin sets a name.
+- `PUT /v1/family { name }` (admin): changes it. Returns `{ family_name }`.
+- Members get it as `family_name` in every sync pull page, so a new name reaches each phone with its next sync.
+- The holder of a valid invitation sees it as `instance_name` in `GET /auth/invitations/{token}` and on the invitation page.
+- Nobody else sees it. `GET /auth/setup-status`, `GET /`, the health endpoints and the page of an invalid invitation show `APP_NAME` or no name. A stranger who finds the server address must not learn whose family it is.
 
 ## 4. Members (admin only)
 

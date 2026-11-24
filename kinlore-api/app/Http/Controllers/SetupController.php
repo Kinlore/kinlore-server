@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\Web\SetupRequest;
 use App\Models\User;
 use App\Services\AuthService;
+use App\Services\FamilyService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 
@@ -17,6 +18,7 @@ class SetupController extends Controller
 {
     public function __construct(
         private readonly AuthService $authService,
+        private readonly FamilyService $family,
     ) {}
 
     public function home(): View|RedirectResponse
@@ -48,7 +50,8 @@ class SetupController extends Controller
 
         $user = $this->authService->createFirstAdmin($request->validated());
 
-        return view('setup-done', $this->pageData() + ['email' => $user->email]);
+        // The new admin sees the family name; the public pages keep APP_NAME.
+        return view('setup-done', ['instanceName' => $this->family->name(), 'email' => $user->email] + $this->pageData());
     }
 
     /**

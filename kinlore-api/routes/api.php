@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ExportController;
+use App\Http\Controllers\Api\FamilyController;
 use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\InvitationController;
 use App\Http\Controllers\Api\KidController;
@@ -123,6 +124,8 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         Route::get('/members', [MemberController::class, 'index']);
         Route::patch('/members/{user}', [MemberController::class, 'update']);
         Route::delete('/members/{user}', [MemberController::class, 'destroy']);
+
+        Route::put('/family', [FamilyController::class, 'update']);
 
         Route::get('/exports', [ExportController::class, 'index']);
         Route::post('/exports', [ExportController::class, 'store']);

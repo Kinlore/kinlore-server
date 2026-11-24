@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\PullSyncRequest;
 use App\Http\Requests\Api\PushSyncRequest;
 use App\Http\Responses\ApiResponse;
+use App\Services\FamilyService;
 use App\Services\SyncService;
 use Illuminate\Http\JsonResponse;
 
@@ -15,6 +16,7 @@ class SyncController extends Controller
 {
     public function __construct(
         private readonly SyncService $syncService,
+        private readonly FamilyService $family,
     ) {}
 
     /**
@@ -32,7 +34,8 @@ class SyncController extends Controller
             (int) ($validated['limit'] ?? SyncService::PULL_PAGE_SIZE),
         );
 
-        return response()->json($result);
+        // Every page carries the family name, so a rename by the admin reaches each phone with its next sync.
+        return response()->json($result + ['family_name' => $this->family->name()]);
     }
 
     /**

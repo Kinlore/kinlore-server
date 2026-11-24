@@ -6,7 +6,7 @@ Kinlore is a self-hosted family photo journal. One family keeps the photos, vide
 
 ## Features
 
-- **One family per server.** The owner creates the admin account in a web browser at `/setup`. Everyone else joins with an invitation link.
+- **One family per server.** The owner creates the admin account in a web browser at `/setup`. Everyone else joins with an invitation link. The server has a family name, such as "Anna Example Family", that the members see in the app and on invitations; strangers do not see it.
 - **Roles and permissions.** Members are `admin`, `partner` or `family`. The admin can turn adding content, commenting, liking and downloading on or off for each family member.
 - **Children.** A child has a date of birth, a due date (while expected), or both.
 - **Five kinds of memories ("moments").** Photos, videos, stories, milestones (from a list of 83 predefined milestones) and growth records (height, weight, head circumference).

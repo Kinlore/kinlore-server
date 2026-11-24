@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Web;
 
+use App\Services\FamilyService;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
@@ -22,6 +23,7 @@ class SetupRequest extends FormRequest
         return [
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255',
+            'family_name' => 'nullable|string|max:'.FamilyService::NAME_MAX_LENGTH,
             'password' => 'required|string|min:8|max:255|confirmed',
             // The value itself is checked with hash_equals in AuthService::createFirstAdmin.
             'setup_token' => [filled(config('app.setup_token')) ? 'required' : 'nullable', 'string', 'max:255'],

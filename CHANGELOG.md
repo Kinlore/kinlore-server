@@ -7,6 +7,10 @@ The version numbers are explained in "Project status" in the [README](README.md)
 
 ## [Unreleased]
 
+### Added
+
+- A family name: the friendly name of the server. The admin sets it on the setup page (optional; the default is the admin's full name and "Family", for example "Anna Example Family") and changes it with `PUT /v1/family`. Members get it as `family_name` with every sync pull, and invitations show it in place of `APP_NAME`. Public pages and endpoints do not show it. The new migration adds the `settings` table.
+
 ## [1.1.0] - 2026-11-24
 
 Use this release with version 1.1.0 or newer of the mobile app.

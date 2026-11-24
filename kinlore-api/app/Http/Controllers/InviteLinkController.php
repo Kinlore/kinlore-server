@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Services\AuthService;
+use App\Services\FamilyService;
 use Illuminate\Http\Response;
 
 /**
@@ -14,6 +15,7 @@ class InviteLinkController extends Controller
 {
     public function __construct(
         private readonly AuthService $authService,
+        private readonly FamilyService $family,
     ) {}
 
     public function show(string $token): Response
@@ -21,7 +23,8 @@ class InviteLinkController extends Controller
         $invitation = $this->authService->findPendingInvitation($token);
 
         return response()->view('invite', [
-            'instanceName' => config('app.name'),
+            // Only the holder of a valid invitation sees the family name.
+            'instanceName' => $invitation ? $this->family->name() : config('app.name'),
             'invitation' => $invitation,
             'server' => config('app.url'),
         ], $invitation ? 200 : 404);

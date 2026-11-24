@@ -198,7 +198,7 @@ The full guide for an install directly on a Linux host is **[BARE_METAL.md](BARE
 The admin account is created **in a web browser**, not in the app (like Immich or Actual Budget):
 
 1. Start the server (Docker, or the host install of BARE_METAL.md).
-2. Open the server address (`APP_URL`, for example `https://photos.example.com`) in a browser. An empty instance sends you to `/setup`.
+2. Open the server address (`APP_URL`, for example `https://photos.example.com`) in a browser. An empty instance sends you to `/setup`. The form also asks for a family name. It is optional, and the admin can change it later in the app.
 3. Enter your name, email and password. The page then shows the server address and email to use in the app.
 
 Optional:

@@ -9,6 +9,7 @@ use App\Http\Requests\Api\LoginRequest;
 use App\Http\Requests\Api\RegisterRequest;
 use App\Http\Responses\ApiResponse;
 use App\Services\AuthService;
+use App\Services\FamilyService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -16,6 +17,7 @@ class AuthController extends Controller
 {
     public function __construct(
         private readonly AuthService $authService,
+        private readonly FamilyService $family,
     ) {}
 
     /**
@@ -43,7 +45,7 @@ class AuthController extends Controller
             'role' => $invitation->role,
             'invited_by' => ['name' => $invitation->inviter?->name],
             'expires_at' => $invitation->expires_at->toIso8601String(),
-            'instance_name' => config('app.name'),
+            'instance_name' => $this->family->name(),
         ]);
     }
 

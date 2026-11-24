@@ -90,7 +90,9 @@ echo "== Invitations and members"
 r=$(req POST /v1/invitations "$ADMIN" -H 'Content-Type: application/json' -d '{"role":"family","permissions":{"comment":false}}')
 INV=$(body "$r" | jq -r '.data.token // empty')
 check "create invitation with links" '(.data.invite_link|test("^kinlore://invite/.+\\?server=")) and (.data.invite_url|test("/invite/"))' "$(body "$r")"
-r=$(req GET "/auth/invitations/$INV"); check "public invitation check" '.data.valid==true and .data.role=="family"' "$(body "$r")"
+r=$(req PUT /v1/family "$ADMIN" -H 'Content-Type: application/json' -d '{"name":"Smoke Family"}'); check "admin renames the family" '.data.family_name=="Smoke Family"' "$(body "$r")"
+r=$(req GET "/auth/invitations/$INV"); check "public invitation check shows the family name" '.data.valid==true and .data.role=="family" and .data.instance_name=="Smoke Family"' "$(body "$r")"
+r=$(req GET /auth/setup-status); check "setup status does not show the family name" '.data.instance_name!="Smoke Family"' "$(body "$r")"
 [ "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/invite/$INV")" = "200" ] && ok "invite page" || bad "invite page"
 [ "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/invite/not-a-token")" = "404" ] && ok "invite page unknown token 404" || bad "invite page unknown token 404"
 FEMAIL="smoke-$(date +%s)@example.test"
@@ -98,6 +100,8 @@ r=$(req POST /auth/register "" -H 'Content-Type: application/json' -d "{\"name\"
 FAM=$(body "$r" | jq -r '.data.token // empty'); FAMID=$(body "$r" | jq -r '.data.user.id // empty')
 check "register with invitation gets role" '.data.user.role=="family" and .data.user.permissions.comment==false' "$(body "$r")"
 r=$(req GET "/auth/invitations/$INV"); [ "$(status "$r")" = "404" ] && ok "used invitation is no longer valid" || bad "used invitation is no longer valid" "$r"
+r=$(req PUT /v1/family "$FAM" -H 'Content-Type: application/json' -d '{"name":"Not allowed"}'); [ "$(status "$r")" = "403" ] && ok "family member cannot rename the family" || bad "family member cannot rename the family" "$r"
+r=$(req POST /v1/sync/pull "$FAM" -H 'Content-Type: application/json' -d '{"lastPulledAt":null,"limit":1}'); check "sync pull carries the family name" '.family_name=="Smoke Family"' "$(body "$r")"
 r=$(req GET /v1/kids "$FAM"); check "family sees kids" '(.data|length)>=1' "$(body "$r")"
 r=$(req POST "/v1/moments/$PHOTO/comments" "$FAM" -H 'Content-Type: application/json' -d '{"content":"Cute"}')
 [ "$(status "$r")" = "403" ] && ok "comment blocked by permission" || bad "comment blocked by permission" "$r"
