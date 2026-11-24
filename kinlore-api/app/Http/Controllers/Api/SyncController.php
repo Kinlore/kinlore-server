@@ -42,6 +42,10 @@ class SyncController extends Controller
     {
         $validated = $request->validated();
 
-        return ApiResponse::success($this->syncService->push($request->user(), $validated['changes']));
+        return ApiResponse::success($this->syncService->push(
+            $request->user(),
+            $validated['changes'],
+            isset($validated['lastPulledAt']) ? (int) $validated['lastPulledAt'] : null,
+        ));
     }
 }

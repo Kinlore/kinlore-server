@@ -42,7 +42,7 @@ class MomentTest extends TestCase
         $response->assertJsonStructure([
             'success',
             'data' => [
-                '*' => ['id', 'kid_id', 'title', 'thumbnail_url', 'medium_url', 'photo_url'],
+                '*' => ['id', 'kid_id', 'title', 'moment_type'],
             ],
             'meta' => ['current_page', 'last_page', 'per_page', 'total'],
         ]);
@@ -403,5 +403,14 @@ class MomentTest extends TestCase
 
         Sanctum::actingAs(User::factory()->family()->create());
         $this->get("/api/v1/moments/{$moment->id}/file/original")->assertOk();
+    }
+
+    public function test_a_missing_preview_is_not_found_not_a_bad_request(): void
+    {
+        $moment = Moment::factory()->create(['moment_type' => 'video', 'thumbnail_url' => null, 'medium_url' => null]);
+        Sanctum::actingAs(User::factory()->admin()->create());
+
+        $this->getJson("/api/v1/moments/{$moment->id}/file/thumbnail")->assertNotFound();
+        $this->getJson("/api/v1/moments/{$moment->id}/file/medium")->assertNotFound();
     }
 }

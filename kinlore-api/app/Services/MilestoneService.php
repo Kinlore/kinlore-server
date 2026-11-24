@@ -17,15 +17,7 @@ class MilestoneService
             return Milestone::getGroupedByStage();
         }
 
-        if ($groupBy === 'category') {
-            return Milestone::getGroupedByCategory();
-        }
-
         $query = Milestone::ordered();
-
-        if (! empty($filters['category'])) {
-            $query->byCategory($filters['category']);
-        }
 
         if (! empty($filters['stage_key'])) {
             $query->byStage($filters['stage_key']);

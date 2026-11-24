@@ -16,6 +16,7 @@ use Illuminate\Queue\Attributes\Tries;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Makes the HLS stream, thumbnail and medium image of an uploaded video,
@@ -55,5 +56,7 @@ class ProcessVideoJob implements ShouldQueue
         $media = Media::find($this->mediaId);
         $media?->markAsFailed($exception->getMessage());
         $media?->moments()->update(['video_status' => VideoStatus::Failed]);
+        // A killed worker never reaches the cleanup in MomentService
+        Storage::disk('local')->deleteDirectory("tmp/video_{$this->mediaId}");
     }
 }

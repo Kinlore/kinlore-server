@@ -29,7 +29,7 @@ Route::get('/health', fn (): JsonResponse => response()->json([
 
 Route::get('/health/detailed', [HealthController::class, 'detailed'])
     ->name('health.detailed')
-    ->middleware('auth:sanctum');
+    ->middleware(['auth:sanctum', 'can:admin']);
 
 /*
 |--------------------------------------------------------------------------

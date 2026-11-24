@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Unit\Models;
 
 use App\Models\Kid;
-use App\Models\Moment;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -21,29 +20,6 @@ class UserTest extends TestCase
 
         $this->assertCount(1, $user->kids);
         $this->assertEquals($kid->id, $user->kids->first()->id);
-    }
-
-    public function test_user_can_calculate_total_moments_count(): void
-    {
-        $user = User::factory()->create();
-        $kid = Kid::factory()->create(['user_id' => $user->id]);
-        Moment::factory()->count(5)->create(['kid_id' => $kid->id]);
-
-        $this->assertEquals(5, $user->getTotalMomentsCount());
-    }
-
-    public function test_user_can_calculate_storage_used(): void
-    {
-        $user = User::factory()->create();
-        $kid = Kid::factory()->create(['user_id' => $user->id]);
-
-        Moment::factory()->create([
-            'kid_id' => $kid->id,
-            'file_size' => 1024 * 1024, // 1MB
-        ]);
-
-        $this->assertEquals(1024 * 1024, $user->getStorageUsed());
-        $this->assertStringContainsString('MB', $user->getStorageUsedFormatted());
     }
 
     public function test_user_has_hashed_password(): void

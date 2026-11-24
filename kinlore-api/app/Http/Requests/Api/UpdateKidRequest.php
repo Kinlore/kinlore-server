@@ -22,7 +22,8 @@ class UpdateKidRequest extends FormRequest
     {
         return [
             'name' => 'sometimes|string|max:255',
-            'date_of_birth' => 'sometimes|nullable|date|before_or_equal:today',
+            // tomorrow: a parent east of UTC is already a day ahead of the server
+            'date_of_birth' => 'sometimes|nullable|date|before_or_equal:tomorrow',
             'due_date' => 'sometimes|nullable|date',
             'avatar_color' => 'sometimes|string|regex:/^#[0-9A-F]{6}$/i',
         ];

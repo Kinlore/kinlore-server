@@ -51,7 +51,7 @@ class StoreMomentRequest extends FormRequest
         ];
 
         if ($hasFile || in_array($momentType, [MomentType::Photo->value, MomentType::Video->value, null], true)) {
-            $rules['file'] = 'required_without:moment_type|file|max:512000|mimes:jpeg,jpg,png,gif,webp,heic,heif,mp4,mov,avi,webm,mkv,m4v';
+            $rules['file'] = 'required|file|max:512000|mimes:jpeg,jpg,png,gif,webp,heic,heif,mp4,mov,avi,webm,mkv,m4v';
             $rules['device_asset_id'] = 'nullable|string|max:255';
         }
 

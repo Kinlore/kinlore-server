@@ -15,19 +15,14 @@ class InteractionService
     // Returns the interaction if newly created, null if already liked.
     public function like(User $user, Moment $moment): ?MomentInteraction
     {
-        if ($moment->likes()->where('user_id', $user->id)->first()) {
-            return null;
-        }
-
-        $interaction = new MomentInteraction([
+        // Insert first: the unique like index turns a double tap or a race into "already liked".
+        $interaction = MomentInteraction::createOrFirst([
             'user_id' => $user->id,
             'moment_id' => $moment->id,
             'type' => InteractionType::Like,
         ]);
 
-        $interaction->save();
-
-        return $interaction;
+        return $interaction->wasRecentlyCreated ? $interaction : null;
     }
 
     // Returns true if unliked, false if not previously liked.
@@ -40,11 +35,6 @@ class InteractionService
         }
 
         return $deleted;
-    }
-
-    public function isLikedBy(User $user, Moment $moment): bool
-    {
-        return $moment->likes()->where('user_id', $user->id)->exists();
     }
 
     public function comment(User $user, Moment $moment, string $content): MomentInteraction
@@ -85,15 +75,5 @@ class InteractionService
             ->with('user:id,name') // family members see names, not email addresses
             ->orderBy('created_at', 'asc')
             ->get();
-    }
-
-    public function getLikesCount(Moment $moment): int
-    {
-        return $moment->likes()->count();
-    }
-
-    public function getCommentsCount(Moment $moment): int
-    {
-        return $moment->comments()->count();
     }
 }

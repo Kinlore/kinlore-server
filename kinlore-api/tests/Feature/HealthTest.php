@@ -36,10 +36,17 @@ class HealthTest extends TestCase
         $response->assertStatus(401);
     }
 
-    public function test_authenticated_user_can_access_detailed_health(): void
+    public function test_detailed_health_is_for_the_admin_only(): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->getJson('/api/health/detailed')->assertForbidden();
+    }
+
+    public function test_admin_can_access_detailed_health(): void
     {
         Storage::fake(config('filesystems.default'));
-        $user = User::factory()->create();
+        $user = User::factory()->admin()->create();
         Sanctum::actingAs($user);
 
         $response = $this->getJson('/api/health/detailed');
@@ -50,5 +57,14 @@ class HealthTest extends TestCase
             'timestamp',
             'checks' => ['database', 'storage'],
         ]);
+    }
+
+    public function test_detailed_health_reports_storage_error_when_the_disk_write_fails(): void
+    {
+        $disk = Storage::fake(config('filesystems.default'));
+        Storage::shouldReceive('disk')->andReturn(\Mockery::mock($disk)->makePartial()->shouldReceive('put')->andReturn(false)->getMock());
+        Sanctum::actingAs(User::factory()->admin()->create());
+
+        $this->getJson('/api/health/detailed')->assertStatus(503)->assertJsonPath('checks.storage.status', 'error');
     }
 }

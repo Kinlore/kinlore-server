@@ -87,14 +87,12 @@ class HealthController extends Controller
             $start = microtime(true);
             $disk = config('filesystems.default');
 
-            // Test write
+            // Test write, read and delete; the disks set throw => false, so failures come back as false or null
             $testFile = 'health-checks/test-'.time().'.txt';
-            Storage::disk($disk)->put($testFile, 'Health check: '.now());
-
-            // Test read
-            $content = Storage::disk($disk)->get($testFile);
-
-            // Test delete
+            $written = 'Health check: '.now();
+            if (! Storage::disk($disk)->put($testFile, $written) || Storage::disk($disk)->get($testFile) !== $written) {
+                throw new \RuntimeException('Storage write or read failed');
+            }
             Storage::disk($disk)->delete($testFile);
 
             $responseTime = round((microtime(true) - $start) * 1000, 2);

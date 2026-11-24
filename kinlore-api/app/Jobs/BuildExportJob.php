@@ -45,15 +45,16 @@ class BuildExportJob implements ShouldQueue
             return;
         }
 
-        $export->update(['status' => ExportStatus::Processing]);
+        // Only one export runs at a time, so any copy left here is from a killed job
+        array_map('unlink', glob(sys_get_temp_dir().'/kinlore-export-*') ?: []);
+        // Saved now so a killed job's partial ZIP is still known to the prune
+        $export->update(['status' => ExportStatus::Processing, 'path' => "exports/{$export->id}.zip"]);
 
         try {
-            $export->path = "exports/{$export->id}.zip";
             $this->build($export->fullPath());
 
             $export->update([
                 'status' => ExportStatus::Ready,
-                'path' => $export->path,
                 'size_bytes' => filesize($export->fullPath()),
                 'completed_at' => now(),
             ]);
@@ -145,16 +146,22 @@ class BuildExportJob implements ShouldQueue
 
         // shortcut: ZipArchive reads added files on close(), so every original sits in temp until then; needs free temp space equal to the library
         $temp = tempnam(sys_get_temp_dir(), 'kinlore-export-');
+        $this->tempFiles[] = $temp;
         $out = fopen($temp, 'wb');
-        stream_copy_to_stream($in, $out);
+        $copied = stream_copy_to_stream($in, $out);
         fclose($out);
         fclose($in);
-        $this->tempFiles[] = $temp;
+
+        if ($copied === false || $copied < Storage::disk('seaweedfs')->size($source)) {
+            throw new \RuntimeException("Original truncated while copying: {$source}");
+        }
 
         $date = $moment->display_date;
         $ext = pathinfo($source, PATHINFO_EXTENSION) ?: 'bin';
         $name = sprintf('%s/%s/%s_%s_%s.%s', $folder, $date->format('Y'), $date->format('Y-m-d'), $moment->moment_type->value, self::shortId($moment->id), $ext);
         $zip->addFile($temp, $name);
+        // Photos and videos are compressed already
+        $zip->setCompressionName($name, ZipArchive::CM_STORE);
 
         return $name;
     }
@@ -196,5 +203,8 @@ class BuildExportJob implements ShouldQueue
                 }
                 $old->delete();
             });
+
+        $kept = Export::pluck('path')->filter()->map(fn (string $path) => storage_path('app/'.$path))->all();
+        array_map('unlink', array_diff(glob(storage_path('app/exports/*.zip')) ?: [], $kept));
     }
 }

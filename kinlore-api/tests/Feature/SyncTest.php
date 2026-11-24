@@ -233,6 +233,32 @@ class SyncTest extends TestCase
             ->assertJsonPath('data.rejected.0.reason', 'invalid');
     }
 
+    public function test_push_accepts_a_birth_date_of_tomorrow_but_not_later(): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+        $kid = fn (string $id, int $days) => ['id' => $id, 'name' => 'Mia', 'date_of_birth' => Carbon::today('UTC')->addDays($days)->getTimestampMs()];
+
+        $this->push(['created' => [$kid('0d6a1c2e-7777-4a2b-9c3d-000000000007', 1), $kid('0d6a1c2e-8888-4a2b-9c3d-000000000008', 2)]])
+            ->assertJsonPath('data.kids_created.0.id', '0d6a1c2e-7777-4a2b-9c3d-000000000007')
+            ->assertJsonPath('data.rejected', [['table' => 'kids', 'id' => '0d6a1c2e-8888-4a2b-9c3d-000000000008', 'reason' => 'invalid']]);
+    }
+
+    public function test_push_rejects_growth_values_out_of_range_as_invalid(): void
+    {
+        $kid = Kid::factory()->create();
+        Sanctum::actingAs(User::factory()->create());
+        $growth = fn (string $id, array $values) => ['id' => $id, 'kid_id' => $kid->id, 'moment_type' => 'growth', 'exif_date' => now()->getTimestampMs()] + $values;
+
+        $this->push([], ['created' => [
+            $growth('0d6a1c2e-9999-4a2b-9c3d-000000000009', ['height_cm' => 250]),
+            $growth('0d6a1c2e-aaaa-4a2b-9c3d-00000000000a', ['height_cm' => 99999]),
+            $growth('0d6a1c2e-bbbb-4a2b-9c3d-00000000000b', ['weight_kg' => 0.01]),
+            $growth('0d6a1c2e-cccc-4a2b-9c3d-00000000000c', ['head_circumference_cm' => 101]),
+        ]])
+            ->assertJsonPath('data.moments_created', [['local_id' => '0d6a1c2e-9999-4a2b-9c3d-000000000009', 'id' => '0d6a1c2e-9999-4a2b-9c3d-000000000009']])
+            ->assertJsonPath('data.rejected.*.reason', ['invalid', 'invalid', 'invalid']);
+    }
+
     public function test_pull_returns_contract_fields_in_milliseconds(): void
     {
         $user = User::factory()->create(['name' => 'Ana']);

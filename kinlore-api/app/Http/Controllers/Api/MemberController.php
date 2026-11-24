@@ -94,6 +94,8 @@ class MemberController extends Controller
                 DB::table($table)->where($column, $user->id)->update([$column => $admin->id]);
             }
 
+            // A query delete fires no Touches, so bump the moments by hand: phones then sync the new counts.
+            DB::table('moments')->whereIn('id', $user->interactions()->select('moment_id'))->update(['updated_at' => now()]);
             $user->interactions()->delete();
             $user->tokens()->delete();
             $user->delete();

@@ -23,9 +23,9 @@ class UserSeeder extends Seeder
             return;
         }
 
-        // Only create if user doesn't already exist
-        if (User::where('email', $email)->exists()) {
-            $this->command->info("User {$email} already exists. Skipping.");
+        // The seeder runs at every container start; a removed seeded user must not come back.
+        if (User::exists()) {
+            $this->command->info('Users already exist. Skipping user seeding.');
 
             return;
         }
@@ -36,9 +36,7 @@ class UserSeeder extends Seeder
             'password' => Hash::make((string) $password),
         ]);
         $user->email_verified_at = now();
-        if (! User::exists()) {
-            $user->role = Role::Admin; // the instance's first user is its admin
-        }
+        $user->role = Role::Admin; // the instance's first user is its admin
         $user->save();
 
         $this->command->info("User {$email} created successfully.");

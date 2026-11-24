@@ -30,6 +30,7 @@ class Kid extends Model
         return [
             'date_of_birth' => 'date',
             'due_date' => 'date',
+            'edited_by' => 'integer',
         ];
     }
 
@@ -92,12 +93,12 @@ class Kid extends Model
 
     public function getLatestMoment(): ?Moment
     {
-        return $this->moments()->orderBy('exif_date', 'desc')->first();
+        return $this->moments()->orderByDate('desc')->first();
     }
 
     public function getFirstMoment(): ?Moment
     {
-        return $this->moments()->orderBy('exif_date', 'asc')->first();
+        return $this->moments()->orderByDate('asc')->first();
     }
 
     #[\Override]
@@ -107,6 +108,9 @@ class Kid extends Model
             if (empty($kid->avatar_color)) {
                 $kid->avatar_color = self::randomAvatarColor();
             }
+        });
+        static::saving(function (Kid $kid): void {
+            $kid->edited_by = auth()->id();
         });
     }
 

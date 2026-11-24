@@ -56,8 +56,8 @@ return [
             // the S3 driver treats 'root' as a key prefix, so set it only for local storage
             'root' => env('SEAWEEDFS_DRIVER', 's3') === 'local' ? env('MEDIA_ROOT', storage_path('app/media')) : '',
             'serve' => true,
-            'key' => env('SEAWEEDFS_KEY', 'admin'),
-            'secret' => env('SEAWEEDFS_SECRET', 'admin'),
+            'key' => env('SEAWEEDFS_KEY'),
+            'secret' => env('SEAWEEDFS_SECRET'),
             'region' => env('SEAWEEDFS_REGION', 'us-east-1'),
             'bucket' => env('SEAWEEDFS_BUCKET', 'kinlore'),
             'endpoint' => env('SEAWEEDFS_ENDPOINT', 'http://kinlore-seaweedfs-filer:8333'),

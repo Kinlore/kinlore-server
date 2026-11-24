@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\MomentType;
+use App\Http\Requests\Api\StoreMomentRequest;
 use App\Models\Kid;
 use App\Models\Milestone;
 use App\Models\Moment;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Offline sync for the app (docs/API_CONTRACT.md section 9).
@@ -129,9 +132,11 @@ class SyncService
      * Push changes from client to server. Each change passes the same permission rules as REST;
      * a change that fails goes into `rejected` and the others still apply.
      *
+     * An updated row whose server copy changed after $lastPulledAt is rejected as `conflict`.
+     *
      * @return array{kids_created: array, moments_created: array, rejected: array}
      */
-    public function push(User $user, array $changes): array
+    public function push(User $user, array $changes, ?int $lastPulledAt = null): array
     {
         $result = ['kids_created' => [], 'moments_created' => [], 'rejected' => []];
         $kids = $changes['kids'] ?? [];
@@ -139,9 +144,9 @@ class SyncService
 
         // Kids first: new moments may belong to a kid from the same push.
         $this->apply($result, 'kids', 'kids_created', $kids['created'] ?? [], fn ($row) => $this->upsertKid($user, $row));
-        $this->apply($result, 'kids', null, $kids['updated'] ?? [], fn ($row) => $this->upsertKid($user, $row));
+        $this->apply($result, 'kids', null, $kids['updated'] ?? [], fn ($row) => $this->upsertKid($user, $row, $lastPulledAt));
         $this->apply($result, 'moments', 'moments_created', $moments['created'] ?? [], fn ($row) => $this->upsertMoment($user, $row));
-        $this->apply($result, 'moments', null, $moments['updated'] ?? [], fn ($row) => $this->upsertMoment($user, $row));
+        $this->apply($result, 'moments', null, $moments['updated'] ?? [], fn ($row) => $this->upsertMoment($user, $row, $lastPulledAt));
         $this->apply($result, 'moments', null, $moments['deleted'] ?? [], fn ($id) => $this->deleteMoment($user, $id));
         $this->apply($result, 'kids', null, $kids['deleted'] ?? [], fn ($id) => $this->deleteKid($user, $id));
 
@@ -160,7 +165,7 @@ class SyncService
                 $reason = is_string($id) && $id !== '' ? $change($row) : 'invalid';
             } catch (\Throwable $e) {
                 Log::warning('Sync push change failed', ['table' => $table, 'id' => $id, 'error' => $e->getMessage()]);
-                $reason = 'invalid';
+                $reason = $e instanceof ValidationException ? 'invalid' : 'error';
             }
 
             if ($reason !== null) {
@@ -171,12 +176,16 @@ class SyncService
         }
     }
 
-    private function upsertKid(User $user, array $row): ?string
+    private function upsertKid(User $user, array $row, ?int $lastPulledAt = null): ?string
     {
         $kid = Kid::withTrashed()->find($row['id']);
 
         if ($kid?->trashed()) {
             return 'deleted';
+        }
+
+        if ($this->changedSince($user, $kid, $lastPulledAt)) {
+            return 'conflict';
         }
 
         if ($kid ? ! $user->can('update', $kid) : ! $user->can('create', Kid::class)) {
@@ -196,8 +205,9 @@ class SyncService
             }
         }
 
+        // tomorrow, as in StoreKidRequest: a parent east of UTC is already a day ahead of the server
         if (empty($kid->name) || (! $kid->date_of_birth && ! $kid->due_date)
-            || ($kid->date_of_birth && $kid->date_of_birth->isAfter(today()))) {
+            || ($kid->date_of_birth && $kid->date_of_birth->isAfter(today()->addDay()))) {
             return 'invalid';
         }
 
@@ -206,12 +216,16 @@ class SyncService
         return null;
     }
 
-    private function upsertMoment(User $user, array $row): ?string
+    private function upsertMoment(User $user, array $row, ?int $lastPulledAt = null): ?string
     {
         $moment = Moment::withTrashed()->find($row['id']);
 
         if ($moment?->trashed()) {
             return 'deleted';
+        }
+
+        if ($this->changedSince($user, $moment, $lastPulledAt)) {
+            return 'conflict';
         }
 
         if ($moment) {
@@ -256,10 +270,25 @@ class SyncService
         if ($moment->moment_type === MomentType::Milestone && blank($moment->milestone_id)) {
             return 'invalid';
         }
+        // Out-of-range values overflow the decimal columns; apply() answers 'invalid' for this exception.
+        Validator::make($moment->only(array_keys(StoreMomentRequest::GROWTH_RULES)), StoreMomentRequest::GROWTH_RULES)->validate();
 
         $moment->save();
 
         return null;
+    }
+
+    // The app sends 0 before its first pull: no known server state, so no conflict.
+    // A moment counts from edited_at, so a like from another member does not reject an offline edit;
+    // the pusher's own later edit (for example made online on the same phone) is no conflict either.
+    private function changedSince(User $user, Kid|Moment|null $row, ?int $lastPulledAt): bool
+    {
+        if (! $row || ! $lastPulledAt || $row->edited_by === $user->id) {
+            return false;
+        }
+        $changed = $row instanceof Moment ? ($row->edited_at ?? $row->updated_at) : $row->updated_at;
+
+        return $changed->getTimestampMs() > $lastPulledAt;
     }
 
     private function deleteMoment(User $user, string $id): ?string
@@ -346,9 +375,6 @@ class SyncService
             'likes_count' => (int) $moment->likes_count,
             'comments_count' => (int) $moment->comments_count,
             'is_liked' => (bool) $moment->is_liked,
-            'photo_url' => $moment->getRawOriginal('photo_url'),
-            'medium_url' => $moment->getRawOriginal('medium_url'),
-            'thumbnail_url' => $moment->getRawOriginal('thumbnail_url'),
             'file_size' => $moment->file_size,
             'mime_type' => $moment->mime_type,
             'device_asset_id' => $moment->device_asset_id,
@@ -363,7 +389,6 @@ class SyncService
             'id' => $milestone->id,
             'title' => $milestone->title,
             'description' => $milestone->description,
-            'category' => $milestone->category,
             'stage_key' => $milestone->stage_key,
             'stage_label' => $milestone->stage_label,
             'age_min_months' => $milestone->age_min_months,

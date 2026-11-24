@@ -6,7 +6,6 @@ use App\Http\Middleware\SecurityHeaders;
 use App\Http\Responses\ApiResponse;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
-use Illuminate\Auth\Middleware\Authorize;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -47,15 +46,6 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->api('throttle:api');
-
-        $middleware->alias([
-            'auth.sanctum' => EnsureFrontendRequestsAreStateful::class,
-        ]);
-
-        // Authorize resource operations automatically
-        $middleware->alias([
-            'can' => Authorize::class,
-        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         // API paths always answer JSON, also to a browser or curl without an Accept header

@@ -20,8 +20,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 
 #[Fillable([
     'kid_id',
@@ -59,11 +57,25 @@ class Moment extends Model
     use HasFactory, HasUuids, SoftDeletes;
 
     #[\Override]
+    protected static function booted(): void
+    {
+        // A touch from a like or comment changes only updated_at; anything else is an edit.
+        static::saving(function (Moment $moment): void {
+            if (! $moment->exists || array_diff(array_keys($moment->getDirty()), ['updated_at']) !== []) {
+                $moment->edited_at = now();
+                $moment->edited_by = auth()->id();
+            }
+        });
+    }
+
+    #[\Override]
     protected function casts(): array
     {
         return [
             'file_size' => 'integer',
             'exif_date' => 'datetime',
+            'edited_at' => 'datetime',
+            'edited_by' => 'integer',
             'latitude' => 'float',
             'longitude' => 'float',
             'duration' => 'float',
@@ -150,42 +162,6 @@ class Moment extends Model
         return Attribute::make(get: fn (): mixed => $this->exif_date ?? $this->created_at)->withoutObjectCaching();
     }
 
-    // The stored values are storage paths; reading them gives signed URLs.
-    protected function photoUrl(): Attribute
-    {
-        return Attribute::make(get: fn (?string $value): ?string => $this->generateSignedUrl($value));
-    }
-
-    protected function mediumUrl(): Attribute
-    {
-        return Attribute::make(get: fn (?string $value): ?string => $this->generateSignedUrl($value));
-    }
-
-    protected function thumbnailUrl(): Attribute
-    {
-        return Attribute::make(get: fn (?string $value): ?string => $this->generateSignedUrl($value));
-    }
-
-    protected function hlsUrl(): Attribute
-    {
-        return Attribute::make(get: fn (?string $value): ?string => $this->generateSignedUrl($value));
-    }
-
-    protected function generateSignedUrl(?string $path, int $expiration = 60): ?string
-    {
-        if (empty($path)) {
-            return null;
-        }
-
-        try {
-            return Storage::disk('seaweedfs')->temporaryUrl($path, now()->addMinutes($expiration));
-        } catch (\Exception $e) {
-            Log::error('Failed to generate signed URL: '.$e->getMessage());
-
-            return Storage::disk('seaweedfs')->url($path);
-        }
-    }
-
     #[Scope]
     protected function orderByDate(Builder $query, string $direction = 'desc'): void
     {
@@ -202,22 +178,6 @@ class Moment extends Model
     }
 
     #[\Override]
-    protected static function booted(): void
-    {
-        static::forceDeleted(function (Moment $moment): void {
-            try {
-                Storage::disk('seaweedfs')->delete([
-                    $moment->attributes['photo_url'],
-                    $moment->attributes['medium_url'],
-                    $moment->attributes['thumbnail_url'],
-                ]);
-            } catch (\Exception $e) {
-                Log::error('Failed to delete moment files: '.$e->getMessage());
-            }
-        });
-    }
-
-    #[\Override]
     public function toArray(): array
     {
         $data = [
@@ -229,10 +189,6 @@ class Moment extends Model
             'milestone_id' => $this->milestone_id,
             'title' => $this->title,
             'description' => $this->description,
-            'photo_url' => $this->photo_url,
-            'medium_url' => $this->medium_url,
-            'thumbnail_url' => $this->thumbnail_url,
-            'hls_url' => $this->isVideo() ? $this->hls_url : null,
             'file_size' => $this->file_size,
             'file_size_formatted' => $this->file_size_formatted,
             'mime_type' => $this->mime_type,

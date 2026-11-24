@@ -27,4 +27,12 @@ class SetupRequest extends FormRequest
             'setup_token' => [filled(config('app.setup_token')) ? 'required' : 'nullable', 'string', 'max:255'],
         ];
     }
+
+    #[\Override]
+    protected function prepareForValidation(): void
+    {
+        if (is_string($this->input('email'))) {
+            $this->merge(['email' => strtolower(trim($this->input('email')))]);
+        }
+    }
 }

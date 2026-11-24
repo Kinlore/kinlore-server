@@ -18,6 +18,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
@@ -120,7 +121,15 @@ class MomentService
 
         // Videos are processed by a queued job so the upload returns at once
         if ($type === MomentType::Photo) {
-            $this->processPhoto($media, $file, $basePath);
+            try {
+                $this->processPhoto($media, $file, $basePath);
+            } catch (\Throwable $e) {
+                Log::error('Photo processing failed: '.$e->getMessage());
+                // No moment will point at this media, so drop the row and every file stored so far
+                $media->forceDelete();
+                $this->storage->disk()->deleteDirectory($basePath);
+                throw $e;
+            }
         }
 
         // Create associated moment
@@ -188,37 +197,51 @@ class MomentService
 
     private function processPhoto(Media $media, UploadedFile $file, string $basePath): void
     {
-        try {
-            $thumbnailPath = "{$basePath}/thumbnail.jpg";
-            $mediumPath = "{$basePath}/medium.jpg";
+        $thumbnailPath = "{$basePath}/thumbnail.jpg";
+        $mediumPath = "{$basePath}/medium.jpg";
 
-            // Generate medium (1200px width)
-            $mediumImage = Image::decodePath($file->getRealPath())
-                ->orient()
-                ->scaleDown(width: 1200)
-                ->encode(new JpegEncoder(quality: 85));
-
-            $this->storage->store($mediumPath, (string) $mediumImage);
-
-            // Generate thumbnail (300x300 cover)
-            $thumbnailImage = Image::decodePath($file->getRealPath())
-                ->orient()
-                ->cover(300, 300)
-                ->encode(new JpegEncoder(quality: 80));
-
-            $this->storage->store($thumbnailPath, (string) $thumbnailImage);
-
-            // Update media record
-            $media->markAsCompleted([
-                'thumbnail_url' => $thumbnailPath,
-                'medium_url' => $mediumPath,
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Photo processing failed: '.$e->getMessage());
-            $media->markAsFailed($e->getMessage());
-            throw $e;
+        // GD cannot read HEIC/HEIF: decode a JPEG copy for the previews; the stored original stays untouched.
+        $source = $file->getRealPath();
+        $decoded = null;
+        if (in_array($file->getMimeType(), ['image/heic', 'image/heif'], true)) {
+            $decoded = tempnam(sys_get_temp_dir(), 'kinlore-heic-').'.jpg';
+            Process::timeout(120)->run(['heif-dec', '--quality', '95', $source, $decoded])->throw();
+            $source = $decoded;
         }
+
+        try {
+            $this->storePreviews($source, $thumbnailPath, $mediumPath);
+        } finally {
+            if ($decoded) {
+                @unlink($decoded);
+                @unlink(substr($decoded, 0, -4));
+            }
+        }
+
+        // Update media record
+        $media->markAsCompleted([
+            'thumbnail_url' => $thumbnailPath,
+            'medium_url' => $mediumPath,
+        ]);
+    }
+
+    private function storePreviews(string $source, string $thumbnailPath, string $mediumPath): void
+    {
+        // Generate medium (1200px width)
+        $mediumImage = Image::decodePath($source)
+            ->orient()
+            ->scaleDown(width: 1200)
+            ->encode(new JpegEncoder(quality: 85));
+
+        $this->storage->store($mediumPath, (string) $mediumImage);
+
+        // Generate thumbnail (300x300 cover)
+        $thumbnailImage = Image::decodePath($source)
+            ->orient()
+            ->cover(300, 300)
+            ->encode(new JpegEncoder(quality: 80));
+
+        $this->storage->store($thumbnailPath, (string) $thumbnailImage);
     }
 
     // Run by ProcessVideoJob: make the HLS stream and set the moment's video_status to ready or failed.
@@ -232,7 +255,12 @@ class MomentService
             return;
         }
 
-        $media->refresh();
+        // The media can be deleted while the video converts
+        $media = Media::find($media->id);
+        if (! $media) {
+            return;
+        }
+
         $media->moments()->update([
             'thumbnail_url' => $media->getRawThumbnailUrl(),
             'medium_url' => $media->getRawMediumUrl(),
@@ -245,7 +273,7 @@ class MomentService
     // Extracts duration, generates thumbnail and medium, and creates the HLS stream.
     private function processVideo(Media $media): void
     {
-        $tempDir = null;
+        $localDir = 'tmp/video_'.$media->id;
 
         try {
             Log::info('MomentService: Starting video processing', ['media_id' => $media->id]);
@@ -253,14 +281,8 @@ class MomentService
             // Get the storage path
             $storagePath = $media->getRawFilePath();
 
-            // Download video to temp file for processing
-            $tempDir = sys_get_temp_dir().'/video_processing_'.$media->id;
-            if (! file_exists($tempDir)) {
-                mkdir($tempDir, 0755, true);
-            }
-
             // Copy the video to Laravel's local storage for FFMpeg, as a stream: it can be larger than PHP memory
-            $localStoragePath = 'tmp/video_'.$media->id.'/'.basename($storagePath);
+            $localStoragePath = $localDir.'/'.basename($storagePath);
             $source = Storage::disk('seaweedfs')->readStream($storagePath);
             if (! $source) {
                 throw new \RuntimeException("Video file not found in storage: {$storagePath}");
@@ -291,7 +313,7 @@ class MomentService
                 ->getFrameContents();
 
             // Use GD to create resized versions
-            $sourceImage = imagecreatefromstring($frameContent);
+            $sourceImage = imagecreatefromstring($frameContent) ?: throw new \RuntimeException('Cannot decode the video frame');
             $origWidth = imagesx($sourceImage);
             $origHeight = imagesy($sourceImage);
 
@@ -325,10 +347,14 @@ class MomentService
             }
 
             // Generate HLS stream (using pre-processed SDR file if HDR was detected)
-            $hlsStoragePath = $this->generateHLSStream($media, $hlsInputPath, $basePath, $tempDir);
+            $hlsStoragePath = $this->generateHLSStream($media, $hlsInputPath, $basePath);
 
-            // Clean up local storage temp files
-            Storage::disk('local')->deleteDirectory('tmp/video_'.$media->id);
+            if (! Media::whereKey($media->id)->exists()) {
+                Log::info('MomentService: Media deleted during processing, removing its files', ['media_id' => $media->id]);
+                Storage::disk('seaweedfs')->deleteDirectory($basePath);
+
+                return;
+            }
 
             // Update media with video metadata and HLS URL
             $media->markAsCompleted([
@@ -349,7 +375,7 @@ class MomentService
                 'hls_url' => $hlsStoragePath,
             ]);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('MomentService: Video processing failed', [
                 'media_id' => $media->id,
                 'error' => $e->getMessage(),
@@ -359,10 +385,7 @@ class MomentService
             $media->markAsFailed($e->getMessage());
             throw $e;
         } finally {
-            // Clean up temp files
-            if ($tempDir && file_exists($tempDir)) {
-                $this->cleanupTempDir($tempDir);
-            }
+            Storage::disk('local')->deleteDirectory($localDir);
         }
     }
 
@@ -385,13 +408,8 @@ class MomentService
      * Generate HLS stream with iOS-compatible settings.
      * Uses baseline profile for maximum compatibility with iOS devices.
      */
-    private function generateHLSStream(Media $media, string $localStoragePath, string $basePath, string $tempDir): string
+    private function generateHLSStream(Media $media, string $localStoragePath, string $basePath): string
     {
-        $hlsDir = $tempDir.'/hls';
-        if (! file_exists($hlsDir)) {
-            mkdir($hlsDir, 0755, true);
-        }
-
         // HLS output path in local storage
         $hlsLocalPath = 'tmp/video_'.$media->id.'/hls/playlist.m3u8';
 
@@ -401,7 +419,7 @@ class MomentService
         ]);
 
         // Get configured quality variants (default: 720, 480, 240)
-        $variants = explode(',', env('VIDEO_QUALITY_VARIANTS', '720,480,240'));
+        $variants = explode(',', (string) config('laravel-ffmpeg.quality_variants'));
 
         $ffmpeg = FFMpeg::fromDisk('local')->open($localStoragePath);
 
@@ -546,8 +564,8 @@ class MomentService
         // HDR to SDR conversion command with proper tone mapping
         // Uses zscale for color space conversion and hable tonemap for HDR->SDR
         $command = escapeshellcmd($ffmpegBinary).' -y -i '.escapeshellarg($fullInputPath).
-            ' -vf "zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap=hable:desat=0,zscale=t=bt709:m=bt709:r=tv,format=yuv420p"'.
-            ' -c:v libx264 -preset medium -crf 18'.
+            ' -vf "scale=-2:\'min(720,ih)\',zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap=hable:desat=0,zscale=t=bt709:m=bt709:r=tv,format=yuv420p"'.
+            ' -c:v libx264 -preset veryfast -crf 18'.
             ' -c:a aac -b:a 128k'.
             ' -color_primaries bt709 -color_trc bt709 -colorspace bt709'.
             ' -movflags +faststart'.
@@ -609,28 +627,6 @@ class MomentService
         ]);
 
         return "{$basePath}/hls/playlist.m3u8";
-    }
-
-    private function cleanupTempDir(string $dir): void
-    {
-        if (! file_exists($dir)) {
-            return;
-        }
-
-        $files = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($dir, \RecursiveDirectoryIterator::SKIP_DOTS),
-            \RecursiveIteratorIterator::CHILD_FIRST
-        );
-
-        foreach ($files as $file) {
-            if ($file->isDir()) {
-                rmdir($file->getRealPath());
-            } else {
-                unlink($file->getRealPath());
-            }
-        }
-
-        rmdir($dir);
     }
 
     private function buildExifData(array $data): array
@@ -733,7 +729,8 @@ class MomentService
             'hls' => $moment->getRawOriginal('hls_url'),
         ];
 
-        if (! isset($pathMap[$type])) {
+        // Not isset(): a video without a thumbnail yet has a null path, which is "not found", not a bad type
+        if (! array_key_exists($type, $pathMap)) {
             throw new \InvalidArgumentException('Invalid file type. Use: original, medium, thumbnail, or hls');
         }
 

@@ -87,18 +87,20 @@ class KidTest extends TestCase
         $response->assertJsonValidationErrors(['date_of_birth']);
     }
 
-    public function test_kid_date_of_birth_must_be_in_past(): void
+    public function test_kid_date_of_birth_may_be_tomorrow_but_not_later(): void
     {
         $user = User::factory()->create();
         Sanctum::actingAs($user);
+        $kid = Kid::factory()->create(['user_id' => $user->id]);
 
-        $response = $this->postJson('/api/v1/kids', [
-            'name' => 'Emma',
-            'date_of_birth' => now()->addDays(1)->format('Y-m-d'),
-        ]);
+        // tomorrow is today for a parent east of UTC
+        $this->postJson('/api/v1/kids', ['name' => 'Emma', 'date_of_birth' => now()->addDay()->format('Y-m-d')])->assertCreated();
+        $this->putJson("/api/v1/kids/{$kid->id}", ['date_of_birth' => now()->addDay()->format('Y-m-d')])->assertOk();
 
-        $response->assertStatus(422);
-        $response->assertJsonValidationErrors(['date_of_birth']);
+        $this->postJson('/api/v1/kids', ['name' => 'Emma', 'date_of_birth' => now()->addDays(2)->format('Y-m-d')])
+            ->assertStatus(422)->assertJsonValidationErrors(['date_of_birth']);
+        $this->putJson("/api/v1/kids/{$kid->id}", ['date_of_birth' => now()->addDays(2)->format('Y-m-d')])
+            ->assertStatus(422)->assertJsonValidationErrors(['date_of_birth']);
     }
 
     public function test_kid_generates_random_color_if_not_provided(): void

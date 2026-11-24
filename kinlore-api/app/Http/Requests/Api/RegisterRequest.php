@@ -35,4 +35,12 @@ class RegisterRequest extends FormRequest
             'invite_token' => 'required|string|max:64',
         ];
     }
+
+    #[\Override]
+    protected function prepareForValidation(): void
+    {
+        if (is_string($this->input('email'))) {
+            $this->merge(['email' => strtolower(trim($this->input('email')))]);
+        }
+    }
 }

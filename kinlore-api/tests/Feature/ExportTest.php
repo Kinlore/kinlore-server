@@ -11,6 +11,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
+use Mockery;
 use Tests\TestCase;
 use ZipArchive;
 
@@ -105,6 +106,36 @@ class ExportTest extends TestCase
         Export::create(['user_id' => $admin->id, 'status' => 'processing']);
         Sanctum::actingAs($admin);
         $this->postJson('/api/v1/exports')->assertStatus(409);
+    }
+
+    public function test_truncated_original_fails_the_export(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $kid = Kid::factory()->create();
+        Moment::factory()->create(['kid_id' => $kid->id, 'moment_type' => 'photo', 'photo_url' => 'media/k/p/original.jpg']);
+        $disk = Storage::disk('seaweedfs');
+        $disk->put('media/k/p/original.jpg', 'JPEG');
+        // The store reports more bytes than the stream gives, as when a read is cut off
+        Storage::set('seaweedfs', Mockery::mock($disk)->makePartial()->shouldReceive('size')->andReturn(100)->getMock());
+        Sanctum::actingAs($admin);
+
+        $id = $this->postJson('/api/v1/exports')->assertStatus(202)->json('data.id');
+
+        $this->assertSame('failed', Export::find($id)->status->value);
+        $this->assertFileDoesNotExist(storage_path("app/exports/{$id}.zip"));
+    }
+
+    public function test_prune_removes_zips_no_export_references(): void
+    {
+        $stray = storage_path('app/exports/stray.zip');
+        @mkdir(dirname($stray), 0755, true);
+        file_put_contents($stray, 'partial');
+        Sanctum::actingAs(User::factory()->admin()->create());
+
+        $id = $this->postJson('/api/v1/exports')->assertStatus(202)->json('data.id');
+
+        $this->assertFileDoesNotExist($stray);
+        $this->assertFileExists(Export::find($id)->fullPath());
     }
 
     public function test_keeps_three_newest_exports(): void

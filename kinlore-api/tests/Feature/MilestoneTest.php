@@ -36,6 +36,17 @@ class MilestoneTest extends TestCase
             ->assertJsonPath('success', true);
     }
 
+    public function test_stages_come_in_life_order_not_alphabetical(): void
+    {
+        Milestone::factory()->create(['stage_key' => 'toddler_1_3y', 'sort_order' => 2]);
+        Milestone::factory()->create(['stage_key' => 'infancy_0_12m', 'sort_order' => 1]);
+        Milestone::factory()->create(['stage_key' => 'early_childhood_3_6y', 'sort_order' => 3]);
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->getJson('/api/v1/milestones')
+            ->assertJsonPath('data.*.stage_key', ['infancy_0_12m', 'toddler_1_3y', 'early_childhood_3_6y']);
+    }
+
     public function test_user_can_get_milestone_by_id(): void
     {
         $milestone = Milestone::factory()->create([

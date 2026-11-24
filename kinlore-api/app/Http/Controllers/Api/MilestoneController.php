@@ -22,7 +22,7 @@ class MilestoneController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $filters = $request->only(['group_by', 'category', 'stage_key']);
+        $filters = $request->only(['group_by', 'stage_key']);
 
         // Default to stage grouping if no group_by specified and not flat
         if (! $request->has('group_by') && ! $request->boolean('flat')) {

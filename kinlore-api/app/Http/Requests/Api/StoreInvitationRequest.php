@@ -32,4 +32,12 @@ class StoreInvitationRequest extends FormRequest
             'expires_in_days' => 'nullable|integer|min:1|max:30',
         ];
     }
+
+    #[\Override]
+    protected function prepareForValidation(): void
+    {
+        if (is_string($this->input('email'))) {
+            $this->merge(['email' => strtolower(trim($this->input('email')))]);
+        }
+    }
 }

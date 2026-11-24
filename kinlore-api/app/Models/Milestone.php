@@ -15,7 +15,6 @@ use Illuminate\Support\Collection;
     'id',
     'title',
     'description',
-    'category',
     'stage_key',
     'stage_label',
     'age_min_months',
@@ -42,12 +41,6 @@ class Milestone extends Model
     }
 
     #[Scope]
-    protected function byCategory(Builder $query, string $category): void
-    {
-        $query->where('category', $category);
-    }
-
-    #[Scope]
     protected function byStage(Builder $query, string $stageKey): void
     {
         $query->where('stage_key', $stageKey);
@@ -56,7 +49,8 @@ class Milestone extends Model
     #[Scope]
     protected function ordered(Builder $query): void
     {
-        $query->orderBy('stage_key')->orderBy('sort_order');
+        // sort_order runs across all stages in milestones.json order, so it also orders the stages
+        $query->orderBy('sort_order');
     }
 
     /** No cache: the list is about a hundred rows and rarely read. */
@@ -69,14 +63,6 @@ class Milestone extends Model
         ])->values();
     }
 
-    public static function getGroupedByCategory(): Collection
-    {
-        return static::query()->ordered()->get()->groupBy('category')->map(fn (Collection $categoryMilestones, string $category): array => [
-            'category' => $category,
-            'milestones' => $categoryMilestones->values(),
-        ])->values();
-    }
-
     #[\Override]
     public function toArray(): array
     {
@@ -84,7 +70,6 @@ class Milestone extends Model
             'id' => $this->id,
             'title' => $this->title,
             'description' => $this->description,
-            'category' => $this->category,
             'stage_key' => $this->stage_key,
             'stage_label' => $this->stage_label,
             'age_min_months' => $this->age_min_months,

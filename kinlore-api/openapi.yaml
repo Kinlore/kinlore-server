@@ -110,7 +110,7 @@ paths:
       tags: [Health]
       operationId: healthDetailed
       summary: Detailed health check
-      description: Any signed-in user. No envelope. `503` when a check is not healthy.
+      description: Admin only. No envelope. `503` when a check is not healthy.
       responses:
         '200':
           description: All checks healthy
@@ -120,6 +120,8 @@ paths:
                 $ref: '#/components/schemas/HealthDetailed'
         '401':
           $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '503':
           description: Database unhealthy, or storage or cache degraded
           content:
@@ -1400,23 +1402,17 @@ paths:
       summary: The predefined milestone list
       description: |
         Any signed-in user. Without `group_by` and without `flat`: grouped by stage.
-        `group_by=category`: grouped by category. `flat=1` (or any other `group_by`): a flat
-        list, which `category` and `stage_key` can filter.
+        `flat=1` (or any other `group_by`): a flat list, which `stage_key` can filter.
       parameters:
         - name: group_by
           in: query
           schema:
             type: string
-            enum: [stage, category]
+            enum: [stage]
         - name: flat
           in: query
           schema:
             type: boolean
-        - name: category
-          in: query
-          description: Only for the flat list.
-          schema:
-            type: string
         - name: stage_key
           in: query
           description: Only for the flat list.
@@ -1437,10 +1433,6 @@ paths:
                             title: Grouped by stage
                             items:
                               $ref: '#/components/schemas/MilestoneStageGroup'
-                          - type: array
-                            title: Grouped by category
-                            items:
-                              $ref: '#/components/schemas/MilestoneCategoryGroup'
                           - type: array
                             title: Flat
                             items:
@@ -1518,7 +1510,10 @@ paths:
         Any signed-in user. Throttle `sync` (300 per minute). Enveloped. Every change goes
         through the same permission rules as REST (kid create: `admin`/`partner`; moment
         create: `add_content`; update/delete: owner rules). A change that fails goes into
-        `rejected`; the others still apply. The server keeps client ids.
+        `rejected`; the others still apply. The server keeps client ids. Reasons: `forbidden`,
+        `invalid` (fails validation), `deleted` (row is deleted on the server), `conflict` (an
+        `updated` row edited by another member after `lastPulledAt`; likes and comments do not count;
+        the next pull sends the server copy), `error` (server failure; the change may be sent again).
       requestBody:
         required: true
         content:
@@ -2126,8 +2121,7 @@ components:
       description: |
         Moment payload of REST routes (list, show, update, `data.moment` on create, look-back).
         `display_date` is `exif_date`, or `created_at` when there is none.
-        `photo_url`, `medium_url`, `thumbnail_url` and `hls_url` are temporary storage URLs
-        (60 minutes); the app uses `/file/{type}` and `/playback` instead.
+        It has no file links: the app uses `/file/{type}` (`original` needs `download`) and `/playback`.
       required: [id, kid_id, user_id, uploader_name, moment_type, title, description, display_date, likes_count, comments_count, is_liked, created_at, updated_at]
       properties:
         id:
@@ -2149,15 +2143,6 @@ components:
           type: [string, 'null']
         description:
           type: [string, 'null']
-        photo_url:
-          type: [string, 'null']
-        medium_url:
-          type: [string, 'null']
-        thumbnail_url:
-          type: [string, 'null']
-        hls_url:
-          type: [string, 'null']
-          description: Only set for videos.
         file_size:
           type: [integer, 'null']
           description: Bytes.
@@ -2560,15 +2545,13 @@ components:
 
     Milestone:
       type: object
-      required: [id, title, description, category, stage_key, stage_label, age_min_months, age_max_months, sort_order, created_at, updated_at]
+      required: [id, title, description, stage_key, stage_label, age_min_months, age_max_months, sort_order, created_at, updated_at]
       properties:
         id:
           type: string
         title:
           type: string
         description:
-          type: [string, 'null']
-        category:
           type: [string, 'null']
         stage_key:
           type: string
@@ -2595,17 +2578,6 @@ components:
           type: string
         stage_label:
           type: string
-        milestones:
-          type: array
-          items:
-            $ref: '#/components/schemas/Milestone'
-
-    MilestoneCategoryGroup:
-      type: object
-      required: [category, milestones]
-      properties:
-        category:
-          type: [string, 'null']
         milestones:
           type: array
           items:
@@ -2744,8 +2716,8 @@ components:
 
     SyncMomentRow:
       type: object
-      description: All times in milliseconds. File fields are raw storage paths.
-      required: [id, kid_id, user_id, uploader_name, moment_type, title, description, milestone_id, exif_date, latitude, longitude, orientation, duration, video_status, height_cm, weight_kg, head_circumference_cm, likes_count, comments_count, is_liked, photo_url, medium_url, thumbnail_url, file_size, mime_type, device_asset_id, created_at, updated_at]
+      description: All times in milliseconds. No file fields; the app uses `/file/{type}`.
+      required: [id, kid_id, user_id, uploader_name, moment_type, title, description, milestone_id, exif_date, latitude, longitude, orientation, duration, video_status, height_cm, weight_kg, head_circumference_cm, likes_count, comments_count, is_liked, file_size, mime_type, device_asset_id, created_at, updated_at]
       properties:
         id:
           type: string
@@ -2793,15 +2765,6 @@ components:
         is_liked:
           type: boolean
           description: Liked by the caller.
-        photo_url:
-          type: [string, 'null']
-          description: Storage path, not a URL.
-        medium_url:
-          type: [string, 'null']
-          description: Storage path, not a URL.
-        thumbnail_url:
-          type: [string, 'null']
-          description: Storage path, not a URL.
         file_size:
           type: [integer, 'null']
         mime_type:
@@ -2817,15 +2780,13 @@ components:
 
     SyncMilestoneRow:
       type: object
-      required: [id, title, description, category, stage_key, stage_label, age_min_months, age_max_months, sort_order, created_at, updated_at]
+      required: [id, title, description, stage_key, stage_label, age_min_months, age_max_months, sort_order, created_at, updated_at]
       properties:
         id:
           type: string
         title:
           type: string
         description:
-          type: [string, 'null']
-        category:
           type: [string, 'null']
         stage_key:
           type: string
@@ -3011,7 +2972,7 @@ components:
                     format: uuid
         lastPulledAt:
           type: [integer, 'null']
-          description: Milliseconds. Not used by the server today.
+          description: Milliseconds. `timestamp` of the last pull. With `null` or `0` no row is a `conflict`.
 
     SyncPushResponse:
       type: object
@@ -3046,7 +3007,7 @@ components:
                     type: [string, 'null']
                   reason:
                     type: string
-                    enum: [forbidden, invalid, deleted]
+                    enum: [forbidden, invalid, deleted, conflict, error]
 
     SyncCreatedId:
       type: object
