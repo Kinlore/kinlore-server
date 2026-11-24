@@ -4,8 +4,8 @@
             "name": "admin",
             "credentials": [
                 {
-                    "accessKey": "admin",
-                    "secretKey": "admin"
+                    "accessKey": "SEAWEEDFS_KEY",
+                    "secretKey": "SEAWEEDFS_SECRET"
                 }
             ],
             "actions": [

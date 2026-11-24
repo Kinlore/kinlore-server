@@ -16,7 +16,7 @@ echo "🔄 Running database migrations..."
 php artisan migrate --force   # set -e stops the start when this fails
 echo "✅ Migrations completed successfully!"
 
-# Run seeders (UserSeeder is idempotent - skips if user exists)
+# Run seeders (UserSeeder skips when any user exists)
 echo "🌱 Running database seeders..."
 php artisan db:seed --force
 echo "✅ Seeders completed!"
@@ -67,6 +67,9 @@ CADDY_TRUSTED_PROXIES="$(echo "${TRUSTED_PROXIES:-private_ranges}" | tr ',' ' ')
 export CADDY_TRUSTED_PROXIES
 
 echo "✅ Initialization complete, starting Caddy + PHP-FPM..."
+
+# Artisan above ran as root; PHP-FPM and the queue worker run as www-data and must write here
+chown -R www-data:www-data storage bootstrap/cache
 
 # Start Supervisor (Caddy, PHP-FPM and the queue worker)
 exec /usr/bin/supervisord -c /etc/supervisord.conf

@@ -24,6 +24,7 @@ jobs:
         with:
           php-version: ${{ matrix.php }}
           extensions: pdo_sqlite, gd, exif, zip, intl, mbstring, bcmath
+      - run: sudo apt-get update && sudo apt-get install -y libheif-examples   # heif-dec for the HEIC preview test
       - run: composer install --no-interaction --prefer-dist
       - run: cp .env.example .env && php artisan key:generate
       - run: php artisan test
@@ -34,6 +35,8 @@ jobs:
     env:
       APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
       DB_PASSWORD: ci-only-password
+      SEAWEEDFS_KEY: ci-only-key
+      SEAWEEDFS_SECRET: ci-only-secret
       SEED_USER_EMAIL: admin@example.test
       SEED_USER_PASSWORD: CiOnly-12345
     steps:

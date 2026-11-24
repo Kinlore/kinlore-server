@@ -13,10 +13,7 @@ photos.example.com {
 	}
 	respond @hidden 404
 
-	# PHP limits the upload size (php-kinlore.ini). Long timeouts for videos and exports.
-	php_fastcgi unix//run/php/php8.5-fpm.sock {
-		read_timeout 30m
-		write_timeout 30m
-	}
+	# PHP limits the upload size (php-kinlore.ini). No timeout: a php_fastcgi timeout would cut long uploads and exports.
+	php_fastcgi unix//run/php/php8.5-fpm.sock
 	file_server
 }

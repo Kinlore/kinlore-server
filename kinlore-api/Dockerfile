@@ -18,7 +18,8 @@ RUN apk add --no-cache \
     zip \
     unzip \
     bash \
-    ffmpeg
+    ffmpeg \
+    libheif-tools
 
 # Install PHP extensions
 RUN docker-php-ext-configure gd \
@@ -61,6 +62,7 @@ RUN mkdir -p /var/log/supervisor
 
 # Copy PHP configuration for uploads
 COPY ./docker/zz-uploads.ini /usr/local/etc/php/conf.d/zz-uploads.ini
+COPY ./docker/zz-kinlore-fpm.conf /usr/local/etc/php-fpm.d/zz-kinlore-fpm.conf
 
 # Copy entrypoint script
 COPY ./docker/entrypoint.sh /entrypoint.sh

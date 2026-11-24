@@ -24,11 +24,8 @@
 	}
 	respond @hidden 404
 
-	# No body size limit here: PHP limits uploads (zz-uploads.ini). Long timeouts for videos and exports.
-	php_fastcgi 127.0.0.1:9000 {
-		read_timeout 30m
-		write_timeout 30m
-	}
+	# No body size limit or timeout here: PHP limits uploads (zz-uploads.ini); a php_fastcgi timeout would cut long uploads and exports.
+	php_fastcgi 127.0.0.1:9000
 	file_server
 }
 
