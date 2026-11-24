@@ -68,7 +68,7 @@ Fixed sets of values are PHP enums in `app/Enums`: `Role`, `MomentType`, `VideoS
 
 1. The app sends a photo or video with `POST /api/v1/moments` as a multipart upload.
 2. `MomentService` stores the original file at `media/{kid id}/{media id}/original.{ext}` in the media storage. The file is read as a stream, so a large video does not fill PHP memory.
-3. For a photo, the server makes a thumbnail and a medium-size image at once with Intervention Image.
+3. For a photo, the server makes a thumbnail and a medium-size image at once with Intervention Image (GD). For HEIC and HEIF it first decodes a temporary JPEG with `heif-dec` (libheif). The original is never changed. If processing fails, the server deletes the original and the media row, and answers with an error.
 4. For a video, the server sets `video_status` to `processing`, puts a `ProcessVideoJob` on the `video-processing` queue, and answers at once.
 5. The queue worker runs the job. It copies the video to a temporary local folder and uses FFmpeg to:
    - read the duration;

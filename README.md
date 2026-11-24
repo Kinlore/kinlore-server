@@ -32,11 +32,12 @@ cd kinlore-server
 cp .env.example .env
 ```
 
-Edit `.env`. Set at least these three values:
+Edit `.env`. Set at least these five values:
 
 - `APP_KEY`: make one with `echo "base64:$(openssl rand -base64 32)"`.
 - `APP_URL`: the address the phones use, for example `https://photos.example.com`.
 - `DB_PASSWORD`: a long random password.
+- `SEAWEEDFS_KEY` and `SEAWEEDFS_SECRET`: the keys of the media storage. Make each one with `openssl rand -hex 32`.
 
 Then start the stack and check it:
 

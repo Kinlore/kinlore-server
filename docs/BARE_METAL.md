@@ -13,6 +13,7 @@ The commands of this guide are run by `scripts/test-bare-metal.sh` on a clean De
 |---|---|---|
 | `env.example` | `kinlore-api/.env` | Settings: SQLite, local media, no Redis |
 | `php-kinlore.ini` | `/etc/php/8.5/{fpm,cli}/conf.d/99-kinlore.ini` | Upload size and memory limits |
+| `php-fpm-kinlore.conf` | `/etc/php/8.5/fpm/pool.d/zz-kinlore.conf` | 20 PHP workers, so long uploads do not block the API |
 | `Caddyfile` | `/etc/caddy/Caddyfile` | Web server with automatic HTTPS (recommended) |
 | `nginx.conf` | `/etc/nginx/sites-available/kinlore` | Web server, if you prefer nginx |
 | `kinlore-queue.service` | `/etc/systemd/system/` | Worker for videos and exports |
@@ -39,7 +40,7 @@ Then, on both:
 sudo apt update
 sudo apt install -y php8.5-fpm php8.5-cli php8.5-sqlite3 php8.5-pgsql php8.5-gd php8.5-zip \
   php8.5-intl php8.5-mbstring php8.5-bcmath php8.5-xml php8.5-curl \
-  ffmpeg composer git unzip curl sqlite3 rsync
+  ffmpeg libheif-examples composer git unzip curl sqlite3 rsync
 ```
 
 - **Web server:** install one of them: `sudo apt install -y caddy` or `sudo apt install -y nginx certbot python3-certbot-nginx`.
@@ -83,6 +84,7 @@ The settings file uses SQLite and the local disk, so no database server, Redis o
 ```sh
 sudo cp ../deploy/bare-metal/php-kinlore.ini /etc/php/8.5/fpm/conf.d/99-kinlore.ini
 sudo cp ../deploy/bare-metal/php-kinlore.ini /etc/php/8.5/cli/conf.d/99-kinlore.ini
+sudo cp ../deploy/bare-metal/php-fpm-kinlore.conf /etc/php/8.5/fpm/pool.d/zz-kinlore.conf
 sudo systemctl restart php8.5-fpm
 ```
 

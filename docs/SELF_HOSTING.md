@@ -20,7 +20,7 @@ You can run the Kinlore server in two ways. Both use the same code and the same 
    ```sh
    cp .env.example .env
    ```
-   Set at least `APP_KEY` (`echo "base64:$(openssl rand -base64 32)"`), `APP_URL` (the address the phones use, for example `https://photos.example.com`) and a strong `DB_PASSWORD`. Compose stops with a clear message when `APP_KEY` or `DB_PASSWORD` is missing. The containers run with `APP_ENV=production` and `APP_DEBUG=false` unless you change that. `kinlore-api/.env` is optional in Docker; it can hold extra Laravel settings (mail, for example).
+   Set at least `APP_KEY` (`echo "base64:$(openssl rand -base64 32)"`), `APP_URL` (the address the phones use, for example `https://photos.example.com`) a strong `DB_PASSWORD`, and the media storage keys `SEAWEEDFS_KEY` and `SEAWEEDFS_SECRET` (make each one with `openssl rand -hex 32`). Compose stops with a clear message when one of these is missing. The containers run with `APP_ENV=production` and `APP_DEBUG=false` unless you change that. `kinlore-api/.env` is optional in Docker; it can hold extra Laravel settings (mail, for example).
 2. Start everything:
    ```sh
    docker compose up -d --build
@@ -35,18 +35,26 @@ Settings you can put in a `.env` file next to `docker-compose.yml`:
 | `APP_PORT` / `APP_SSL_PORT` | `80` / `443` | Host ports of the API. |
 | `DB_PORT` | `5432` | Host port of PostgreSQL. |
 | `REDIS_FORWARD_PORT` | `6379` | Host port of Redis. |
-| `SEAWEEDFS_S3_PORT` | `8333` | Host port of the SeaweedFS S3 API. |
 | `KINLORE_DOMAIN` | empty | Your public host name. When set, the API container serves HTTPS with its own certificate. |
 | `APP_BIND_ADDRESS` | `0.0.0.0` | Host address of the API ports. `127.0.0.1` when a proxy on this machine is the only way in. |
 | `API_ENV_FILE` | `./kinlore-api/.env` | Settings file for the API container. It may be missing. |
-| `BIND_ADDRESS` | `127.0.0.1` | Host address for the PostgreSQL, Redis and S3 ports. They are reachable only from this machine by default. |
+| `BIND_ADDRESS` | `127.0.0.1` | Host address for the PostgreSQL and Redis ports. They are reachable only from this machine by default. |
 | `TRUSTED_PROXIES` | private networks | Reverse proxies whose `X-Forwarded-*` headers are trusted, so links use `https`. |
 
 **HTTPS.** Phones need HTTPS for a server on the internet. Choose one:
 - **Built in (simplest).** Set `KINLORE_DOMAIN` to your host name. Caddy inside the API container then gets and renews a certificate by itself. See "HTTPS and reverse proxies" below.
 - **Your own reverse proxy** on the host or in another container (Caddy, nginx, Traefik, Nginx Proxy Manager). Leave `KINLORE_DOMAIN` empty; the API container then serves plain HTTP. See "HTTPS and reverse proxies" below.
 
-**Security defaults.** PostgreSQL, Redis and the SeaweedFS S3 port listen only on `127.0.0.1`. Change the SeaweedFS keys in `kinlore-api/docker/s3.json` together with `SEAWEEDFS_KEY` and `SEAWEEDFS_SECRET` before you set `BIND_ADDRESS=0.0.0.0`.
+**Security defaults.** PostgreSQL and Redis listen only on `127.0.0.1`. The SeaweedFS S3 port is not published on the host; only the API container uses it. To reach it from the host (for example, for a bare-metal API that uses this SeaweedFS), add a `docker-compose.override.yml` next to `docker-compose.yml`:
+
+```yaml
+services:
+  seaweedfs-filer:
+    ports:
+      - "127.0.0.1:8333:8333"
+```
+
+**Upgrade from a version before the storage keys.** Older versions used the fixed keys `admin`/`admin`. Add `SEAWEEDFS_KEY` and `SEAWEEDFS_SECRET` to `.env`, then run `docker compose up -d`. The stored media stays as it is; only the keys change.
 
 ## Versions
 
@@ -120,7 +128,7 @@ APP_BIND_ADDRESS=127.0.0.1
 
 Your proxy must:
 - forward `Host`, `X-Forwarded-Proto`, `X-Forwarded-Host` and `X-Forwarded-For`;
-- allow large request bodies (videos) and long timeouts (30 minutes is safe).
+- allow large request bodies (videos) and long timeouts: no limit for the whole request, or at least several hours, because uploads of large videos and export downloads can take that long on a slow connection. A limit on the time between two reads (for example nginx `proxy_read_timeout`) can stay at 30 minutes.
 
 The API trusts these headers from private networks by default (`TRUSTED_PROXIES`), so a device on your home network could also send them. To close that, set `TRUSTED_PROXIES` to the address your proxy connects from (for a proxy on the Docker host, the Docker gateway, for example `172.18.0.1`; find it with `docker network inspect kinlore_kinlore-network`). For a proxy on a public address, set `TRUSTED_PROXIES` to its IP. Without trusted headers, video and export links use `http`, and iPhones refuse them.
 
@@ -184,7 +192,7 @@ The admin account is created **in a web browser**, not in the app (like Immich o
 
 Optional:
 - **Setup token.** Set `SETUP_TOKEN` to a long random value. The setup page then asks for it, so a stranger cannot take an instance that is online before you finish setup. Recommended when the server is reachable from the internet during setup.
-- **Seeded admin.** Set `SEED_USER_NAME`, `SEED_USER_EMAIL` and `SEED_USER_PASSWORD` before the first start, for automated installs. The web setup is then skipped. Docker runs the seeder at every start; it creates the user only once.
+- **Seeded admin.** Set `SEED_USER_NAME`, `SEED_USER_EMAIL` and `SEED_USER_PASSWORD` before the first start, for automated installs. The web setup is then skipped. Docker runs the seeder at every start; it creates the admin only while the server has no user.
 
 ## Forgotten password
 

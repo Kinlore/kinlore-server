@@ -95,10 +95,10 @@ Kid payload: `{ id, user_id, name, date_of_birth: "YYYY-MM-DD"|null, due_date: "
 Types: `photo`, `video`, `story`, `milestone`, `growth`.
 
 Moment payload (REST and the inside of `data.moment`):
-`{ id, kid_id, user_id: int|null, uploader_name: string|null, moment_type, title, description, milestone_id, exif_date (ISO|null), display_date (ISO, exif_date or created_at), latitude: number|null, longitude: number|null, orientation, camera_make, camera_model, file_size, mime_type, original_filename, device_asset_id, duration: number|null (seconds), video_status: "processing"|"ready"|"failed"|null, height_cm: number|null, weight_kg: number|null, head_circumference_cm: number|null, likes_count, comments_count, is_liked, created_at, updated_at, media?: {...}, milestone?: {...} }`.
+`{ id, kid_id, user_id: int|null, uploader_name: string|null, moment_type, title, description, milestone_id, exif_date (ISO|null), display_date (ISO, exif_date or created_at), latitude: number|null, longitude: number|null, orientation, camera_make, camera_model, file_size, mime_type, original_filename, device_asset_id, duration: number|null (seconds), video_status: "processing"|"ready"|"failed"|null, height_cm: number|null, weight_kg: number|null, head_circumference_cm: number|null, likes_count, comments_count, is_liked, created_at, updated_at, media?: {...}, milestone?: {...} }`. It has no file links: the app uses `/file/{type}` and `/playback`.
 
 - `POST /v1/moments`:
-  - photo/video: multipart `kid_id, file, title?, description?, device_asset_id?, exif_date?, latitude?, longitude?, camera_make?, camera_model?, orientation?`.
+  - photo/video: multipart `kid_id, file (required, also with moment_type=photo|video), title?, description?, device_asset_id?, exif_date?, latitude?, longitude?, camera_make?, camera_model?, orientation?`.
   - story: JSON `kid_id, moment_type=story, title?, description (required)`. Title is stored.
   - milestone: JSON `kid_id, moment_type=milestone, milestone_id, title?, description?, exif_date?`. Title and date are stored.
   - growth: JSON `kid_id, moment_type=growth, exif_date (measured on), height_cm?, weight_kg?, head_circumference_cm?, description?`. At least one measurement is required.
@@ -140,7 +140,7 @@ Response: `{ changes: { kids: {created, updated, deleted}, moments: {created, up
 - The server returns rows with `updated_at >= lastPulledAt - 1000` (database times have second precision). The client must therefore **upsert** every row in `created` and `updated` (insert when missing, otherwise update all fields). Rows may come again.
 - `deleted`: ids of kids and moments soft-deleted since `lastPulledAt - 1000`, including the moments of deleted kids.
 - Kid row: `{ id, user_id, name, date_of_birth, due_date, avatar_color, created_at, updated_at }` (times in ms, dates as ms at UTC midnight, or null).
-- Moment row: `{ id, kid_id, user_id, uploader_name, moment_type, title, description, milestone_id, exif_date, latitude, longitude, orientation, duration, video_status, height_cm, weight_kg, head_circumference_cm, likes_count, comments_count, is_liked, file_size, mime_type, device_asset_id, created_at, updated_at }` plus the existing file fields. `is_liked` is for the caller.
+- Moment row: `{ id, kid_id, user_id, uploader_name, moment_type, title, description, milestone_id, exif_date, latitude, longitude, orientation, duration, video_status, height_cm, weight_kg, head_circumference_cm, likes_count, comments_count, is_liked, file_size, mime_type, device_asset_id, created_at, updated_at }`. No file fields. `is_liked` is for the caller.
 
 `POST /v1/sync/push` request: `{ changes: { kids: {created, updated, deleted}, moments: {created, updated, deleted} }, lastPulledAt }`.
 - Kid fields: `id, name, date_of_birth (ms|null), due_date (ms|null), avatar_color`. The server keeps the client `id`.
@@ -149,6 +149,8 @@ Response: `{ changes: { kids: {created, updated, deleted}, moments: {created, up
 - Every change goes through the same permission rules as REST.
 
 Response: `{ success: true, data: { kids_created: [{ local_id, id }], moments_created: [{ local_id, id }], rejected: [{ table, id, reason }] } }`. `local_id` equals `id`, because the server keeps client ids.
+- `reason`: `forbidden`, `invalid` (fails validation), `deleted` (the row is deleted on the server), `conflict` or `error` (server failure; the change may be sent again).
+- `conflict`: a row in `updated` whose server copy was edited by another member after `lastPulledAt` is not applied. Likes, comments and the pushing member's own edits do not count. The next pull sends the server copy. With `lastPulledAt` `null` or `0` there is no conflict check.
 
 ## 10. Reverse proxy
 
@@ -156,4 +158,4 @@ The API trusts `X-Forwarded-Proto`, `X-Forwarded-Host`, `X-Forwarded-Port` and `
 
 ## 11. Health
 
-`GET /health` (public, no envelope): `{ status, timestamp, service }`. `GET /health/detailed` (auth).
+`GET /health` (public, no envelope): `{ status, timestamp, service }`. `GET /health/detailed` (admin only).
