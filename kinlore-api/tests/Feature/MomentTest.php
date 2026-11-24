@@ -11,6 +11,7 @@ use App\Models\Moment;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -403,6 +404,70 @@ class MomentTest extends TestCase
 
         Sanctum::actingAs(User::factory()->family()->create());
         $this->get("/api/v1/moments/{$moment->id}/file/original")->assertOk();
+    }
+
+    public function test_gif_and_webp_photos_and_m4v_videos_are_accepted(): void
+    {
+        Queue::fake();
+        $kid = Kid::factory()->create();
+        Sanctum::actingAs(User::factory()->create());
+
+        // UploadedFile::fake()->image() draws a real image with GD
+        foreach (['photo.gif', 'photo.webp'] as $name) {
+            $media = $this->postJson('/api/v1/moments', ['kid_id' => $kid->id, 'file' => UploadedFile::fake()->image($name, 40, 30)])
+                ->assertStatus(201)->assertJsonPath('data.moment.moment_type', 'photo')->json('data.media');
+            $this->assertNotFalse(imagecreatefromstring(Storage::disk('seaweedfs')->get(Media::find($media['id'])->getRawThumbnailUrl())));
+        }
+
+        $this->post('/api/v1/moments', ['kid_id' => $kid->id, 'file' => UploadedFile::fake()->create('clip.m4v', 10, 'video/x-m4v')], ['Accept' => 'application/json'])
+            ->assertStatus(201)->assertJsonPath('data.moment.moment_type', 'video');
+    }
+
+    public function test_failed_video_is_left_out_of_uploaded_identifiers(): void
+    {
+        $kid = Kid::factory()->create();
+        Moment::factory()->create(['kid_id' => $kid->id, 'moment_type' => 'video', 'video_status' => 'failed', 'device_asset_id' => 'failed-1']);
+        Moment::factory()->create(['kid_id' => $kid->id, 'moment_type' => 'video', 'video_status' => 'ready', 'device_asset_id' => 'ready-1']);
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->getJson("/api/v1/kids/{$kid->id}/moments/uploaded-identifiers")
+            ->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.device_asset_id', 'ready-1');
+    }
+
+    public function test_a_new_upload_replaces_the_failed_video_of_the_same_asset(): void
+    {
+        Queue::fake();
+        $kid = Kid::factory()->create();
+        $failed = Moment::factory()->create(['kid_id' => $kid->id, 'moment_type' => 'video', 'video_status' => 'failed', 'device_asset_id' => 'asset-1']);
+        $other = Moment::factory()->create(['kid_id' => $kid->id, 'moment_type' => 'video', 'video_status' => 'failed', 'device_asset_id' => 'asset-2']);
+        Sanctum::actingAs(User::factory()->admin()->create());
+
+        $this->post('/api/v1/moments', [
+            'kid_id' => $kid->id, 'device_asset_id' => 'asset-1', 'file' => UploadedFile::fake()->create('clip.mp4', 10, 'video/mp4'),
+        ], ['Accept' => 'application/json'])->assertStatus(201);
+
+        $this->assertSoftDeleted('moments', ['id' => $failed->id]);
+        $this->assertNotSoftDeleted('moments', ['id' => $other->id]);
+        $this->assertSame(1, $kid->moments()->where('device_asset_id', 'asset-1')->count());
+    }
+
+    public function test_exif_date_with_an_offset_is_stored_in_utc(): void
+    {
+        $kid = Kid::factory()->create();
+        Sanctum::actingAs(User::factory()->create());
+
+        $id = $this->postJson('/api/v1/moments', [
+            'kid_id' => $kid->id, 'moment_type' => 'story', 'description' => 'Evening', 'exif_date' => '2025-11-24T20:00:00-05:00',
+        ])->assertStatus(201)->json('data.moment.id');
+        $this->assertDatabaseHas('moments', ['id' => $id, 'exif_date' => '2025-11-25 01:00:00']);
+
+        $photo = $this->postJson('/api/v1/moments', [
+            'kid_id' => $kid->id, 'file' => UploadedFile::fake()->image('photo.jpg', 40, 30), 'exif_date' => '2025-11-24T20:00:00-05:00',
+        ])->assertStatus(201)->json('data.moment.id');
+        $this->assertDatabaseHas('moments', ['id' => $photo, 'exif_date' => '2025-11-25 01:00:00']);
+
+        $this->putJson("/api/v1/moments/{$id}", ['exif_date' => '2025-11-24T08:00:00+02:00'])->assertOk();
+        $this->assertDatabaseHas('moments', ['id' => $id, 'exif_date' => '2025-11-24 06:00:00']);
     }
 
     public function test_a_missing_preview_is_not_found_not_a_bad_request(): void

@@ -18,7 +18,7 @@ class ResetPassword extends Command
 {
     public function handle(): int
     {
-        $user = User::where('email', $this->argument('email'))->first();
+        $user = User::where('email', strtolower(trim((string) $this->argument('email'))))->first();
         if (! $user) {
             $this->error('No user has this email address.');
 

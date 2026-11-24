@@ -1,0 +1,21 @@
+# Kinlore queue worker for exports and other jobs of the "default" queue.
+# kinlore-queue.service converts videos, so a long export does not hold up a conversion.
+# Copy to /etc/systemd/system/kinlore-queue-default.service, then:
+#   sudo systemctl daemon-reload && sudo systemctl enable --now kinlore-queue-default
+[Unit]
+Description=Kinlore queue worker (exports)
+After=network.target postgresql.service
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/srv/kinlore/kinlore-api
+ExecStart=/usr/bin/php artisan queue:work --queue=default --tries=3 --timeout=3600 --memory=512
+Restart=always
+RestartSec=5
+# Give a running export time to finish on stop
+TimeoutStopSec=3660
+KillSignal=SIGTERM
+
+[Install]
+WantedBy=multi-user.target

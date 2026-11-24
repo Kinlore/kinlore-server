@@ -40,14 +40,4 @@ class MomentPolicy
     {
         return $this->update($user, $moment);
     }
-
-    public function restore(User $user, Moment $moment): bool
-    {
-        return $this->update($user, $moment);
-    }
-
-    public function forceDelete(User $user, Moment $moment): bool
-    {
-        return $this->update($user, $moment);
-    }
 }

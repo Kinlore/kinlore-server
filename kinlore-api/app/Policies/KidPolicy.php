@@ -37,14 +37,4 @@ class KidPolicy
     {
         return $this->update($user, $kid);
     }
-
-    public function restore(User $user, Kid $kid): bool
-    {
-        return $this->update($user, $kid);
-    }
-
-    public function forceDelete(User $user, Kid $kid): bool
-    {
-        return $this->update($user, $kid);
-    }
 }

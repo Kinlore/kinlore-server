@@ -6,6 +6,7 @@ namespace Tests\Feature\Auth;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 class LoginTest extends TestCase
@@ -97,5 +98,26 @@ class LoginTest extends TestCase
 
         $response->assertStatus(200);
         $this->assertNotEmpty($response->json('data.token'));
+    }
+
+    public function test_an_unknown_email_still_checks_a_password_hash(): void
+    {
+        // Same work as for a known email, so the answer time does not show which emails exist.
+        Hash::shouldReceive('check')->once()->andReturnFalse();
+
+        $this->postJson('/api/auth/login', ['email' => 'nobody@kinlore.local', 'password' => 'password123'])
+            ->assertStatus(422)->assertJsonValidationErrors(['email']);
+    }
+
+    public function test_a_token_not_used_for_90_days_stops_working(): void
+    {
+        $user = User::factory()->create();
+        $token = fn (array $times): string => tap($user->createToken('phone'), fn ($t) => $t->accessToken->forceFill($times)->save())->plainTextToken;
+        $me = fn (string $plain) => $this->withToken($plain)->getJson('/api/auth/me');
+
+        // Invalid tokens first: the guard keeps a user it found for the rest of the test.
+        $me($token(['last_used_at' => now()->subDays(91)]))->assertUnauthorized();
+        $me($token(['last_used_at' => null, 'created_at' => now()->subDays(91)]))->assertUnauthorized();
+        $me($token(['last_used_at' => now()->subDays(89), 'created_at' => now()->subYear()]))->assertOk();
     }
 }

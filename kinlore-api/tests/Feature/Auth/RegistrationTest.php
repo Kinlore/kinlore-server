@@ -140,4 +140,17 @@ class RegistrationTest extends TestCase
         $this->assertNotEmpty($response->json('data.token'));
         $this->assertEquals('Bearer', $response->json('data.token_type'));
     }
+
+    public function test_without_a_valid_invitation_the_answer_does_not_show_whether_an_email_is_a_member(): void
+    {
+        User::factory()->create(['email' => 'member@kinlore.local']);
+
+        $this->postJson('/api/auth/register', [
+            'name' => 'Stranger',
+            'email' => 'member@kinlore.local',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'invite_token' => 'not-an-invitation',
+        ])->assertStatus(422)->assertJsonValidationErrors(['invite_token'])->assertJsonMissingValidationErrors(['email']);
+    }
 }

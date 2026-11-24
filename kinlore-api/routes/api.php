@@ -40,11 +40,11 @@ Route::get('/health/detailed', [HealthController::class, 'detailed'])
 Route::prefix('auth')->group(function () {
     Route::get('/setup-status', [AuthController::class, 'setupStatus']);
     Route::get('/invitations/{token}', [AuthController::class, 'checkInvitation'])
-        ->middleware('throttle:10,1');
+        ->middleware('throttle:invitation-check');
     Route::post('/register', [AuthController::class, 'register'])
-        ->middleware('throttle:10,1');
+        ->middleware('throttle:register');
     Route::post('/login', [AuthController::class, 'login'])
-        ->middleware('throttle:5,1'); // 5 attempts per minute
+        ->middleware('throttle:login'); // 5 attempts per minute
 
     // Protected auth routes
     Route::middleware('auth:sanctum')->group(function () {

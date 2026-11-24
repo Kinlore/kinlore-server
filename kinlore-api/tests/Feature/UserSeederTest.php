@@ -39,4 +39,13 @@ class UserSeederTest extends TestCase
 
         $this->assertDatabaseMissing('users', ['email' => 'seed@example.com']);
     }
+
+    public function test_seeded_email_is_stored_lowercase_so_sign_in_and_password_reset_find_it(): void
+    {
+        putenv('SEED_USER_EMAIL= Anna@Example.com ');
+        $this->seed(UserSeeder::class);
+
+        $this->postJson('/api/auth/login', ['email' => 'Anna@Example.com', 'password' => 'secret-password'])->assertOk();
+        $this->artisan('kinlore:reset-password', ['email' => ' ANNA@example.com', '--password' => 'new-password-1'])->assertSuccessful();
+    }
 }

@@ -217,52 +217,37 @@ class Media extends Model
         return $this->attributes['hls_url'] ?? null;
     }
 
-    public function deleteWithFiles(): bool
+    // Every file of a media sits in the directory of its original. A failed video job never saved
+    // the paths of the files it had uploaded, so the whole directory goes, not only the stored paths.
+    public function deleteFiles(): bool
     {
-        try {
-            $filesToDelete = array_filter([
-                $this->getRawFilePath(),
-                $this->getRawThumbnailUrl(),
-                $this->getRawMediumUrl(),
-            ]);
+        $dir = dirname($this->getRawFilePath());
 
-            // A video's HLS stream is a directory of segments
-            if ($this->isVideo() && $this->getRawHlsUrl()) {
-                Storage::disk('seaweedfs')->deleteDirectory(dirname($this->getRawHlsUrl()));
-            }
+        // Only a directory of the form media/{kid}/{media}, never one shared with other media
+        if (! preg_match('#^media/[^/]+/[^/]+$#', $dir)) {
+            Log::warning('Media files not deleted: unexpected path', ['media_id' => $this->id, 'path' => $this->getRawFilePath()]);
 
-            if (! empty($filesToDelete)) {
-                Storage::disk('seaweedfs')->delete($filesToDelete);
-            }
-        } catch (\Exception $e) {
-            Log::error('Failed to delete media files: '.$e->getMessage());
+            return false;
         }
 
-        return $this->delete();
+        try {
+            $deleted = Storage::disk('seaweedfs')->deleteDirectory($dir);
+        } catch (\Exception $e) {
+            Log::error('Failed to delete media files: '.$e->getMessage());
+            $deleted = false;
+        }
+
+        if (! $deleted) {
+            Log::warning('Cannot delete media files', ['media_id' => $this->id, 'directory' => $dir]);
+        }
+
+        return $deleted;
     }
 
     #[\Override]
     protected static function booted(): void
     {
-        static::forceDeleted(function (Media $media): void {
-            try {
-                $filesToDelete = array_filter([
-                    $media->attributes['file_path'] ?? null,
-                    $media->attributes['thumbnail_url'] ?? null,
-                    $media->attributes['medium_url'] ?? null,
-                ]);
-
-                if ($media->type === self::TYPE_VIDEO && ! empty($media->attributes['hls_url'])) {
-                    Storage::disk('seaweedfs')->deleteDirectory(dirname($media->attributes['hls_url']));
-                }
-
-                if (! empty($filesToDelete)) {
-                    Storage::disk('seaweedfs')->delete($filesToDelete);
-                }
-            } catch (\Exception $e) {
-                Log::error('Failed to delete media files: '.$e->getMessage());
-            }
-        });
+        static::forceDeleted(fn (Media $media) => $media->deleteFiles());
     }
 
     #[\Override]

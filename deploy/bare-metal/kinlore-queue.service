@@ -1,15 +1,15 @@
-# Kinlore queue worker: converts videos and builds exports.
+# Kinlore queue worker: converts videos. kinlore-queue-default.service builds exports.
 # Copy to /etc/systemd/system/kinlore-queue.service, then:
 #   sudo systemctl daemon-reload && sudo systemctl enable --now kinlore-queue
 [Unit]
-Description=Kinlore queue worker (videos, exports)
+Description=Kinlore queue worker (videos)
 After=network.target postgresql.service
 
 [Service]
 User=www-data
 Group=www-data
 WorkingDirectory=/srv/kinlore/kinlore-api
-ExecStart=/usr/bin/php artisan queue:work --queue=video-processing,default --tries=3 --timeout=3600 --memory=512
+ExecStart=/usr/bin/php artisan queue:work --queue=video-processing --tries=3 --timeout=1800 --memory=512
 Restart=always
 RestartSec=5
 # Give a running video conversion time to finish on stop

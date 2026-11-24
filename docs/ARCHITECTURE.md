@@ -10,7 +10,7 @@ One Kinlore deployment holds one family. It has these parts:
 |---|---|---|
 | Web server | Caddy, inside the API container | Caddy or nginx on the host |
 | Application | Laravel 13 on PHP-FPM (PHP 8.5) | the same |
-| Queue worker | inside the API container, started by supervisord | a `systemd` service (`kinlore-queue`) |
+| Queue workers | two inside the API container, started by supervisord: one for videos, one for exports | two `systemd` services (`kinlore-queue` for videos, `kinlore-queue-default` for exports) |
 | Database | PostgreSQL 18 | SQLite (default) or PostgreSQL |
 | Media storage | SeaweedFS, through its S3 API | the local disk (default) or any S3 storage |
 | Cache and rate limits | Redis | the database |

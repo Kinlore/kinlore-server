@@ -8,6 +8,7 @@ use App\Enums\Role;
 use App\Models\User;
 use App\Services\AuthService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
@@ -29,6 +30,24 @@ class WebSetupTest extends TestCase
     {
         parent::setUp();
         config(['app.setup_token' => null]);
+        app(AuthService::class)->forgetSetupToken();
+    }
+
+    protected function tearDown(): void
+    {
+        app(AuthService::class)->forgetSetupToken();
+        parent::tearDown();
+    }
+
+    /** The form with the token the server generated. */
+    private function form(): array
+    {
+        return ['setup_token' => app(AuthService::class)->setupToken()] + self::FORM;
+    }
+
+    private function tokenFile(): string
+    {
+        return storage_path(AuthService::SETUP_TOKEN_FILE);
     }
 
     public function test_home_redirects_to_setup_on_an_empty_instance_and_shows_status_otherwise(): void
@@ -48,9 +67,9 @@ class WebSetupTest extends TestCase
 
     public function test_setup_form_creates_exactly_one_admin(): void
     {
-        $this->get('/setup')->assertOk()->assertSee('name="password_confirmation"', false)->assertDontSee('name="setup_token"', false);
+        $this->get('/setup')->assertOk()->assertSee('name="password_confirmation"', false)->assertSee('name="setup_token"', false);
 
-        $this->post('/setup', self::FORM)->assertOk()->assertSee('Your admin account is ready');
+        $this->post('/setup', $this->form())->assertOk()->assertSee('Your admin account is ready');
 
         $this->assertDatabaseCount('users', 1);
         $this->assertSame(Role::Admin, User::first()->role);
@@ -59,9 +78,10 @@ class WebSetupTest extends TestCase
 
     public function test_second_setup_is_refused_and_creates_no_user(): void
     {
-        $this->post('/setup', self::FORM)->assertOk();
+        $form = $this->form();
+        $this->post('/setup', $form)->assertOk();
 
-        $this->post('/setup', ['email' => 'intruder@example.test'] + self::FORM)->assertRedirect('/');
+        $this->post('/setup', ['email' => 'intruder@example.test'] + $form)->assertRedirect('/');
         $this->assertDatabaseCount('users', 1);
         $this->assertDatabaseMissing('users', ['email' => 'intruder@example.test']);
     }
@@ -72,7 +92,7 @@ class WebSetupTest extends TestCase
 
         $this->expectException(ValidationException::class);
         try {
-            app(AuthService::class)->createFirstAdmin(self::FORM);
+            app(AuthService::class)->createFirstAdmin($this->form());
         } finally {
             $this->assertDatabaseCount('users', 1);
         }
@@ -89,6 +109,65 @@ class WebSetupTest extends TestCase
 
         $this->post('/setup', ['setup_token' => 'the-secret'] + self::FORM)->assertOk()->assertSee('Your admin account is ready');
         $this->assertDatabaseCount('users', 1);
+        $this->assertFileDoesNotExist($this->tokenFile());
+    }
+
+    public function test_without_setup_token_setting_no_address_can_set_up_without_the_generated_token(): void
+    {
+        foreach (['127.0.0.1', '::1', '172.18.0.1', '192.168.1.20', '203.0.113.9'] as $address) {
+            $client = $this->withServerVariables(['REMOTE_ADDR' => $address]);
+            $client->get('/setup')->assertOk()->assertSee('name="setup_token"', false);
+            $client->from('/setup')->post('/setup', self::FORM)->assertRedirect('/setup')->assertSessionHasErrors('setup_token');
+            $client->from('/setup')->post('/setup', ['setup_token' => 'wrong'] + self::FORM)->assertRedirect('/setup')->assertSessionHasErrors('setup_token');
+        }
+        $this->assertDatabaseCount('users', 0);
+
+        $token = app(AuthService::class)->setupToken();
+        $this->assertGreaterThanOrEqual(32, strlen($token));
+        $this->assertSame($token, app(AuthService::class)->setupToken(), 'the token stays the same until setup');
+        $this->assertSame($token, trim((string) file_get_contents($this->tokenFile())));
+
+        $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.9'])->post('/setup', ['setup_token' => $token] + self::FORM)->assertOk();
+        $this->assertDatabaseCount('users', 1);
+        $this->assertFileDoesNotExist($this->tokenFile());
+    }
+
+    public function test_setup_status_and_responses_never_contain_the_token(): void
+    {
+        $token = app(AuthService::class)->setupToken();
+
+        $this->getJson('/api/auth/setup-status')->assertOk()->assertJsonPath('data.setup_token_required', true)->assertDontSee($token);
+        $this->get('/setup')->assertOk()->assertDontSee($token);
+        $this->post('/setup', ['setup_token' => 'wrong'] + self::FORM)->assertDontSee($token);
+    }
+
+    public function test_command_prints_the_token_the_form_accepts(): void
+    {
+        Artisan::call('kinlore:setup-token');
+        $this->assertSame(1, preg_match('/^Setup token: (\S{32,})$/m', Artisan::output(), $match));
+        $this->assertFileExists($this->tokenFile());
+
+        Artisan::call('kinlore:setup-token');
+        $this->assertStringContainsString('Setup token: '.$match[1], Artisan::output(), 'a second run prints the same token');
+
+        $this->post('/setup', ['setup_token' => $match[1]] + self::FORM)->assertOk();
+        $this->assertFileDoesNotExist($this->tokenFile());
+
+        Artisan::call('kinlore:setup-token');
+        $this->assertStringContainsString('already set up', Artisan::output());
+        $this->assertStringNotContainsString($match[1], Artisan::output());
+        $this->assertFileDoesNotExist($this->tokenFile());
+    }
+
+    public function test_command_with_setup_token_setting_makes_no_file_and_does_not_print_the_value(): void
+    {
+        config(['app.setup_token' => 'the-secret']);
+
+        Artisan::call('kinlore:setup-token');
+        $this->assertStringContainsString('SETUP_TOKEN', Artisan::output());
+        $this->assertStringNotContainsString('the-secret', Artisan::output());
+        $this->assertSame('the-secret', app(AuthService::class)->setupToken());
+        $this->assertFileDoesNotExist($this->tokenFile());
     }
 
     public function test_validation_errors_are_shown_on_the_form(): void
@@ -111,11 +190,11 @@ class WebSetupTest extends TestCase
     {
         $this->app['env'] = 'production'; // the CSRF middleware skips checks while running unit tests
 
-        $this->post('/setup', self::FORM)->assertStatus(419);
+        $this->post('/setup', $this->form())->assertStatus(419);
         $this->assertDatabaseCount('users', 0);
 
         $this->withSession(['_token' => 'known-token'])
-            ->post('/setup', ['_token' => 'known-token'] + self::FORM)
+            ->post('/setup', ['_token' => 'known-token'] + $this->form())
             ->assertOk();
         $this->assertDatabaseCount('users', 1);
     }
@@ -142,7 +221,7 @@ class WebSetupTest extends TestCase
     {
         config(['app.url' => 'https://kin.example.test']);
 
-        $this->post('/setup', self::FORM)->assertOk()
+        $this->post('/setup', $this->form())->assertOk()
             ->assertSee('https://kin.example.test')
             ->assertSee('owner@example.test')
             ->assertDontSee('correct horse 42');
@@ -154,7 +233,7 @@ class WebSetupTest extends TestCase
             $this->post('/setup', ['email' => 'bad'] + self::FORM)->assertRedirect();
         }
 
-        $this->post('/setup', self::FORM)->assertStatus(429);
+        $this->post('/setup', $this->form())->assertStatus(429);
         $this->assertDatabaseCount('users', 0);
     }
 }

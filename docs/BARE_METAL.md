@@ -1,12 +1,12 @@
 # Kinlore on a host without Docker
 
-This guide installs the full Kinlore server directly on a Linux machine: PHP, the database, the web server with HTTPS, and the worker that converts videos. For Docker, see [SELF_HOSTING.md](SELF_HOSTING.md).
+This guide installs the full Kinlore server directly on a Linux machine: PHP, the database, the web server with HTTPS, and the workers that convert videos and build exports. For Docker, see [SELF_HOSTING.md](SELF_HOSTING.md).
 
 The commands of this guide are run by `scripts/test-bare-metal.sh` on a clean Debian 13, with both web servers, on each change of the code. "Test this guide" at the end lists what the script covers and what it cannot.
 
 - **System:** Debian 13 or Ubuntu 24.04 or later. The commands need `sudo`.
 - **Versions:** PHP 8.5 and Laravel 13. PostgreSQL is optional; any supported version from 15 works, and SQLite needs no server.
-- **What you get:** the code in `/srv/kinlore`, the data in `/var/lib/kinlore`, PHP-FPM as user `www-data`, Caddy or nginx in front, a `systemd` service for the worker.
+- **What you get:** the code in `/srv/kinlore`, the data in `/var/lib/kinlore`, PHP-FPM as user `www-data`, Caddy or nginx in front, two `systemd` services for the workers.
 - **Ready-made files:** all configuration files are in [`deploy/bare-metal/`](../deploy/bare-metal).
 
 | File | Goes to | Purpose |
@@ -16,7 +16,8 @@ The commands of this guide are run by `scripts/test-bare-metal.sh` on a clean De
 | `php-fpm-kinlore.conf` | `/etc/php/8.5/fpm/pool.d/zz-kinlore.conf` | 20 PHP workers, so long uploads do not block the API |
 | `Caddyfile` | `/etc/caddy/Caddyfile` | Web server with automatic HTTPS (recommended) |
 | `nginx.conf` | `/etc/nginx/sites-available/kinlore` | Web server, if you prefer nginx |
-| `kinlore-queue.service` | `/etc/systemd/system/` | Worker for videos and exports |
+| `kinlore-queue.service` | `/etc/systemd/system/` | Worker for videos |
+| `kinlore-queue-default.service` | `/etc/systemd/system/` | Worker for exports |
 | `kinlore-backup.sh` | anywhere, for example `/usr/local/bin/` | Backup of database, media and settings |
 
 ## 1. Install the packages
@@ -90,6 +91,10 @@ sudo systemctl restart php8.5-fpm
 
 One photo or video can be up to 512 MB. The memory limit is 1 GB, because PHP decodes a large photo in memory to make its previews. Videos are copied as streams and do not need it. The pool file gives PHP-FPM 20 workers, because each upload holds one worker until it ends.
 
+**Small servers (1 to 2 GB of memory).** 20 workers with 1 GB each can use more memory than the machine has. The symptom: during a large photo upload, the kernel stops a process (`dmesg` shows "Out of memory: Killed process"), and the upload fails with "502". Do one or both:
+- Lower `pm.max_children` in `/etc/php/8.5/fpm/pool.d/zz-kinlore.conf`, for example to `4`, then run `sudo systemctl restart php8.5-fpm`. Fewer uploads can then run at the same time.
+- Add swap: `sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile`, and add the line `/swapfile none swap sw 0 0` to `/etc/fstab` so it stays after a restart.
+
 ## 5. Create the database
 
 ```sh
@@ -136,24 +141,24 @@ sudo ufw allow 80,443/tcp
 sudo ufw allow 443/udp      # HTTP/3, Caddy only
 ```
 
-## 7. Worker for videos and exports
+## 7. Workers for videos and exports
 
-Videos are converted for streaming in the background, and exports are built there too.
+Videos are converted for streaming in the background, and exports are built there too. Two workers do this: `kinlore-queue` converts videos, and `kinlore-queue-default` builds exports. An export can take up to an hour; with its own worker, it does not hold up new videos.
 
 ```sh
-sudo cp ../deploy/bare-metal/kinlore-queue.service /etc/systemd/system/
+sudo cp ../deploy/bare-metal/kinlore-queue.service ../deploy/bare-metal/kinlore-queue-default.service /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable --now kinlore-queue
-systemctl status kinlore-queue --no-pager
+sudo systemctl enable --now kinlore-queue kinlore-queue-default
+systemctl status kinlore-queue kinlore-queue-default --no-pager
 ```
 
-One worker is enough for a family. If you run more, keep `DB_QUEUE_RETRY_AFTER` (default 3700 seconds) longer than the longest job.
+Two workers are enough for a family. If you run more, keep `DB_QUEUE_RETRY_AFTER` (default 3700 seconds) longer than the longest job.
 
 ## 8. Create the admin account
 
 Open your address (`APP_URL`) in a web browser. An empty server sends you to `/setup`. Enter your name, email and password, and a family name if you want one (the default is your name and "Family"). The app never creates the admin.
 
-- **Setup token:** when the server is reachable from the internet before you finish this step, set `SETUP_TOKEN` in `.env` to a long random value first (then run `php artisan config:cache` again). The setup page asks for it.
+- **Setup token:** the setup page asks for it. Print it with `sudo -u www-data php artisan kinlore:setup-token` in `kinlore-api`. The server makes it on the first run and deletes it when the admin account exists. If `SETUP_TOKEN` is set in `.env`, its value is the token.
 - **Without a browser:** add `SEED_USER_NAME`, `SEED_USER_EMAIL` and `SEED_USER_PASSWORD` to `.env` before step 5. The seeder then creates the admin. Remove the three lines afterwards.
 
 Then install the app, enter the server address, and sign in. Invite the family from Settings → Members.
@@ -167,7 +172,7 @@ curl -fsS https://photos.example.com/api/health              # {"status":"ok",..
 curl -fsS https://photos.example.com/api/auth/setup-status   # needs_setup is false after step 8
 curl -s -o /dev/null -w '%{http_code}\n' https://photos.example.com/.env   # must be 404
 sudo -u www-data php artisan about --only=environment        # Environment: production, Debug Mode: OFF
-systemctl is-active php8.5-fpm kinlore-queue caddy           # or nginx
+systemctl is-active php8.5-fpm kinlore-queue kinlore-queue-default caddy   # or nginx
 ```
 
 Full end-to-end test. It signs in as the admin and tries every feature: children, uploads, video conversion and playback, likes and comments, members and permissions, sync, look-back and export. **It creates test data** (children named "Smoke Mia", "Bump" and "Offline kid", and a test member), so run it before the family starts, or delete that data afterwards in the app.
@@ -187,11 +192,21 @@ cd kinlore-api
 sudo composer install --no-dev --optimize-autoloader --no-interaction
 sudo -u www-data php artisan migrate --force
 sudo -u www-data php artisan config:cache && sudo -u www-data php artisan route:cache && sudo -u www-data php artisan view:cache
-sudo systemctl restart kinlore-queue
+sudo systemctl restart kinlore-queue kinlore-queue-default
 sudo systemctl reload php8.5-fpm
 ```
 
 Make a backup first. Read the "Upgrade notes" of each release in [CHANGELOG.md](../CHANGELOG.md) before you update.
+
+**After 1.1.0: two workers.** Videos and exports now have a worker each. Once, after `git pull`, copy both unit files of step 7 and enable the new one. Then run the other lines of the steps above; `systemctl restart` starts the new worker too.
+
+```sh
+sudo cp /srv/kinlore/deploy/bare-metal/kinlore-queue.service /srv/kinlore/deploy/bare-metal/kinlore-queue-default.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable kinlore-queue-default
+```
+
+Until you do this, the old `kinlore-queue.service` keeps working for both videos and exports.
 
 **From 1.0.0 to 1.1.0.** This update has extra steps. Run the first line of the steps above (`git pull`). Then install the HEIC decoder and copy the PHP files of step 4 again (`php-kinlore.ini` changed, `php-fpm-kinlore.conf` is new):
 
@@ -224,19 +239,46 @@ The script makes a consistent copy of the SQLite database while the server runs,
 30 3 * * * /srv/kinlore/deploy/bare-metal/kinlore-backup.sh /mnt/backup/kinlore
 ```
 
-With PostgreSQL, replace the database line by `pg_dump -U kinlore kinlore > "$DEST/database.sql"`.
+The backup folder then holds:
 
-**Restore** on a fresh install (steps 1 to 4 done):
+| Path | Content |
+|---|---|
+| `database.sqlite`, `media/`, `env` | The state of the last run |
+| `old/<date>/` | What the run of that date replaced or removed: the previous `database.sqlite` and `env`, and each media file that was changed or deleted since the run before. The script removes `old/` folders older than 30 days. |
+
+So a photo deleted by mistake stays in the backup for 30 days, and so does each daily database copy. Plan disk space for 30 copies of the database. If you run the script more than once a day, the last run of a day replaces that day's `old/` copies.
+
+Restore one deleted photo or video. List what the runs replaced or removed, newest dates last. Each media file is in a folder `media/<child id>/<media id>/`. Then copy one folder back, with its path (replace the date, `KID_ID` and `MEDIA_ID` with names from the list):
 
 ```sh
-sudo systemctl stop kinlore-queue php8.5-fpm
+sudo find /mnt/backup/kinlore/old -type f -path '*/media/*' | sort
+cd /mnt/backup/kinlore/old/2026-11-20/media
+sudo cp -a --parents media/KID_ID/MEDIA_ID /var/lib/kinlore/media/
+sudo chown -R www-data:www-data /var/lib/kinlore/media
+```
+
+A file comes back only if the database still knows it. To go back to the database of an older date, use the full restore below with `old/<date>/database.sqlite` in place of `database.sqlite`.
+
+With PostgreSQL, replace the three lines with `database.sqlite` by these lines:
+
+```sh
+pg_dump -U kinlore kinlore > "$DEST/database.sql.tmp"
+[ -f "$DEST/database.sql" ] && mv "$DEST/database.sql" "$OLD/database.sql"
+mv "$DEST/database.sql.tmp" "$DEST/database.sql"
+```
+
+**Restore** on a fresh install (steps 1 to 4 done). The database runs in WAL mode, so remove the files `database.sqlite-wal` and `database.sqlite-shm` before you copy the backup in; they belong to the old database.
+
+```sh
+sudo systemctl stop kinlore-queue kinlore-queue-default php8.5-fpm
+sudo rm -f /var/lib/kinlore/database.sqlite-wal /var/lib/kinlore/database.sqlite-shm
 sudo cp /mnt/backup/kinlore/database.sqlite /var/lib/kinlore/database.sqlite
 sudo rsync -a /mnt/backup/kinlore/media/ /var/lib/kinlore/media/
 sudo cp /mnt/backup/kinlore/env /srv/kinlore/kinlore-api/.env
 sudo chown -R www-data:www-data /var/lib/kinlore
 sudo chown root:www-data /srv/kinlore/kinlore-api/.env
 cd /srv/kinlore/kinlore-api && sudo -u www-data php artisan migrate --force && sudo -u www-data php artisan config:cache
-sudo systemctl start php8.5-fpm kinlore-queue
+sudo systemctl start php8.5-fpm kinlore-queue kinlore-queue-default
 ```
 
 A video that was being converted at the moment of the backup stays at "processing" for about an hour after a restore and then shows as failed. Delete it in the app and upload it again; the original file is not lost.
@@ -250,7 +292,7 @@ Run them in `/srv/kinlore/kinlore-api`.
 | Task | Command |
 |---|---|
 | Someone forgot a password | `sudo -u www-data php artisan kinlore:reset-password ann@example.com` |
-| See the worker's log | `journalctl -u kinlore-queue -n 50` |
+| See the workers' logs | `journalctl -u kinlore-queue -u kinlore-queue-default -n 50` |
 | See the server's log | `sudo tail -n 50 storage/logs/laravel-$(date +%F).log` |
 | See failed video or export jobs | `sudo -u www-data php artisan queue:failed` |
 | Try failed jobs again | `sudo -u www-data php artisan queue:retry all` |
@@ -264,7 +306,7 @@ Run them in `/srv/kinlore/kinlore-api`.
 | A page shows "500" | Read the server's log (table above). Often `storage` or `/var/lib/kinlore` is not owned by `www-data`. |
 | A changed setting has no effect | Run `sudo -u www-data php artisan config:cache`. |
 | A large upload fails with "413" or "POST data is too large" | Step 4 is missing, or PHP-FPM was not restarted. The limit is 512 MB per file. |
-| A video stays at "processing" | The worker is not running: `systemctl status kinlore-queue`. FFmpeg must be at `/usr/bin/ffmpeg`. |
+| A video stays at "processing" | The video worker is not running: `systemctl status kinlore-queue`. FFmpeg must be at `/usr/bin/ffmpeg`. |
 | Videos do not play on an iPhone, or links start with `http://` | `APP_URL` must be the public `https://` address. Run `config:cache` after the change. |
 | Caddy gets no certificate | The host name does not point at this machine, or port 80 or 443 is closed. Read `journalctl -u caddy -n 50`. |
 
@@ -280,7 +322,7 @@ scripts/test-bare-metal.sh
 
 The script needs only Docker. It starts a clean Debian 13 container and follows this guide there, with Caddy on port 80 and nginx on port 8081. The GitHub workflow runs it on every push.
 
-- **Covered:** the packages, the install and settings, the PHP limits, the database, both web server files, the worker (started with the exact command and folder from `kinlore-queue.service`), the quick checks, the backup script, a restore from that backup, the update commands, the password reset, and the storage and failed-job commands. It also uploads and downloads a 300 MB video through each web server and runs the end-to-end test against each.
-- **Not covered:** a container has no `systemd`, no public host name and no firewall. So the script does not run the `systemctl`, `certbot`, `ufw`, `cron` and `git` commands, and it does not get a real HTTPS certificate. It starts PHP-FPM, the web servers and the worker by hand, uses `:80` as the site address, and copies the code in place of `git clone` and `git pull`.
+- **Covered:** the packages, the install and settings, the PHP limits, the database, both web server files, both workers (started with the exact commands and folder from `kinlore-queue.service` and `kinlore-queue-default.service`), the admin account on the setup page with the token of `kinlore:setup-token`, the quick checks, the backup script (three runs, including the `old/` folder for a deleted file), a restore from that backup onto an empty media folder, the update commands, the password reset, and the storage and failed-job commands. It also uploads and downloads a 300 MB video through each web server and runs the end-to-end test against each.
+- **Not covered:** a container has no `systemd`, no public host name and no firewall. So the script does not run the `systemctl`, `certbot`, `ufw`, `cron` and `git` commands, and it does not get a real HTTPS certificate. It starts and stops PHP-FPM, the web servers and the workers by hand, uses `:80` as the site address, and copies the code in place of `git clone` and `git pull`.
 
 Developers can also run the unit and feature tests of the API. They use an in-memory database and touch no data. The setup is in [CONTRIBUTING.md](../CONTRIBUTING.md).

@@ -44,7 +44,7 @@ class SetupAndInvitationTest extends TestCase
     {
         config(['app.name' => 'The Smiths', 'app.setup_token' => null]);
         $this->getJson('/api/auth/setup-status')->assertOk()->assertJson(['data' => [
-            'needs_setup' => true, 'setup_token_required' => false, 'instance_name' => 'The Smiths',
+            'needs_setup' => true, 'setup_token_required' => true, 'instance_name' => 'The Smiths',
             'setup_url' => url('/setup'),
         ]]);
 
@@ -87,8 +87,8 @@ class SetupAndInvitationTest extends TestCase
 
         $used = $this->invitation(['accepted_at' => now()]);
         $expired = $this->invitation(['expires_at' => now()->subMinute()]);
-        $this->getJson("/api/auth/invitations/{$used->token}")->assertStatus(404);
-        $this->getJson("/api/auth/invitations/{$expired->token}")->assertStatus(404);
+        $this->getJson("/api/auth/invitations/{$used->token}")->assertStatus(404)->assertDontSee('Smiths');
+        $this->getJson("/api/auth/invitations/{$expired->token}")->assertStatus(404)->assertDontSee('Smiths');
         $this->getJson('/api/auth/invitations/unknown')->assertStatus(404);
     }
 
@@ -179,5 +179,32 @@ class SetupAndInvitationTest extends TestCase
             ->assertJsonPath('data.user.id', $user->id)
             ->assertJsonPath('data.user.role', 'family')
             ->assertJsonPath('data.user.permissions.like', false);
+    }
+
+    public function test_setup_address_comes_from_app_url_and_not_from_the_host_header(): void
+    {
+        config(['app.url' => 'https://kin.example.test']);
+
+        $this->getJson('http://evil.example.test/api/auth/setup-status')->assertJsonPath('data.setup_url', 'https://kin.example.test/setup');
+        $this->postJson('http://evil.example.test/api/auth/register')->assertStatus(403)
+            ->assertJsonPath('message', 'Finish setup in a web browser at https://kin.example.test/setup');
+    }
+
+    public function test_each_public_route_has_its_own_rate_limit(): void
+    {
+        User::factory()->admin()->create();
+        $login = fn () => $this->postJson('/api/auth/login', ['email' => 'nobody@example.test', 'password' => 'wrong']);
+
+        foreach (range(1, 5) as $_) {
+            $this->getJson('/api/auth/invitations/unknown')->assertNotFound();
+        }
+        foreach (range(1, 5) as $_) {
+            $login()->assertStatus(422);
+        }
+        $login()->assertStatus(429);
+
+        $this->getJson('/api/auth/invitations/unknown')->assertNotFound();
+        $this->register()->assertStatus(422);
+        $this->get('/invite/unknown')->assertNotFound();
     }
 }

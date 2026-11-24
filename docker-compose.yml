@@ -1,12 +1,18 @@
+# Every container keeps at most 3 log files of 10 MB (docker compose logs)
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   # PostgreSQL Database
   postgres:
     image: postgres:18-alpine # newest patch of 18; a move to a new major version needs a dump and restore (docs/SELF_HOSTING.md)
     container_name: kinlore-postgres
     restart: unless-stopped
-    ports:
-      # Internal services listen on localhost only. Set BIND_ADDRESS=0.0.0.0 to reach them from other machines.
-      - "${BIND_ADDRESS:-127.0.0.1}:${DB_PORT:-5432}:5432"
+    logging: *default-logging
+    # No host port: only the API uses it. docs/SELF_HOSTING.md shows how to publish it.
     environment:
       POSTGRES_DB: ${DB_DATABASE:-kinlore_db}
       POSTGRES_USER: ${DB_USERNAME:-kinlore_user}
@@ -32,6 +38,7 @@ services:
     image: chrislusf/seaweedfs:4.55 # pinned: this holds all media; read the SeaweedFS release notes before you raise it
     container_name: kinlore-seaweedfs-master
     restart: unless-stopped
+    logging: *default-logging
     command: master -ip=seaweedfs-master -ip.bind=0.0.0.0 -metricsPort=9324
     volumes:
       - seaweedfs_master:/data
@@ -42,6 +49,7 @@ services:
     image: chrislusf/seaweedfs:4.55 # pinned: this holds all media; read the SeaweedFS release notes before you raise it
     container_name: kinlore-seaweedfs-volume
     restart: unless-stopped
+    logging: *default-logging
     command: volume -mserver="seaweedfs-master:9333" -ip.bind=0.0.0.0 -port=8080 -metricsPort=9325
     volumes:
       - seaweedfs_volume:/data
@@ -54,6 +62,7 @@ services:
     image: chrislusf/seaweedfs:4.55 # pinned: this holds all media; read the SeaweedFS release notes before you raise it
     container_name: kinlore-seaweedfs-filer
     restart: unless-stopped
+    logging: *default-logging
     # The S3 port is not published; docs/SELF_HOSTING.md shows how to reach it from the host
     environment:
       SEAWEEDFS_KEY: ${SEAWEEDFS_KEY:?Set SEAWEEDFS_KEY in the .env file next to docker-compose.yml}
@@ -86,6 +95,7 @@ services:
       dockerfile: Dockerfile
     container_name: kinlore-api
     restart: unless-stopped
+    logging: *default-logging
     # Matches stopwaitsecs in docker/supervisord.conf: a running video or export job may finish
     stop_grace_period: 1h
     ports:
@@ -106,6 +116,7 @@ services:
       APP_URL: ${APP_URL:-http://localhost}
       # Your public host name: Caddy in this container then gets a certificate and serves HTTPS. Empty: plain HTTP.
       KINLORE_DOMAIN: ${KINLORE_DOMAIN:-}
+      # Empty: the setup page asks for a generated token, printed in the log at start
       SETUP_TOKEN: ${SETUP_TOKEN:-}
       TRUSTED_PROXIES: ${TRUSTED_PROXIES:-127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
 
@@ -141,6 +152,8 @@ services:
 
       # Logging
       LOG_CHANNEL: ${LOG_CHANNEL:-stack}
+      # One file per day in storage/logs, kept 14 days (LOG_DAILY_DAYS)
+      LOG_STACK: ${LOG_STACK:-daily}
       LOG_LEVEL: ${LOG_LEVEL:-warning}
 
       # Initial User Seeding (only used on first run)
@@ -172,8 +185,8 @@ services:
     image: redis:8.10-alpine # pinned series; holds only cache and rate limits. Never pin lower than the version that wrote the data: an older Redis cannot read it
     container_name: kinlore-redis
     restart: unless-stopped
-    ports:
-      - "${BIND_ADDRESS:-127.0.0.1}:${REDIS_FORWARD_PORT:-6379}:6379"
+    logging: *default-logging
+    # No host port: only the API uses it. docs/SELF_HOSTING.md shows how to publish it.
     volumes:
       - redis_data:/data
     networks:

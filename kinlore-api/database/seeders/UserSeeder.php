@@ -14,7 +14,8 @@ class UserSeeder extends Seeder
     // The initial user comes from environment variables.
     public function run(): void
     {
-        $email = env('SEED_USER_EMAIL');
+        // Lowercase like the sign-in form, so the seeded admin can sign in.
+        $email = strtolower(trim((string) env('SEED_USER_EMAIL')));
         $password = env('SEED_USER_PASSWORD');
 
         if (empty($email) || empty($password)) {

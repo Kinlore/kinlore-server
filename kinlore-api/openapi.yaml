@@ -442,6 +442,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          description: The caller is no longer the admin (two transfers at once).
         '422':
           $ref: '#/components/responses/ValidationFailed'
     delete:
@@ -601,8 +603,8 @@ paths:
       operationId: setupPage
       summary: First-admin setup form (web)
       description: |
-        Public HTML form outside `/api`: name, email, password, password confirmation, and a
-        setup token field when the server has `SETUP_TOKEN` set. Redirects to `/` once the
+        Public HTML form outside `/api`: name, email, password, password confirmation, and the
+        setup token. Redirects to `/` once the
         instance has a user. Behind a trusted reverse proxy the form uses the public `https`
         address.
       security: []
@@ -631,7 +633,7 @@ paths:
           application/x-www-form-urlencoded:
             schema:
               type: object
-              required: [_token, name, email, password, password_confirmation]
+              required: [_token, name, email, password, password_confirmation, setup_token]
               properties:
                 _token:
                   type: string
@@ -649,7 +651,7 @@ paths:
                   type: string
                 setup_token:
                   type: string
-                  description: Required when `SETUP_TOKEN` is set.
+                  description: The value of `SETUP_TOKEN`, or without it the token from `php artisan kinlore:setup-token`.
       responses:
         '200':
           description: Admin created; done page
@@ -831,7 +833,7 @@ paths:
       tags: [Moments]
       operationId: momentUploadedIdentifiers
       summary: Device identifiers of uploaded photos and videos (duplicate detection)
-      description: Any signed-in user.
+      description: Any signed-in user. Videos whose `video_status` is `failed` are not listed, so the app uploads them again.
       parameters:
         - $ref: '#/components/parameters/KidId'
       responses:
@@ -919,6 +921,9 @@ paths:
         Needs permission `add_content`. Throttled to 60 requests per minute.
         `moments.user_id` is set to the caller.
         - photo/video: `multipart/form-data` with `file`. The type comes from the file.
+          Allowed: JPEG, PNG, GIF, WebP, HEIC/HEIF, MP4, MOV, M4V, AVI, MKV, WebM. The same
+          `device_asset_id` and file size as an existing moment of the kid returns that moment
+          with `200`. `500` when the file cannot be stored; nothing is kept.
           A video is stored and the response returns at once with `video_status=processing`;
           a queued job makes the HLS stream and sets `ready` or `failed`.
         - story, milestone, growth: JSON with `moment_type`.
@@ -1553,8 +1558,9 @@ paths:
         through the same permission rules as REST (kid create: `admin`/`partner`; moment
         create: `add_content`; update/delete: owner rules). A change that fails goes into
         `rejected`; the others still apply. The server keeps client ids. Reasons: `forbidden`,
-        `invalid` (fails validation), `deleted` (row is deleted on the server), `conflict` (an
-        `updated` row edited by another member after `lastPulledAt`; likes and comments do not count;
+        `invalid` (fails validation: an id that is not a UUID, an unknown `milestone_id`, a text over
+        its limit), `deleted` (row is deleted on the server), `conflict` (a `created` or `updated` row
+        edited by another member after `lastPulledAt`, or in the same second; likes and comments do not count;
         the next pull sends the server copy), `error` (server failure; the change may be sent again).
       requestBody:
         required: true
@@ -1962,7 +1968,7 @@ components:
           description: The web setup page, `{APP_URL}/setup` (the public https address behind a trusted proxy).
         setup_token_required:
           type: boolean
-          description: True only while `needs_setup` is true and `SETUP_TOKEN` is set.
+          description: Same as `needs_setup`. Setup always needs a setup token.
         instance_name:
           type: string
           description: The public name `APP_NAME`. Never the family name, because this endpoint needs no sign-in.

@@ -18,17 +18,21 @@ class FileStorageService
         private readonly string $disk = 'seaweedfs',
     ) {}
 
-    public function store(string $path, string $content, string $visibility = 'private'): bool
+    /** @param string|resource $content */
+    public function store(string $path, mixed $content, string $visibility = 'private'): void
     {
-        return Storage::disk($this->disk)->put($path, $content, $visibility);
+        // The disk has 'throw' => false, so a failed write only shows as false
+        if (! Storage::disk($this->disk)->put($path, $content, $visibility)) {
+            throw new \RuntimeException("Cannot store file: {$path}");
+        }
     }
 
-    public function storeFile(string $path, UploadedFile $file, string $visibility = 'private'): bool
+    public function storeFile(string $path, UploadedFile $file, string $visibility = 'private'): void
     {
         // A stream keeps a large video out of PHP memory
         $stream = fopen($file->getRealPath(), 'r');
         try {
-            return Storage::disk($this->disk)->put($path, $stream, $visibility);
+            $this->store($path, $stream, $visibility);
         } finally {
             if (is_resource($stream)) {
                 fclose($stream);

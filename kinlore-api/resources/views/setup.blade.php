@@ -9,10 +9,8 @@
         'family_name' => ['label' => 'Family name (optional)', 'type' => 'text', 'autocomplete' => 'off', 'optional' => true, 'hint' => 'Your family sees this name in the app and on invitations. Leave it empty to use your name, for example "Anna Example Family". You can change it later in the app.'],
         'password' => ['label' => 'Password', 'type' => 'password', 'autocomplete' => 'new-password', 'hint' => 'At least 8 characters.'],
         'password_confirmation' => ['label' => 'Repeat the password', 'type' => 'password', 'autocomplete' => 'new-password'],
+        'setup_token' => ['label' => 'Setup token', 'type' => 'password', 'autocomplete' => 'off', 'hint' => 'The server log shows it at start. You can also run "php artisan kinlore:setup-token" on the server. If you set SETUP_TOKEN in the server settings, enter that value.'],
     ];
-    if ($setupTokenRequired) {
-        $fields['setup_token'] = ['label' => 'Setup token', 'type' => 'password', 'autocomplete' => 'off', 'hint' => 'The value of SETUP_TOKEN in the server configuration.'];
-    }
 @endphp
 
 @section('content')

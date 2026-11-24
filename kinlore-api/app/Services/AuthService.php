@@ -13,10 +13,18 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use RuntimeException;
 
 class AuthService
 {
+    // Checked for an unknown email, so sign-in takes as long as for a known one. Cost 12 is the bcrypt default.
+    private const string DUMMY_PASSWORD_HASH = '$2y$12$ZID.CxNLq23g3BnC01olfeEVdvrTeMhPA3Nn8vc3sEho/vRHkXlKS';
+
+    // Under storage/, so the web server never serves it. Relative to storage_path().
+    public const string SETUP_TOKEN_FILE = 'app/setup-token';
+
     public function __construct(
         private readonly FamilyService $family,
     ) {}
@@ -32,10 +40,18 @@ class AuthService
 
         return [
             'needs_setup' => $needsSetup,
-            'setup_token_required' => $needsSetup && filled(config('app.setup_token')),
+            'setup_token_required' => $needsSetup,
             'instance_name' => config('app.name'),
-            'setup_url' => url('/setup'),
+            'setup_url' => $this->setupUrl(),
         ];
+    }
+
+    // From APP_URL when set: url() follows the request Host header, which any client chooses.
+    public function setupUrl(): string
+    {
+        $base = config('app.url');
+
+        return filled($base) ? rtrim($base, '/').'/setup' : url('/setup');
     }
 
     /**
@@ -51,12 +67,12 @@ class AuthService
      *
      * @param  array{name: string, email: string, password: string, family_name?: string|null, setup_token?: string|null}  $data
      *
-     * @throws ValidationException when SETUP_TOKEN is set and does not match, or the instance already has a user
+     * @throws ValidationException when the setup token does not match, or the instance already has a user
      */
     public function createFirstAdmin(#[\SensitiveParameter] array $data): User
     {
         // The lock serializes setups, so two parallel first sign-ups cannot both see an empty instance.
-        return Cache::lock('kinlore:register', 10)->block(5, fn () => DB::transaction(function () use ($data): User {
+        $admin = Cache::lock('kinlore:register', 10)->block(5, fn () => DB::transaction(function () use ($data): User {
             if (User::exists()) {
                 throw ValidationException::withMessages(['email' => ['This instance is already set up.']]);
             }
@@ -74,6 +90,43 @@ class AuthService
 
             return $user;
         }));
+        $this->forgetSetupToken();
+
+        return $admin;
+    }
+
+    /**
+     * The token the setup page asks for: SETUP_TOKEN when set, else a random one kept in a file until setup.
+     *
+     * @throws RuntimeException when the token file cannot be made or read
+     */
+    public function setupToken(): string
+    {
+        if (filled(config('app.setup_token'))) {
+            return (string) config('app.setup_token');
+        }
+
+        $path = storage_path(self::SETUP_TOKEN_FILE);
+        if (! is_file($path) && ($temp = tempnam(dirname($path), 'setup-token-')) !== false) {
+            file_put_contents($temp, Str::random(40));
+            // Owned like its folder, so PHP-FPM can read and delete it when root ran the command.
+            @chown($temp, (int) fileowner(dirname($path)));
+            // link() fails when the file exists, so parallel callers all end with the first token.
+            @link($temp, $path);
+            unlink($temp);
+        }
+
+        $token = trim((string) @file_get_contents($path));
+        if (strlen($token) < 32) {
+            throw new RuntimeException("Cannot read the setup token in {$path}.");
+        }
+
+        return $token;
+    }
+
+    public function forgetSetupToken(): void
+    {
+        @unlink(storage_path(self::SETUP_TOKEN_FILE));
     }
 
     /**
@@ -116,9 +169,7 @@ class AuthService
      */
     private function checkSetupToken(?string $given): void
     {
-        $expected = config('app.setup_token');
-
-        if (filled($expected) && ! hash_equals((string) $expected, (string) $given)) {
+        if (! hash_equals($this->setupToken(), (string) $given)) {
             throw ValidationException::withMessages([
                 'setup_token' => ['A valid setup token is required to set up this instance.'],
             ]);
@@ -140,6 +191,11 @@ class AuthService
             ]);
         }
 
+        // Only after the invitation check, so only an invited person learns that an email is taken.
+        if (User::where('email', $email)->exists()) {
+            throw ValidationException::withMessages(['email' => ['The email has already been taken.']]);
+        }
+
         return $invitation;
     }
 
@@ -151,8 +207,9 @@ class AuthService
     public function login(string $email, #[\SensitiveParameter] string $password): array
     {
         $user = User::where('email', $email)->first();
+        $valid = Hash::check($password, $user ? $user->password : self::DUMMY_PASSWORD_HASH);
 
-        if (! $user || ! Hash::check($password, $user->password)) {
+        if (! $user || ! $valid) {
             throw ValidationException::withMessages([
                 'email' => ['The provided credentials are incorrect.'],
             ]);

@@ -12,9 +12,17 @@ if [ -z "$(ls -A "$DATA/media" 2>/dev/null)" ] && [ -n "$(ls -A "$DEST/media" 2>
   echo "Error: $DATA/media is empty but $DEST/media is not. Is the media disk mounted?" >&2
   exit 1
 fi
-mkdir -p "$DEST/media"
-# .backup gives a consistent copy even while the server runs
-sqlite3 "$DATA/database.sqlite" ".backup '$DEST/database.sqlite'"
-rsync -a --delete "$DATA/media/" "$DEST/media/"
+OLD="$DEST/old/$(date +%F)"   # what this run deletes or overwrites goes here, kept 30 days
+mkdir -p "$DEST/media" "$OLD"
+# .backup gives a consistent copy even while the server runs (also in WAL mode).
+# Write to a temp file first: a failed run keeps the last good copy.
+sqlite3 "$DATA/database.sqlite" ".backup '$DEST/database.sqlite.tmp'"
+# Copy the old one aside, then replace it in one step: the main path always holds a full copy
+[ -f "$DEST/database.sqlite" ] && cp -p "$DEST/database.sqlite" "$OLD/database.sqlite"
+mv "$DEST/database.sqlite.tmp" "$DEST/database.sqlite"
+rsync -a --delete --backup --backup-dir="$OLD/media" "$DATA/media/" "$DEST/media/"
+[ -f "$DEST/env" ] && mv "$DEST/env" "$OLD/env"
 install -m 600 "$APP/.env" "$DEST/env"   # holds APP_KEY
+find "$DEST/old" -mindepth 1 -maxdepth 1 -type d -mtime +30 -exec rm -rf {} +
+rmdir "$OLD" 2>/dev/null || true   # nothing changed today
 echo "Backup written to $DEST at $(date -Is)"

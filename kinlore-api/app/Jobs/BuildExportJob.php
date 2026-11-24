@@ -127,7 +127,7 @@ class BuildExportJob implements ShouldQueue
     }
 
     /**
-     * Copy the original of a photo or video into the ZIP. Returns its path in the ZIP, or null.
+     * Copy the original of a photo or video into the ZIP. Returns its path in the ZIP, or null when the moment has no file.
      */
     private function addOriginal(ZipArchive $zip, string $folder, Moment $moment): ?string
     {
@@ -137,12 +137,9 @@ class BuildExportJob implements ShouldQueue
             return null;
         }
 
-        $in = Storage::disk('seaweedfs')->readStream($source);
-        if (! $in) {
-            Log::warning('BuildExportJob: Original missing', ['moment_id' => $moment->id, 'path' => $source]);
-
-            return null;
-        }
+        // An export that silently lacks an original looks complete, so it fails instead
+        $in = Storage::disk('seaweedfs')->readStream($source)
+            ?: throw new \RuntimeException("Cannot read the original of moment {$moment->id}: {$source}");
 
         // shortcut: ZipArchive reads added files on close(), so every original sits in temp until then; needs free temp space equal to the library
         $temp = tempnam(sys_get_temp_dir(), 'kinlore-export-');

@@ -32,11 +32,11 @@ use ProtoneMedia\LaravelFFMpeg\Support\FFMpeg;
 class MomentService
 {
     private const PHOTO_MIMES = [
-        'image/jpeg', 'image/jpg', 'image/png', 'image/heic', 'image/heif',
+        'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/heic', 'image/heif',
     ];
 
     private const VIDEO_MIMES = [
-        'video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska', 'video/webm',
+        'video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska', 'video/webm', 'video/x-m4v',
     ];
 
     public function __construct(
@@ -80,84 +80,98 @@ class MomentService
         }
 
         throw new \InvalidArgumentException(
-            'Unsupported file type. Please upload an image (JPEG, PNG, HEIC) or video (MP4, MOV, WebM).'
+            'Unsupported file type. Please upload an image (JPEG, PNG, GIF, WebP, HEIC) or video (MP4, MOV, M4V, WebM).'
         );
     }
 
     /**
-     * @return array{moment: Moment, media: Media}
+     * @return array{moment: Moment, media: ?Media}
      */
     private function createMediaMoment(User $user, Kid $kid, UploadedFile $file, array $data, MomentType $type): array
     {
+        // The same asset sent again (a retry after a lost response) gets the moment it already made.
+        // A failed video is left out, so the phone can send it again (see getUploadedIdentifiers).
+        $existing = empty($data['device_asset_id']) ? null : $kid->moments()
+            ->whereIn('moment_type', [MomentType::Photo, MomentType::Video])
+            ->where('device_asset_id', $data['device_asset_id'])
+            ->where('file_size', $file->getSize())
+            ->where(fn ($q) => $q->whereNull('video_status')->orWhere('video_status', '!=', VideoStatus::Failed))
+            ->first();
+        if ($existing) {
+            return ['moment' => $existing, 'media' => $existing->media];
+        }
+
         $mimeType = $file->getMimeType();
         $mediaId = Str::uuid()->toString();
         $extension = $file->getClientOriginalExtension();
         $basePath = "media/{$kid->id}/{$mediaId}";
         $originalPath = "{$basePath}/original.{$extension}";
+        $media = null;
 
-        // Store original file
-        $this->storage->storeFile($originalPath, $file);
-        Log::info('Original file uploaded', ['path' => $originalPath]);
+        // Any failure from the first write to the moment row drops the media row and every file stored so far
+        try {
+            $this->storage->storeFile($originalPath, $file);
+            Log::info('Original file uploaded', ['path' => $originalPath]);
 
-        // Build EXIF data for photos and videos
-        $exifData = $this->buildExifData($data);
+            $media = Media::create([
+                'id' => $mediaId,
+                'kid_id' => $kid->id,
+                'user_id' => $user->id,
+                'type' => $type->value,
+                'original_filename' => $file->getClientOriginalName(),
+                'file_path' => $originalPath,
+                'mime_type' => $mimeType,
+                'file_size' => $file->getSize(),
+                'exif_data' => $this->buildExifData($data),
+                'status' => Media::STATUS_PROCESSING,
+                'device_asset_id' => $data['device_asset_id'] ?? null,
+                'device_fingerprint' => $this->generateFingerprint($file),
+                'processing_started_at' => now(),
+            ]);
 
-        // Create media record
-        $media = Media::create([
-            'id' => $mediaId,
-            'kid_id' => $kid->id,
-            'user_id' => $user->id,
-            'type' => $type->value,
-            'original_filename' => $file->getClientOriginalName(),
-            'file_path' => $originalPath,
-            'mime_type' => $mimeType,
-            'file_size' => $file->getSize(),
-            'exif_data' => $exifData,
-            'status' => Media::STATUS_PROCESSING,
-            'device_asset_id' => $data['device_asset_id'] ?? null,
-            'device_fingerprint' => $this->generateFingerprint($file),
-            'processing_started_at' => now(),
-        ]);
-
-        // Videos are processed by a queued job so the upload returns at once
-        if ($type === MomentType::Photo) {
-            try {
+            // Videos are processed by a queued job so the upload returns at once
+            if ($type === MomentType::Photo) {
                 $this->processPhoto($media, $file, $basePath);
-            } catch (\Throwable $e) {
-                Log::error('Photo processing failed: '.$e->getMessage());
-                // No moment will point at this media, so drop the row and every file stored so far
-                $media->forceDelete();
-                $this->storage->disk()->deleteDirectory($basePath);
-                throw $e;
             }
+
+            $media->refresh();
+            $moment = Moment::create([
+                'kid_id' => $kid->id,
+                'user_id' => $user->id,
+                'media_id' => $media->id,
+                'moment_type' => $type,
+                'title' => $data['title'] ?? null,
+                'description' => $data['description'] ?? null,
+                'photo_url' => $media->getRawFilePath(),
+                'thumbnail_url' => $media->getRawThumbnailUrl(),
+                'medium_url' => $media->getRawMediumUrl(),
+                'hls_url' => $type === MomentType::Video ? $media->getRawHlsUrl() : null,
+                'file_size' => $media->file_size,
+                'mime_type' => $media->mime_type,
+                'original_filename' => $media->original_filename,
+                'device_asset_id' => $media->device_asset_id,
+                'device_fingerprint' => $media->device_fingerprint,
+                'exif_date' => $media->exif_date,
+                'latitude' => $media->latitude,
+                'longitude' => $media->longitude,
+                'orientation' => $media->orientation,
+                'camera_make' => $media->camera_make,
+                'camera_model' => $media->camera_model,
+                'video_status' => $type === MomentType::Video ? VideoStatus::Processing : null,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Media upload failed: '.$e->getMessage());
+            $media?->forceDelete();
+            $this->storage->disk()->deleteDirectory($basePath);
+            throw $e;
         }
 
-        // Create associated moment
-        $media->refresh();
-        $moment = Moment::create([
-            'kid_id' => $kid->id,
-            'user_id' => $user->id,
-            'media_id' => $media->id,
-            'moment_type' => $type,
-            'title' => $data['title'] ?? null,
-            'description' => $data['description'] ?? null,
-            'photo_url' => $media->getRawFilePath(),
-            'thumbnail_url' => $media->getRawThumbnailUrl(),
-            'medium_url' => $media->getRawMediumUrl(),
-            'hls_url' => $type === MomentType::Video ? $media->getRawHlsUrl() : null,
-            'file_size' => $media->file_size,
-            'mime_type' => $media->mime_type,
-            'original_filename' => $media->original_filename,
-            'device_asset_id' => $media->device_asset_id,
-            'device_fingerprint' => $media->device_fingerprint,
-            'exif_date' => $media->exif_date,
-            'latitude' => $media->latitude,
-            'longitude' => $media->longitude,
-            'orientation' => $media->orientation,
-            'camera_make' => $media->camera_make,
-            'camera_model' => $media->camera_model,
-            'video_status' => $type === MomentType::Video ? VideoStatus::Processing : null,
-        ]);
+        // A new upload of a video that failed before replaces the failed moment.
+        if (! empty($data['device_asset_id'])) {
+            $kid->moments()->where('device_asset_id', $data['device_asset_id'])
+                ->where('video_status', VideoStatus::Failed)->whereKeyNot($moment->id)
+                ->get()->each(fn (Moment $failed) => $this->deleteMoment($failed));
+        }
 
         if ($type === MomentType::Video) {
             ProcessVideoJob::dispatch($media->id);
@@ -182,7 +196,7 @@ class MomentService
             'weight_kg' => $data['weight_kg'] ?? null,
             'head_circumference_cm' => $data['head_circumference_cm'] ?? null,
             // Metadata
-            'exif_date' => $data['exif_date'] ?? null,
+            'exif_date' => self::utc($data['exif_date'] ?? null),
             'latitude' => $data['latitude'] ?? null,
             'longitude' => $data['longitude'] ?? null,
             'camera_make' => $data['camera_make'] ?? null,
@@ -203,13 +217,15 @@ class MomentService
         // GD cannot read HEIC/HEIF: decode a JPEG copy for the previews; the stored original stays untouched.
         $source = $file->getRealPath();
         $decoded = null;
-        if (in_array($file->getMimeType(), ['image/heic', 'image/heif'], true)) {
-            $decoded = tempnam(sys_get_temp_dir(), 'kinlore-heic-').'.jpg';
-            Process::timeout(120)->run(['heif-dec', '--quality', '95', $source, $decoded])->throw();
-            $source = $decoded;
-        }
 
+        // The cleanup also runs when heif-dec fails
         try {
+            if (in_array($file->getMimeType(), ['image/heic', 'image/heif'], true)) {
+                $decoded = tempnam(sys_get_temp_dir(), 'kinlore-heic-').'.jpg';
+                Process::timeout(120)->run(['heif-dec', '--quality', '95', $source, $decoded])->throw();
+                $source = $decoded;
+            }
+
             $this->storePreviews($source, $thumbnailPath, $mediumPath);
         } finally {
             if ($decoded) {
@@ -288,7 +304,9 @@ class MomentService
                 throw new \RuntimeException("Video file not found in storage: {$storagePath}");
             }
             try {
-                Storage::disk('local')->writeStream($localStoragePath, $source);
+                if (! Storage::disk('local')->writeStream($localStoragePath, $source)) {
+                    throw new \RuntimeException("Cannot copy the video for ffmpeg: {$localStoragePath}");
+                }
             } finally {
                 if (is_resource($source)) {
                     fclose($source);
@@ -323,11 +341,11 @@ class MomentService
             // Upload thumbnail to seaweedfs storage
             $basePath = dirname($storagePath);
             $thumbnailStoragePath = "{$basePath}/thumbnail.jpg";
-            Storage::disk('seaweedfs')->put($thumbnailStoragePath, $thumbnailContent);
+            $this->storage->store($thumbnailStoragePath, $thumbnailContent);
 
             // Upload medium to seaweedfs storage
             $mediumStoragePath = "{$basePath}/medium.jpg";
-            Storage::disk('seaweedfs')->put($mediumStoragePath, $mediumContent);
+            $this->storage->store($mediumStoragePath, $mediumContent);
 
             Log::info('MomentService: Thumbnail and medium generated', [
                 'media_id' => $media->id,
@@ -608,7 +626,7 @@ class MomentService
 
             $segment = Storage::disk('local')->readStream($file);
             try {
-                Storage::disk('seaweedfs')->put($storagePath, $segment);
+                $this->storage->store($storagePath, $segment);
             } finally {
                 if (is_resource($segment)) {
                     fclose($segment);
@@ -632,13 +650,19 @@ class MomentService
     private function buildExifData(array $data): array
     {
         return array_filter([
-            'exif_date' => $data['exif_date'] ?? null,
+            'exif_date' => self::utc($data['exif_date'] ?? null),
             'latitude' => $data['latitude'] ?? null,
             'longitude' => $data['longitude'] ?? null,
             'camera_make' => $data['camera_make'] ?? null,
             'camera_model' => $data['camera_model'] ?? null,
             'orientation' => $data['orientation'] ?? null,
         ], fn ($v) => ! is_null($v));
+    }
+
+    // A date with an offset from the REST API, stored in UTC like the sync API stores it
+    private static function utc(?string $date): ?string
+    {
+        return $date === null ? null : Carbon::parse($date)->utc()->toDateTimeString();
     }
 
     // Fingerprint for duplicate detection
@@ -690,6 +714,10 @@ class MomentService
 
     public function updateMoment(Moment $moment, array $data): Moment
     {
+        if (array_key_exists('exif_date', $data)) {
+            $data['exif_date'] = self::utc($data['exif_date']);
+        }
+
         $moment->update(array_intersect_key($data, array_flip([
             'title', 'description', 'exif_date', 'milestone_id', 'height_cm', 'weight_kg', 'head_circumference_cm',
         ])));
@@ -699,24 +727,24 @@ class MomentService
 
     public function deleteMoment(Moment $moment): void
     {
-        DB::transaction(function () use ($moment): void {
-            // Delete related media files
-            if ($moment->media) {
-                $moment->media->deleteWithFiles();
-            }
+        $media = $moment->media;
+        $paths = array_filter([
+            $moment->getRawOriginal('photo_url'),
+            $moment->getRawOriginal('medium_url'),
+            $moment->getRawOriginal('thumbnail_url'),
+        ]);
 
-            // Delete files if moment has direct file references
-            $paths = array_filter([
-                $moment->getRawOriginal('photo_url'),
-                $moment->getRawOriginal('medium_url'),
-                $moment->getRawOriginal('thumbnail_url'),
-            ]);
-
-            if (! empty($paths)) {
-                $this->storage->delete($paths);
-            }
-
+        DB::transaction(function () use ($moment, $media): void {
             $moment->delete();
+            $media?->delete();
+        });
+
+        // Files go only after the commit, also of a caller's transaction (sync): a failed row delete must never leave a moment without its files
+        DB::afterCommit(function () use ($moment, $media, $paths): void {
+            $media?->deleteFiles();
+            if (! $this->storage->delete($paths)) {
+                Log::warning('Cannot delete moment files', ['moment_id' => $moment->id, 'paths' => $paths]);
+            }
         });
     }
 
@@ -838,6 +866,8 @@ class MomentService
         return $kid->moments()
             ->whereIn('moment_type', [MomentType::Photo, MomentType::Video])
             ->where(fn ($q) => $q->whereNotNull('device_asset_id')->orWhereNotNull('device_fingerprint'))
+            // A failed video is left out, so the phone sends it again
+            ->where(fn ($q) => $q->whereNull('video_status')->orWhere('video_status', '!=', VideoStatus::Failed))
             ->get(['device_asset_id', 'device_fingerprint', 'file_size', 'original_filename'])
             ->map(fn ($m) => [
                 'device_asset_id' => $m->device_asset_id,

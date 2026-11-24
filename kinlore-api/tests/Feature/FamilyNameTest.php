@@ -22,12 +22,13 @@ class FamilyNameTest extends TestCase
         'email' => 'anna@example.test',
         'password' => 'correct horse 42',
         'password_confirmation' => 'correct horse 42',
+        'setup_token' => 'the-secret',
     ];
 
     protected function setUp(): void
     {
         parent::setUp();
-        config(['app.setup_token' => null, 'app.name' => 'Kinlore']);
+        config(['app.setup_token' => 'the-secret', 'app.name' => 'Kinlore']);
     }
 
     private function pulledName(): string
@@ -41,7 +42,7 @@ class FamilyNameTest extends TestCase
         $form = $this->get('/setup')->assertOk()->assertSee('name="family_name"', false)->getContent();
         $this->assertSame(1, preg_match('/<input id="family_name"[^>]*>/', $form, $input));
         $this->assertStringNotContainsString('required', $input[0]);
-        $this->assertSame(4, substr_count($form, ' required'));
+        $this->assertSame(5, substr_count($form, ' required'));
 
         $this->post('/setup', self::FORM + ['family_name' => 'The Smiths'])->assertOk()->assertSee('The Smiths is set up');
         $this->assertSame('The Smiths', app(FamilyService::class)->name());

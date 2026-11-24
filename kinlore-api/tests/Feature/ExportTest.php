@@ -125,6 +125,19 @@ class ExportTest extends TestCase
         $this->assertFileDoesNotExist(storage_path("app/exports/{$id}.zip"));
     }
 
+    public function test_unreadable_original_fails_the_export(): void
+    {
+        $kid = Kid::factory()->create();
+        // The moment has a file path, but the store has no file there
+        Moment::factory()->create(['kid_id' => $kid->id, 'moment_type' => 'photo', 'photo_url' => 'media/k/p/original.jpg']);
+        Sanctum::actingAs(User::factory()->admin()->create());
+
+        $id = $this->postJson('/api/v1/exports')->assertStatus(202)->json('data.id');
+
+        $this->assertSame('failed', Export::find($id)->status->value);
+        $this->assertFileDoesNotExist(storage_path("app/exports/{$id}.zip"));
+    }
+
     public function test_prune_removes_zips_no_export_references(): void
     {
         $stray = storage_path('app/exports/stray.zip');

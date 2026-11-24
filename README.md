@@ -67,7 +67,7 @@ Open `APP_URL` in a web browser and create the admin account. HTTPS, reverse pro
 
 ## How it fits together
 
-The mobile app talks to a Laravel API over HTTPS. In Docker, the API container runs Caddy as the web server, PHP-FPM, and a queue worker for videos and exports. PostgreSQL holds the data, SeaweedFS holds the media through its S3 API, and Redis holds the cache and rate limits. A host install can use SQLite and the local disk instead. Details are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+The mobile app talks to a Laravel API over HTTPS. In Docker, the API container runs Caddy as the web server, PHP-FPM, and two queue workers, one for videos and one for exports. PostgreSQL holds the data, SeaweedFS holds the media through its S3 API, and Redis holds the cache and rate limits. A host install can use SQLite and the local disk instead. Details are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Related repository
 

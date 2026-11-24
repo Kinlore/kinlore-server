@@ -5,7 +5,16 @@ echo "🚀 Starting Kinlore API..."
 
 # Wait for database to be ready
 echo "⏳ Waiting for database..."
-until php artisan db:show 2>/dev/null; do
+# About 2 minutes, then stop with the error: a wrong DB_PASSWORD never gets better by waiting
+tries=0
+# artisan prints the connection error on stdout, so keep both streams
+until db_error="$(php artisan db:show 2>&1)"; do
+  tries=$((tries + 1))
+  if [ "$tries" -ge 60 ]; then
+    echo "❌ Database not reachable after $tries tries. Last error:" >&2
+    echo "$db_error" >&2
+    exit 1
+  fi
   echo "   Database not ready, retrying in 2 seconds..."
   sleep 2
 done
@@ -20,6 +29,12 @@ echo "✅ Migrations completed successfully!"
 echo "🌱 Running database seeders..."
 php artisan db:seed --force
 echo "✅ Seeders completed!"
+
+# Without SETUP_TOKEN, the setup page asks for a generated token: print it for 'docker compose logs api'
+if [ -z "$SETUP_TOKEN" ]; then
+  echo "🔑 Checking the setup token..."
+  php artisan kinlore:setup-token
+fi
 
 # Create the storage bucket if it doesn't exist (optional)
 echo "🪣 Checking storage bucket..."

@@ -52,6 +52,9 @@ class MemberController extends Controller
             if ($role !== null && ! $user->is($admin)) {
                 $user->role = $role;
                 if ($role === Role::Admin) {
+                    // A parallel transfer may have won since the admin check; the lock makes the second one wait and see it.
+                    $adminIds = User::where('role', Role::Admin)->lockForUpdate()->pluck('id');
+                    abort_unless($adminIds->contains($admin->id), 409, 'You are no longer the admin.');
                     $admin->update(['role' => Role::Partner]);
                 }
             }

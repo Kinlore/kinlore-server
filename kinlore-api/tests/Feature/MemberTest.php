@@ -77,6 +77,21 @@ class MemberTest extends TestCase
         $this->assertSame(1, User::where('role', 'admin')->count());
     }
 
+    public function test_a_parallel_second_transfer_is_refused_so_there_is_one_admin(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $first = User::factory()->family()->create();
+        $second = User::factory()->family()->create();
+        Sanctum::actingAs($admin); // keeps the in-memory admin, like a request that passed the admin check
+
+        // A parallel request already gave the role to $first.
+        User::whereKey($admin->id)->update(['role' => Role::Partner]);
+        User::whereKey($first->id)->update(['role' => Role::Admin]);
+
+        $this->patchJson("/api/v1/members/{$second->id}", ['role' => 'admin'])->assertStatus(409);
+        $this->assertSame([$first->id], User::where('role', Role::Admin)->pluck('id')->all());
+    }
+
     public function test_admin_cannot_demote_or_remove_themself(): void
     {
         $admin = User::factory()->admin()->create();

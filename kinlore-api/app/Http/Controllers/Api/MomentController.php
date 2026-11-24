@@ -81,10 +81,11 @@ class MomentController extends Controller
                 $response['media'] = $result['media']->fresh()->toArray();
             }
 
+            // A file sent again gets the moment it made the first time, with 200
             return ApiResponse::success(
                 $response,
                 $this->getSuccessMessage($result['moment']->moment_type),
-                201
+                $result['moment']->wasRecentlyCreated ? 201 : 200
             );
 
         } catch (\InvalidArgumentException $e) {

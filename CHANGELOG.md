@@ -11,6 +11,50 @@ The version numbers are explained in "Project status" in the [README](README.md)
 
 - A family name: the friendly name of the server. The admin sets it on the setup page (optional; the default is the admin's full name and "Family", for example "Anna Example Family") and changes it with `PUT /v1/family`. Members get it as `family_name` with every sync pull, and invitations show it in place of `APP_NAME`. Public pages and endpoints do not show it. The new migration adds the `settings` table.
 
+### Upgrade notes
+
+- **Docker:** PostgreSQL and Redis are no longer published on the host. If a tool on the host uses them, add the ports again in a `docker-compose.override.yml` (see "Security defaults" in [docs/SELF_HOSTING.md](docs/SELF_HOSTING.md)). The settings `DB_PORT`, `REDIS_FORWARD_PORT` and `BIND_ADDRESS` in the root `.env` have no effect any more.
+- **Host install:** copy the new `kinlore-queue-default.service` and the changed `kinlore-queue.service` and `kinlore-backup.sh` (see "Update" in [docs/BARE_METAL.md](docs/BARE_METAL.md)). Exports now have their own worker.
+- **Setup of a new server:** the setup page always asks for a setup token. Without `SETUP_TOKEN`, get it with `php artisan kinlore:setup-token` or from the Docker log.
+- **Database:** two migrations run with the update. One adds the `settings` table. One fills the edit time of memories made before 1.1.0.
+
+### Security
+
+- Setup of a new server always needs a setup token, so a stranger cannot claim a server that is already online. Without `SETUP_TOKEN`, the server makes a random token. The new command `kinlore:setup-token` prints it, and the Docker container prints it in its log.
+- Sign-up no longer shows whether an email address belongs to a member, unless the request has a valid invitation.
+- Sign-in takes the same time for a known and an unknown email address.
+- A sign-in token stops working after 90 days without use.
+- `setup_url` comes from `APP_URL`, not from the request's host name.
+- Sync push checks each row like the REST API: IDs, text lengths, the milestone and the color.
+
+### Changed
+
+- GIF, WebP and M4V files are accepted. Before, the request check allowed them and the upload then failed.
+- Videos and exports have separate workers, so a long export does not delay videos.
+- Each sign-in, sign-up, invitation and setup limit has its own counter. Before, they shared one per network address.
+- Docker: logs rotate (daily application log, 10 MB container logs), and the API container stops with the error after two minutes when it cannot reach the database.
+- SQLite (host install) uses WAL mode and a 5-second lock timeout.
+- The host backup keeps replaced and deleted files for 30 days in `old/`, and writes the database copy in one step.
+- The Docker guide has backup and restore commands.
+
+### Fixed
+
+- A failed write to the media storage fails the upload. Before, the server answered "created" with no original stored.
+- An export fails when an original cannot be read. Before, it ended as "ready" without that file.
+- A seeded admin (`SEED_USER_EMAIL`) with capital letters in the email can sign in, and `kinlore:reset-password` finds the address in any case.
+- A like on a memory made before 1.1.0 no longer turns another member's offline edit into a conflict.
+- Sync conflicts: a repeated create of an existing row is checked like an update, an edit in the same second as the pull counts, and two pushes at once cannot both pass the check.
+- A failed video is not counted as uploaded, so the app sends it again, and the new upload replaces the failed one.
+- Deleting a failed video removes all its files. Deleting a memory removes the row first and the files after.
+- The same file uploaded twice (a retry after a lost answer) gives one memory, not two.
+- An upload that fails after the original is stored leaves no row and no files behind. HEIC temp files are always removed.
+- A photo date with a time zone offset is stored in UTC, the same as through sync.
+- Two "make admin" requests at once cannot leave two admins.
+
+### Removed
+
+- Unused policy methods for restore and permanent delete.
+
 ## [1.1.0] - 2026-11-24
 
 Use this release with version 1.1.0 or newer of the mobile app.

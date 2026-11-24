@@ -186,6 +186,7 @@ class SyncTest extends TestCase
         $kid = Kid::factory()->create();
         $moment = Moment::factory()->create(['kid_id' => $kid->id, 'moment_type' => 'story']);
         Sanctum::actingAs(User::factory()->family(['can_add_content' => false])->create());
+        $this->travel(1)->seconds(); // rows of the same second as lastPulledAt would be a conflict
         $newKid = '0d6a1c2e-3333-4a2b-9c3d-000000000003';
         $newMoment = '0d6a1c2e-4444-4a2b-9c3d-000000000004';
 

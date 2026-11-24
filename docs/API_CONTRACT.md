@@ -7,7 +7,7 @@ This document lists the behaviour rules of the Kinlore API that the OpenAPI file
 When the code and this file disagree, fix the code, or change this file on purpose together with the app. Code comments refer to the numbered sections of this file, so keep the numbers.
 
 Conventions:
-- Base path `/api`. Authenticated routes use `Authorization: Bearer <token>` (Sanctum).
+- Base path `/api`. Authenticated routes use `Authorization: Bearer <token>` (Sanctum). A token stops working after 90 days without use (`401`); the member signs in again.
 - JSON envelope: `{ success: bool, message?: string, data?: any, meta?: object, errors?: object }`. Exceptions: `GET /api/health` and `POST /api/v1/sync/pull` have no envelope (`sync/push` uses it).
 - Dates in REST bodies: ISO 8601 strings. Calendar dates: `YYYY-MM-DD`. **In sync payloads every time is integer milliseconds since the epoch, or `null`.** Never `0` for "no value".
 - Ids: kids, moments, invitations and exports are UUID strings. Users are integers.
@@ -60,14 +60,15 @@ Returned by login, register and `/auth/me` (`/auth/me` adds the count fields):
 
 **First admin: web setup only.** The mobile app never creates the admin. After installing the server (Docker or bare metal), the owner opens `APP_URL` in a web browser:
 - `GET /` (web): when the instance has no user, redirects to `/setup`. Otherwise a small status page: "Kinlore is running", the server address to type in the app, and the app's sign-in steps. No user data.
-- `GET /setup` (web): the setup form (name, email, an optional family name, password, password confirmation, and a setup token field when `SETUP_TOKEN` is set). When the instance already has a user: redirect to `/`.
+- `GET /setup` (web): the setup form (name, email, an optional family name, password, password confirmation, and the setup token). When the instance already has a user: redirect to `/`.
+- The setup token is `SETUP_TOKEN` when it is set. Without it, the server makes a random token and keeps it in `storage/app/setup-token` until the first admin exists. `php artisan kinlore:setup-token` prints it, and the Docker container prints it in its log at start. No HTTP response contains the token.
 - `POST /setup` (web, CSRF-protected, throttled 5/min): creates the admin under a lock, so two parallel setups cannot both succeed. Validation errors show on the form. Success shows "Your admin account is ready" with the server address and the email to use in the app. It never shows the password.
 - The seeded admin (`SEED_USER_*`) also works and skips the web setup.
 - Behind a reverse proxy, the pages and form action use the proxy's `https` address (trusted proxies, section 10).
 
 API:
-- `GET /auth/setup-status` (public): `{ needs_setup: bool, setup_token_required: bool, instance_name: string, setup_url: string }`. `setup_url` is `{APP_URL}/setup`. The app uses it to tell the user to finish setup in a browser.
-- `POST /auth/register`: `name, email, password, password_confirmation, invite_token` (required). It only registers invited users and gives them the role and permissions of the invitation. On an instance with no user it returns `403` with the message "Finish setup in a web browser at {setup_url}".
+- `GET /auth/setup-status` (public): `{ needs_setup: bool, setup_token_required: bool, instance_name: string, setup_url: string }`. `setup_url` is `{APP_URL}/setup`. `setup_token_required` is the same as `needs_setup`. The app uses it to tell the user to finish setup in a browser.
+- `POST /auth/register`: `name, email, password, password_confirmation, invite_token` (required). It only registers invited users and gives them the role and permissions of the invitation. On an instance with no user it returns `403` with the message "Finish setup in a web browser at {setup_url}". A taken email gives a `422` email error only together with a valid invitation; without one the answer is the invitation error.
 - `GET /auth/invitations/{token}` (public, throttled 10/min): `200 { valid: true, email: string|null, role, invited_by: { name }, expires_at, instance_name }`, or `404` when unknown, used or expired.
 - Invitation item (admin endpoints): `{ id, email, role, permissions: {...}, invited_by: { id, name }, expires_at, created_at }`.
 - `POST /v1/invitations` (admin): `{ email?, role?: partner|family (default family), permissions?: { add_content?, comment?, like?, download? }, expires_in_days?: 1..30 (default 7) }` → `201` invitation item plus `token`, `invite_link`, `invite_url`:
@@ -86,7 +87,7 @@ API:
 ## 4. Members (admin only)
 
 - `GET /v1/members`: `[{ id, name, email, role, is_admin, permissions, created_at, moments_count }]`.
-- `PATCH /v1/members/{user}`: `{ role?: admin|partner|family, permissions?: {...}, password?: string (min 8) }`.
+- `PATCH /v1/members/{user}`: `{ role?: admin|partner|family, permissions?: {...}, password?: string (min 8) }`. `409` when the caller is no longer the admin (two transfers at once).
   - `password` sets a new password for a member who forgot theirs and deletes all their tokens (signed out everywhere). When the admin sets their own, the current session stays. The server owner can do the same with `php artisan kinlore:reset-password <email>`.
   - Setting `role=admin` on another user transfers the admin role: the caller becomes `partner`.
   - The admin cannot change their own role in any other way. Returns the member item.
@@ -95,7 +96,7 @@ API:
 ## 5. Kids
 
 Kid payload: `{ id, user_id, name, date_of_birth: "YYYY-MM-DD"|null, due_date: "YYYY-MM-DD"|null, avatar_color, age: int|null, age_months: int|null, is_expecting: bool, created_at, updated_at }`.
-- A kid has a `date_of_birth`, or a `due_date` (expecting), or both (once born, the app sets `date_of_birth` and keeps `due_date`). At least one is required. `date_of_birth` may be today (`before_or_equal:today`).
+- A kid has a `date_of_birth`, or a `due_date` (expecting), or both (once born, the app sets `date_of_birth` and keeps `due_date`). At least one is required. `date_of_birth` may be today or tomorrow, for time zones ahead of the server (`before_or_equal:today`).
 - `age`: whole years, `null` when not born.
 
 ## 6. Moments
@@ -112,6 +113,11 @@ Moment payload (REST and the inside of `data.moment`):
   - growth: JSON `kid_id, moment_type=growth, exif_date (measured on), height_cm?, weight_kg?, head_circumference_cm?, description?`. At least one measurement is required.
   - `moments.user_id` is set to the caller. Throttle: 60 per minute.
   - **Videos** are stored and the response returns at once with `video_status=processing`. A queued job makes the HLS stream and sets `ready` or `failed`. The client must not wait for processing.
+  - **Allowed files:** JPEG, PNG, GIF, WebP, HEIC/HEIF, MP4, MOV, M4V, AVI, MKV and WebM, up to 512 MB.
+  - **Same file again:** a photo or video with the same `device_asset_id` and file size as an existing moment of the kid returns that moment with `200`, not a new one. A new upload of a video whose `video_status` is `failed` replaces the failed moment.
+  - **Storage failure:** `500` when the file cannot be stored. Nothing is kept, so the client may send it again.
+  - **Duplicate check:** `GET /v1/kids/{kid}/moments/uploaded-identifiers` lists the files that are already uploaded. Videos whose `video_status` is `failed` are not listed, so the app uploads them again.
+  - **Dates:** an `exif_date` with a time zone offset is stored in UTC.
 - `PUT /v1/moments/{id}`: `title?, description?, exif_date?, milestone_id?, height_cm?, weight_kg?, head_circumference_cm?`. Returns the moment.
 - `DELETE /v1/moments/{id}`.
 - `GET /v1/moments`: filters `kid_id?, moment_type?` (comma list), `liked?=true` (liked by the caller), `from?, to?` (YYYY-MM-DD on display date), `page?, per_page? (max 100)`. Sorted by display date, newest first. `meta` has the pagination.
@@ -133,7 +139,7 @@ Moment payload (REST and the inside of `data.moment`):
 ## 8. Export (admin only)
 
 - `POST /v1/exports` → `202` export item. A queued job builds a ZIP file on the API server's local disk (`storage/app/exports`). Only one export can run at a time (`409` otherwise).
-- `GET /v1/exports` → `[{ id, status: pending|processing|ready|failed, size_bytes, error, created_at, completed_at, download_url: string|null }]`, newest first. `download_url` is a signed URL valid for 24 hours, set when `ready`.
+- `GET /v1/exports` → `[{ id, status: pending|processing|ready|failed, size_bytes, error, created_at, completed_at, download_url: string|null }]`, newest first. `download_url` is a signed URL valid for 24 hours, set when `ready`. An export ends as `failed` when an original cannot be read from the storage, so a `ready` export always holds every file.
 - `GET /v1/exports/{id}/download` (signed URL, no header) → the ZIP.
 - ZIP layout: `{Kid name}/{YYYY}/{YYYY-MM-DD}_{type}_{last 12 hex characters of id}.{ext}` for photos and videos (original files), plus `{Kid name}/memories.json` with every moment of that kid (all fields, including stories, milestones, growth, comments with author names) and `kinlore-export.json` at the root (instance name, export date, kids).
 - The server keeps the 3 newest exports and deletes older ZIP files.
@@ -157,8 +163,8 @@ Response: `{ changes: { kids: {created, updated, deleted}, moments: {created, up
 - Every change goes through the same permission rules as REST.
 
 Response: `{ success: true, data: { kids_created: [{ local_id, id }], moments_created: [{ local_id, id }], rejected: [{ table, id, reason }] } }`. `local_id` equals `id`, because the server keeps client ids.
-- `reason`: `forbidden`, `invalid` (fails validation), `deleted` (the row is deleted on the server), `conflict` or `error` (server failure; the change may be sent again).
-- `conflict`: a row in `updated` whose server copy was edited by another member after `lastPulledAt` is not applied. Likes, comments and the pushing member's own edits do not count. The next pull sends the server copy. With `lastPulledAt` `null` or `0` there is no conflict check.
+- `reason`: `forbidden`, `invalid` (fails validation: an `id` or `kid_id` that is not a UUID, an unknown `milestone_id`, a name or title over 255 characters, a description over 5000, an `avatar_color` that is not `#RRGGBB`), `deleted` (the row is deleted on the server), `conflict` or `error` (server failure; the change may be sent again).
+- `conflict`: a row in `created` or `updated` whose server copy was edited by another member after `lastPulledAt` is not applied. An edit in the same second as `lastPulledAt` counts as after it. Likes, comments and the pushing member's own edits do not count. The next pull sends the server copy. With `lastPulledAt` `null` or `0` there is no conflict check.
 
 ## 10. Reverse proxy
 

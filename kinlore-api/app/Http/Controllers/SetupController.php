@@ -36,9 +36,7 @@ class SetupController extends Controller
             return redirect('/');
         }
 
-        return view('setup', $this->pageData() + [
-            'setupTokenRequired' => filled(config('app.setup_token')),
-        ]);
+        return view('setup', $this->pageData());
     }
 
     public function store(SetupRequest $request): View|RedirectResponse

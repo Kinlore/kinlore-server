@@ -51,8 +51,9 @@ jobs:
       - name: Links use https behind a trusted proxy
         run: |
           sleep 61   # sign-in limit: 5 per minute
-          curl -fsS -H 'X-Forwarded-Proto: https' -H 'X-Forwarded-Host: photos.example.com' \
-            http://localhost/api/auth/setup-status | grep -q '"setup_url":"https:\\/\\/photos.example.com\\/setup"'
+          # setup_url comes from APP_URL; the redirect of /setup follows the proxy headers
+          curl -sS -o /dev/null -D - -H 'X-Forwarded-Proto: https' -H 'X-Forwarded-Host: photos.example.com' \
+            http://localhost/setup | grep -qi '^location: https://photos.example.com'
       - name: Built-in HTTPS mode (KINLORE_DOMAIN)
         env:
           APP_URL: https://localhost

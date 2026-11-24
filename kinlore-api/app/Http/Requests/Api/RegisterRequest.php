@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\Api;
 
 use App\Models\User;
+use App\Services\AuthService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -22,7 +23,7 @@ class RegisterRequest extends FormRequest
     #[\Override]
     protected function failedAuthorization(): never
     {
-        throw new AuthorizationException('Finish setup in a web browser at '.url('/setup'));
+        throw new AuthorizationException('Finish setup in a web browser at '.app(AuthService::class)->setupUrl());
     }
 
     /** @return array<string, mixed> */
@@ -30,7 +31,7 @@ class RegisterRequest extends FormRequest
     {
         return [
             'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
+            'email' => 'required|string|email|max:255',
             'password' => 'required|string|min:8|confirmed',
             'invite_token' => 'required|string|max:64',
         ];

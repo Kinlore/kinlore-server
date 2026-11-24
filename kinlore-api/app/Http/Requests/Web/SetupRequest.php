@@ -12,11 +12,6 @@ use Illuminate\Foundation\Http\FormRequest;
  */
 class SetupRequest extends FormRequest
 {
-    public function authorize(): bool
-    {
-        return true;
-    }
-
     /** @return array<string, mixed> */
     public function rules(): array
     {
@@ -26,7 +21,7 @@ class SetupRequest extends FormRequest
             'family_name' => 'nullable|string|max:'.FamilyService::NAME_MAX_LENGTH,
             'password' => 'required|string|min:8|max:255|confirmed',
             // The value itself is checked with hash_equals in AuthService::createFirstAdmin.
-            'setup_token' => [filled(config('app.setup_token')) ? 'required' : 'nullable', 'string', 'max:255'],
+            'setup_token' => 'required|string|max:255',
         ];
     }
 
