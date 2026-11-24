@@ -2,16 +2,27 @@
 
 All notable changes to this project are listed in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+The version numbers are explained in "Project status" in the [README](README.md).
 
 ## [Unreleased]
+
+## [1.1.0] - 2026-11-24
+
+Use this release with version 1.1.0 or newer of the mobile app.
+
+### Upgrade notes
+
+- **Docker:** add `SEAWEEDFS_KEY` and `SEAWEEDFS_SECRET` to `.env` before you start the new version. See "Update" in [docs/SELF_HOSTING.md](docs/SELF_HOSTING.md).
+- **Host install:** install `libheif-examples`, copy the PHP settings files again, and remove two timeout lines from the Caddy file. With S3 storage, set `SEAWEEDFS_KEY` and `SEAWEEDFS_SECRET` in `kinlore-api/.env`. See "Update" in [docs/BARE_METAL.md](docs/BARE_METAL.md).
+- **Database:** one migration runs with the update. It adds the columns for sync conflicts, removes likes that were stored twice, and drops the empty milestone `category` column.
+- **Other API clients:** moment and sync data no longer contain `photo_url`, `medium_url`, `thumbnail_url` and `hls_url`. Use `/file/{type}` and `/playback`. Milestones have no `category`, and `/api/health/detailed` needs an admin sign-in.
 
 ### Security
 
 - Moment payloads no longer contain signed links to the stored files. On an install without Docker these links let a member without the download permission fetch every original. The app uses the checked `/file/*` endpoints.
 - `/api/health/detailed` is for the admin only.
-- SeaweedFS has no default keys: `SEAWEEDFS_KEY` and `SEAWEEDFS_SECRET` are required, and its S3 port is no longer published on the host. **Existing installs must add both keys to `.env` before the next `docker compose up`.**
+- SeaweedFS has no default keys: `SEAWEEDFS_KEY` and `SEAWEEDFS_SECRET` are required, and its S3 port is no longer published on the host.
 - The queue worker, which runs FFmpeg on uploaded videos, runs as `www-data`, not as root.
 - The seeder creates the first admin only when the server has no user, so a removed account does not come back at the next start.
 - The bare-metal backup writes its files for the owner only.
@@ -40,7 +51,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- Unused code: the `uploads` rate limiter, unused helpers in `User` and `InteractionService`, the `inspire` command, the welcome page, the milestone `category` filter and field, and the `VIDEO_MAX_SIZE_MB` and `VIDEO_PROCESSING_TIMEOUT` settings.
+- The milestone `category` field, its filter and `group_by=category`. No milestone had a category.
+- Unused code: the `uploads` rate limiter, unused helpers in `User` and `InteractionService`, the `inspire` command, the welcome page, and the `VIDEO_MAX_SIZE_MB` and `VIDEO_PROCESSING_TIMEOUT` settings.
 
 ## [1.0.0] - 2026-11-23
 
@@ -62,5 +74,6 @@ First release.
 - Guide and configuration files for an install directly on a Linux host, with SQLite and the local disk.
 - OpenAPI description of the API.
 
-[Unreleased]: https://github.com/Kinlore/kinlore-server/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/Kinlore/kinlore-server/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/Kinlore/kinlore-server/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/Kinlore/kinlore-server/releases/tag/v1.0.0

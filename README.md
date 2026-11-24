@@ -10,7 +10,7 @@ Kinlore is a self-hosted family photo journal. One family keeps the photos, vide
 - **Roles and permissions.** Members are `admin`, `partner` or `family`. The admin can turn adding content, commenting, liking and downloading on or off for each family member.
 - **Children.** A child has a date of birth, a due date (while expected), or both.
 - **Five kinds of memories ("moments").** Photos, videos, stories, milestones (from a list of 83 predefined milestones) and growth records (height, weight, head circumference).
-- **Photos and videos.** The server keeps the original file and makes a thumbnail and a medium-size image. Videos are converted in the background to an HLS stream in 720p, 480p and 240p. HDR videos are converted to SDR first.
+- **Photos and videos.** The server keeps the original file exactly as it was uploaded, including HEIC and HEIF photos from iPhones, and makes a JPEG thumbnail and a medium-size image. Videos are converted in the background to an HLS stream in 720p, 480p and 240p. HDR videos are converted to SDR first.
 - **Likes and comments** on every memory.
 - **Look-back.** "On this day" in earlier years, and "then and now" photos of each child.
 - **Offline sync.** The app keeps a local copy and syncs it with the server in pages.
@@ -20,7 +20,11 @@ Kinlore is a self-hosted family photo journal. One family keeps the photos, vide
 
 ## Project status
 
-Version 1.0.0 is the first release. Releases follow [Semantic Versioning](https://semver.org/): from 1.0.0 on, a breaking change of the API needs a new major version. Changes are listed in [CHANGELOG.md](CHANGELOG.md). The mobile app has been tested on the iOS simulator only. Planned work is in [docs/ROADMAP.md](docs/ROADMAP.md).
+The newest release is 1.1.0. Changes are listed in [CHANGELOG.md](CHANGELOG.md). A release that needs a manual step when you update has "Upgrade notes" there. Planned work is in [docs/ROADMAP.md](docs/ROADMAP.md).
+
+Version numbers have the form `major.minor.patch`. A patch release has fixes only and needs no manual step. The mobile app is the only supported client of the API, and the server and the app change together: use server 1.1 with app 1.1 or newer. Older app versions are not tested with it.
+
+The server is tested by its test suite, in Docker and on a clean Debian host. The mobile app has been tested on the iOS simulator and the Android emulator, not yet on real phones.
 
 ## Quick start with Docker
 
@@ -46,7 +50,7 @@ docker compose up -d --build
 curl http://localhost/api/health
 ```
 
-Open `APP_URL` in a web browser and create the admin account. HTTPS, reverse proxies, backups and updates are in [docs/SELF_HOSTING.md](docs/SELF_HOSTING.md).
+Open `APP_URL` in a web browser and create the admin account. HTTPS, reverse proxies, updates and backups are in [docs/SELF_HOSTING.md](docs/SELF_HOSTING.md).
 
 ## Documentation
 

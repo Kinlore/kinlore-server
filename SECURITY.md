@@ -4,9 +4,10 @@
 
 | Version | Security fixes |
 | --- | --- |
-| 1.0.x | Yes |
+| 1.1.x | Yes |
+| 1.0.x | No. Update to 1.1. |
 
-Fixes are released as a new patch version (1.0.1, 1.0.2 and so on). Always run the newest release.
+Only the newest minor version gets fixes. They are released as a new patch version (1.1.1, 1.1.2 and so on). Always run the newest release.
 
 ## Report a vulnerability
 
