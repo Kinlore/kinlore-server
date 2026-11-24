@@ -19,7 +19,7 @@ Remove passwords, tokens, email addresses and private photos from logs before yo
 
 Do not report security problems in a public issue. Follow [SECURITY.md](SECURITY.md).
 
-Problems in the mobile app belong in the [kinlore-mobile](https://github.com/elyess/kinlore-mobile) repository.
+Problems in the mobile app belong in the [kinlore-mobile](https://github.com/Kinlore/kinlore-mobile) repository.
 
 ## Propose a feature
 
@@ -111,7 +111,7 @@ The mobile app depends on the API. When you add, remove or change an endpoint, a
 - [`kinlore-api/openapi.yaml`](kinlore-api/openapi.yaml), the OpenAPI description;
 - [`docs/API_CONTRACT.md`](docs/API_CONTRACT.md), the behaviour rules.
 
-`tests/Feature/OpenApiRoutesTest.php` compares the paths in `openapi.yaml` with the routes of the server. It fails when they differ. A change that breaks the app also needs a matching change in [kinlore-mobile](https://github.com/elyess/kinlore-mobile).
+`tests/Feature/OpenApiRoutesTest.php` compares the paths in `openapi.yaml` with the routes of the server. It fails when they differ. A change that breaks the app also needs a matching change in [kinlore-mobile](https://github.com/Kinlore/kinlore-mobile).
 
 ## Branches and pull requests
 

@@ -14,7 +14,7 @@ Do not open a public issue for a security problem.
 
 Report it in private with GitHub's private vulnerability reporting:
 
-1. Open <https://github.com/elyess/kinlore-server/security/advisories/new> (the "Security" tab of this repository, then "Report a vulnerability").
+1. Open <https://github.com/Kinlore/kinlore-server/security/advisories/new> (the "Security" tab of this repository, then "Report a vulnerability").
 2. Describe the problem, the affected version or commit, and the steps to reproduce it.
 3. Add the impact you expect, and a fix if you have one.
 
@@ -28,7 +28,7 @@ Only the maintainers can read the report.
 
 ## Scope
 
-This policy covers the Kinlore server: the API, the Docker setup and the host-install files in this repository. Report problems in the mobile app in the [kinlore-mobile](https://github.com/elyess/kinlore-mobile) repository.
+This policy covers the Kinlore server: the API, the Docker setup and the host-install files in this repository. Report problems in the mobile app in the [kinlore-mobile](https://github.com/Kinlore/kinlore-mobile) repository.
 
 A problem in a dependency (Laravel, PHP, PostgreSQL, SeaweedFS, Redis, Caddy) belongs to that project, unless Kinlore's use of it causes the problem.
 

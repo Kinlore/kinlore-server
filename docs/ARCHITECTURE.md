@@ -15,7 +15,7 @@ One Kinlore deployment holds one family. It has these parts:
 | Media storage | SeaweedFS, through its S3 API | the local disk (default) or any S3 storage |
 | Cache and rate limits | Redis | the database |
 
-The mobile app ([kinlore-mobile](https://github.com/elyess/kinlore-mobile)) is the only client of the API. A web browser uses three small server pages: the setup page for the first admin, a status page, and the page behind invitation links.
+The mobile app ([kinlore-mobile](https://github.com/Kinlore/kinlore-mobile)) is the only client of the API. A web browser uses three small server pages: the setup page for the first admin, a status page, and the page behind invitation links.
 
 ```
   phone (app)               browser

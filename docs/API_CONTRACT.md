@@ -1,6 +1,6 @@
 # Kinlore API Contract
 
-This document lists the behaviour rules of the Kinlore API that the OpenAPI file cannot express: who may do what, which fields a payload holds, how sync pages its data, how signed links work, and similar rules. The server (`kinlore-api`) and the mobile app ([kinlore-mobile](https://github.com/elyess/kinlore-mobile)) both follow it.
+This document lists the behaviour rules of the Kinlore API that the OpenAPI file cannot express: who may do what, which fields a payload holds, how sync pages its data, how signed links work, and similar rules. The server (`kinlore-api`) and the mobile app ([kinlore-mobile](https://github.com/Kinlore/kinlore-mobile)) both follow it.
 
 [`kinlore-api/openapi.yaml`](../kinlore-api/openapi.yaml) lists every endpoint with its parameters. It is written by hand from this file and the code. The test `tests/Feature/OpenApiRoutesTest.php` compares its paths with the server's routes.
 

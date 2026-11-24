@@ -48,7 +48,7 @@ sudo apt install -y php8.5-fpm php8.5-cli php8.5-sqlite3 php8.5-pgsql php8.5-gd 
 ## 2. Get the code and make the data folder
 
 ```sh
-sudo git clone https://github.com/elyess/kinlore-server.git /srv/kinlore
+sudo git clone https://github.com/Kinlore/kinlore-server.git /srv/kinlore
 sudo mkdir -p /var/lib/kinlore/media
 sudo touch /var/lib/kinlore/database.sqlite
 sudo chown -R www-data:www-data /var/lib/kinlore

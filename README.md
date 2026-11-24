@@ -1,6 +1,6 @@
 # Kinlore Server
 
-[![Tests](https://github.com/elyess/kinlore-server/actions/workflows/tests.yml/badge.svg?branch=develop)](https://github.com/elyess/kinlore-server/actions/workflows/tests.yml?query=branch%3Adevelop)
+[![Tests](https://github.com/Kinlore/kinlore-server/actions/workflows/tests.yml/badge.svg?branch=develop)](https://github.com/Kinlore/kinlore-server/actions/workflows/tests.yml?query=branch%3Adevelop)
 
 Kinlore is a self-hosted family photo journal. One family keeps the photos, videos, stories, milestones and growth records of their children on their own server. One deployment holds one family. This repository contains the server: a Laravel API, a Docker Compose stack, and a guide for an install directly on a Linux host. The mobile app is in a separate repository.
 
@@ -27,7 +27,7 @@ Version 1.0.0 is the first release. Releases follow [Semantic Versioning](https:
 You need Docker with Docker Compose.
 
 ```sh
-git clone https://github.com/elyess/kinlore-server.git
+git clone https://github.com/Kinlore/kinlore-server.git
 cd kinlore-server
 cp .env.example .env
 ```
@@ -67,7 +67,7 @@ The mobile app talks to a Laravel API over HTTPS. In Docker, the API container r
 
 ## Related repository
 
-- [kinlore-mobile](https://github.com/elyess/kinlore-mobile): the mobile app. It works offline and syncs with this server.
+- [kinlore-mobile](https://github.com/Kinlore/kinlore-mobile): the mobile app. It works offline and syncs with this server.
 
 ## Development and tests
 

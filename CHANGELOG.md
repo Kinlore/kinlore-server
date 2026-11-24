@@ -62,5 +62,5 @@ First release.
 - Guide and configuration files for an install directly on a Linux host, with SQLite and the local disk.
 - OpenAPI description of the API.
 
-[Unreleased]: https://github.com/elyess/kinlore-server/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/elyess/kinlore-server/releases/tag/v1.0.0
+[Unreleased]: https://github.com/Kinlore/kinlore-server/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/Kinlore/kinlore-server/releases/tag/v1.0.0
