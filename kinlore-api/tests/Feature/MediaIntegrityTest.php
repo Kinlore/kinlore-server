@@ -95,6 +95,40 @@ class MediaIntegrityTest extends TestCase
         $this->assertSame(1, Media::count());
     }
 
+    public function test_the_same_file_from_another_member_returns_the_first_moment(): void
+    {
+        $kid = Kid::factory()->create();
+        $file = UploadedFile::fake()->image('photo.jpg', 40, 30);
+
+        Sanctum::actingAs(User::factory()->create());
+        $first = $this->postJson('/api/v1/moments', ['kid_id' => $kid->id, 'file' => $file, 'device_asset_id' => 'phone-a-1'])
+            ->assertStatus(201)->json('data.moment.id');
+
+        // Another phone has its own asset ID for the same photo
+        Sanctum::actingAs(User::factory()->create());
+        $second = $this->postJson('/api/v1/moments', ['kid_id' => $kid->id, 'file' => $file, 'device_asset_id' => 'phone-b-7'])
+            ->assertStatus(200)->json('data.moment.id');
+
+        $this->assertSame($first, $second);
+        $this->assertSame(1, Moment::count());
+        $this->assertSame(1, Media::count());
+    }
+
+    public function test_the_same_file_for_another_child_or_after_a_delete_makes_a_new_moment(): void
+    {
+        [$anna, $ben] = Kid::factory()->count(2)->create();
+        Sanctum::actingAs(User::factory()->create());
+        $file = UploadedFile::fake()->image('photo.jpg', 40, 30);
+        $post = fn (Kid $kid) => $this->postJson('/api/v1/moments', ['kid_id' => $kid->id, 'file' => $file]);
+
+        $first = $post($anna)->assertStatus(201)->json('data.moment.id');
+        $post($ben)->assertStatus(201);
+
+        Moment::findOrFail($first)->delete();
+        $this->assertNotSame($first, $post($anna)->assertStatus(201)->json('data.moment.id'));
+        $this->assertSame(2, Moment::count());
+    }
+
     public function test_failed_heic_decode_leaves_no_temp_file(): void
     {
         Process::fake(['*' => Process::result(errorOutput: 'bad file', exitCode: 1)]);

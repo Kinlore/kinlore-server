@@ -32,16 +32,14 @@ Items with a check mark are on the server already for this child. You cannot sel
 
 ## Step 4: Start the upload
 
-1. Tap **Upload**.
-2. The app shows "Upload Started", for example "10 photos and 2 videos added to upload queue."
-3. Tap **OK**. The app goes back to the timeline.
+1. Tap **Upload**. The app goes back to the timeline at once.
+2. The items show on the timeline right away, each with a small cloud icon.
 
-The app now sends the items one at a time. You can keep using the app.
-On iOS, the upload continues when the app is in the background.
+The app now sends the items one at a time. You can keep using the app. Keep it open for the fastest upload: in the background, the phone sends the rest only from time to time. On mobile data, the items wait for Wi-Fi unless you allow mobile data (see [Mobile data](../app/offline-and-uploads.md#mobile-data)).
 
 ## Step 5: Watch the queue
 
-1. Look at the bar at the bottom of the timeline. It shows, for example, "Uploading 3/12...".
+1. Look at the status bar at the bottom of the screen. It shows, for example, "Uploading 3 / 12".
 2. Tap the bar. The app shows the **Upload Queue** screen.
 3. Each item shows **Pending**, **Uploading...**, **Uploaded** or **Failed**.
 4. To go back, tap the back button.
@@ -59,7 +57,7 @@ If the phone goes offline, the items stay **Pending**. The queue continues when 
 
 ### Check that it worked
 
-- The upload bar is gone.
+- The status bar is gone, and **Settings** > **Uploads** shows "Up to date".
 - The **Upload Queue** screen shows "All Caught Up!".
 - The photos and videos are on the timeline of the child, at the date when you took them.
 - Open the gallery again: the uploaded items have a check mark.

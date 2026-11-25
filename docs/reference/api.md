@@ -115,7 +115,7 @@ Moment payload (REST and the inside of `data.moment`):
   - `moments.user_id` is set to the caller. Throttle: 60 per minute.
   - **Videos** are stored and the response returns at once with `video_status=processing`. A queued job makes the HLS stream and sets `ready` or `failed`. The client must not wait for processing.
   - **Allowed files:** JPEG, PNG, GIF, WebP, HEIC/HEIF, MP4, MOV, M4V, AVI, MKV and WebM, up to 500 MB.
-  - **Same file again:** a photo or video with the same `device_asset_id` and file size as an existing moment of the kid returns that moment with `200`, not a new one. A new upload of a video whose `video_status` is `failed` replaces the failed moment.
+  - **Same file again:** a photo or video that the kid already has returns that moment with `200`, not a new one. The server compares the MD5 hash of the file (stored as `device_fingerprint`), so the same file from any member or phone counts. The same `device_asset_id` with the same file size counts too. A deleted moment does not count. A new upload of a video whose `video_status` is `failed` replaces the failed moment.
   - **Storage failure:** `500` when the file cannot be stored. Nothing is kept, so the client may send it again.
   - **Duplicate check:** `GET /v1/kids/{kid}/moments/uploaded-identifiers` lists the files that are already uploaded. Videos whose `video_status` is `failed` are not listed, so the app uploads them again.
   - **Dates:** an `exif_date` with a time zone offset is stored in UTC.

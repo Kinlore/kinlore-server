@@ -7,6 +7,10 @@ The version numbers are explained in "Project status" in the [README](README.md)
 
 ## [Unreleased]
 
+### Added
+
+- The server keeps one copy of each photo or video per child. An upload of a file that the child already has (the same bytes, by MD5 hash, from any member or phone) returns the existing moment with `200`. A deleted moment does not count.
+
 ## [1.4.0] - 2026-11-25
 
 Use this release with version 1.2.0 or newer of the mobile app. Docker installs: read the upgrade notes before you update.

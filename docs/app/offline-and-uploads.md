@@ -42,23 +42,45 @@ The app does not sync by itself when the network comes back. When you are online
 
 ## The upload queue
 
-The **upload queue** is the list of photos and videos that wait to go to the server. When you tap **Upload** in the photo picker, the app adds each item to the queue.
+The **upload queue** is the list of photos and videos that wait to go to the server. When you tap **Upload** in the photo picker, the app adds all items to the queue at once and closes the picker.
 
-- The queue sends one item at a time.
-- The queue sends the original file.
-- On iOS, an upload continues while the app is in the background.
+- The items show on the timeline right away, at their date, with the preview from the phone. An icon in the corner shows the status:
+  - a cloud with an arrow: the item waits or goes to the server now
+  - a crossed-out Wi-Fi sign: the item waits for Wi-Fi (see [Mobile data](#mobile-data))
+  - a warning sign: the upload failed
+- When the server has an item, the moment takes the place of the preview. Uploaded moments show no icon.
+- The queue sends one item at a time, and it sends the original file.
 - When the app starts again, the queue continues with the items that are not sent yet. It starts after the first sync.
 - Each server has its own queue. When you switch to another server, the items of the first server wait. They continue when you switch back.
 
-### The upload bar
+### Keep the app open for speed
 
-When the queue has work, a bar shows at the bottom of the timeline:
+The queue is fastest while the app is open. In the background:
 
-- "Uploading 3/10..." while an item goes to the server.
-- "4 pending" while items wait.
+- The item that goes to the server now finishes.
+- The phone runs the queue again from time to time, usually every 15 minutes or more. The phone decides when, and it can stop the work at any time.
+
+So a long queue, for example 400 photos and videos, finishes much sooner when the app stays open.
+
+### Mobile data
+
+By default, photos and videos upload only on Wi-Fi. On mobile data, the queue waits and shows "Waiting for Wi-Fi". It continues by itself when the phone is on Wi-Fi again.
+
+- To always upload on mobile data, turn on **Upload over mobile data** in **Settings**.
+- To send the waiting items now, open the **Upload Queue** screen and tap **Upload now over mobile data**. This lasts until the queue is empty.
+
+Sync works on mobile data in any case. It sends only small amounts of data.
+
+### The status bar
+
+While the app works in the background, a small bar shows at the bottom of every screen. It shows one thing at a time:
+
+- "Uploading 10 / 400" while items go to the server.
+- "Waiting for Wi-Fi" while the queue waits for Wi-Fi.
+- "Syncing…" during a sync.
 - "2 uploads failed. Tap to see and retry." when items failed.
 
-Tap the bar to open the **Upload Queue** screen.
+Tap the bar to open the **Upload Queue** screen. **Settings** shows the same progress in the **Uploads** row.
 
 ### The Upload Queue screen
 
@@ -87,6 +109,8 @@ The queue tries again by itself in these cases:
 
 The queue does not send an item twice. Before an upload, it asks the server which items it already has for the child. An item that the server has gets the status **Uploaded**.
 
+The server also keeps one copy of each file per child. When two members upload the same photo for the same child, the second upload gets the first moment back. This works only for identical files: a photo that a phone edited or saved again counts as a new file.
+
 ## Failed uploads
 
 **Failed** means that the queue stopped trying to send this item. The item is still on the phone. It is not on the server.
@@ -101,13 +125,13 @@ An item also fails after three tries with a server problem.
 
 ### Retry a failed upload
 
-1. Tap the upload bar at the bottom of the timeline. With failed items, it shows for example "2 uploads failed. Tap to see and retry."
+1. Tap the status bar at the bottom of the screen. With failed items, it shows for example "2 uploads failed. Tap to see and retry."
 2. On the **Upload Queue** screen, tap the retry button next to the item ("Retry upload"). Or tap **Retry Failed** to retry all failed items.
 3. Wait until the item shows **Uploaded**.
 
 ### Check that it worked
 
-- The upload bar is gone.
+- The status bar is gone, and **Settings** > **Uploads** shows "Up to date".
 - The photo or the video is on the timeline of the child.
 
 If the item fails again, the server refuses it. See [Troubleshooting](troubleshooting.md#uploads). You can remove it with **Clear Failed**.

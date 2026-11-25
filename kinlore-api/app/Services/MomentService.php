@@ -89,12 +89,16 @@ class MomentService
      */
     private function createMediaMoment(User $user, Kid $kid, UploadedFile $file, array $data, MomentType $type): array
     {
-        // The same asset sent again (a retry after a lost response) gets the moment it already made.
+        // A file this child already has (same bytes, from any member or phone) or the same asset sent again
+        // (a retry after a lost response) gets the moment it already made. A deleted moment does not count.
         // A failed video is left out, so the phone can send it again (see getUploadedIdentifiers).
-        $existing = empty($data['device_asset_id']) ? null : $kid->moments()
+        $fingerprint = $this->generateFingerprint($file);
+        $existing = $kid->moments()
             ->whereIn('moment_type', [MomentType::Photo, MomentType::Video])
-            ->where('device_asset_id', $data['device_asset_id'])
-            ->where('file_size', $file->getSize())
+            ->where(fn ($q) => $q->where('device_fingerprint', $fingerprint)
+                ->when(! empty($data['device_asset_id']), fn ($q) => $q->orWhere(fn ($q) => $q
+                    ->where('device_asset_id', $data['device_asset_id'])
+                    ->where('file_size', $file->getSize()))))
             ->where(fn ($q) => $q->whereNull('video_status')->orWhere('video_status', '!=', VideoStatus::Failed))
             ->first();
         if ($existing) {
@@ -125,7 +129,7 @@ class MomentService
                 'exif_data' => $this->buildExifData($data),
                 'status' => Media::STATUS_PROCESSING,
                 'device_asset_id' => $data['device_asset_id'] ?? null,
-                'device_fingerprint' => $this->generateFingerprint($file),
+                'device_fingerprint' => $fingerprint,
                 'processing_started_at' => now(),
             ]);
 

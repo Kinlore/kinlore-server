@@ -38,6 +38,14 @@ The bar changes color above 75% and turns red above 90%. Tell the server owner w
 
 ## Data
 
+### Uploads
+
+The **Uploads** row shows the progress of the upload queue: for example "10 / 400", "Waiting for Wi-Fi", "3 failed" or "Up to date". It changes with every uploaded file. Tap it to open the **Upload Queue** screen. See [Offline use and uploads](./offline-and-uploads.md#the-upload-queue).
+
+### Upload over mobile data
+
+When this switch is off, photos and videos upload only on Wi-Fi. On mobile data, they wait. The switch is off at first. Turn it on to upload on any connection. See [Mobile data](./offline-and-uploads.md#mobile-data).
+
 ### Reset & Sync
 
 **Reset & Sync** deletes the copy of the data on this phone for the active server, and gets everything again from the server. Use it when the timeline shows wrong data.

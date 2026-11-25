@@ -45,7 +45,7 @@ One photo or video can be up to 500 MB.
 - **Likes and comments** on every moment.
 - **Look-back.** "On this day" shows moments of the same day in earlier years. "Then and now" shows the earliest and the latest photo of each child.
 - **Offline use.** The app keeps a local copy and syncs with the server later.
-- **Duplicate check.** The app asks the server which phone photos are already uploaded.
+- **No duplicates.** The app skips phone photos that are already uploaded, and the server keeps one copy of each file per child, also when two members upload the same photo.
 - **Full export.** The admin downloads a ZIP file with all originals and all moments.
 
 ## Next steps

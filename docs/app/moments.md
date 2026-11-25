@@ -34,7 +34,7 @@ If you do not see the **+** button, you may not add moments. Ask the admin.
 1. On the **Media** tab, tap an album.
 2. Tap each photo and video that you want to add. Each item gets a number.
 3. Tap **Upload**.
-4. The app shows "Upload Started", for example "3 photos and 1 video added to upload queue." Tap **OK**.
+4. The app goes back to the timeline. The items show there right away, with a small cloud icon until they are on the server.
 
 The app sends the original file to the server, one item at a time. An iPhone HEIC photo stays a HEIC photo.
 Items that are already on the server for this child have a check mark. You cannot select them again.
