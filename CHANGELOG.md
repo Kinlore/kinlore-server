@@ -7,6 +7,25 @@ The version numbers are explained in "Project status" in the [README](README.md)
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-11-25
+
+Use this release with version 1.2.0 or newer of the mobile app. The update needs no manual step.
+
+### Added
+
+- `deploy/docker/reverse-proxy.yml`: run the server behind a reverse proxy on the same machine. The server listens on `127.0.0.1:8080`, the Docker network has a fixed address, and the proxy at `172.31.250.1` is trusted. Turn it on with `COMPOSE_FILE` in `.env` (see [HTTPS and reverse proxy](https://kinlore.github.io/kinlore-server/self-hosting/https-and-reverse-proxy)).
+- `deploy/docker/bind-mounts.yml`: keep all service data in one folder, `DATA_LOCATION` (default `/srv/data/kinlore`), in place of Docker volumes. The guide shows how to move an existing install (see [Data locations](https://kinlore.github.io/kinlore-server/self-hosting/data-locations)).
+- CI starts the Docker stack with both files and runs the smoke test.
+
+### Changed
+
+- The self-hosting guides are shorter: a five-step Docker Compose install, one table of environment variables per group, and ready configurations for Caddy, nginx and Traefik.
+- `.env.example` no longer sets `APP_PORT=80`. The default stays port 80.
+
+### Fixed
+
+- The API container starts on an empty storage folder: it makes the storage folders it needs.
+
 ## [1.2.0] - 2026-11-25
 
 Use this release with version 1.2.0 or newer of the mobile app.
@@ -126,7 +145,8 @@ First release.
 - Guide and configuration files for an install directly on a Linux host, with SQLite and the local disk.
 - OpenAPI description of the API.
 
-[Unreleased]: https://github.com/Kinlore/kinlore-server/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/Kinlore/kinlore-server/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/Kinlore/kinlore-server/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/Kinlore/kinlore-server/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/Kinlore/kinlore-server/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/Kinlore/kinlore-server/releases/tag/v1.0.0
