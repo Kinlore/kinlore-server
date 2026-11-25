@@ -32,7 +32,7 @@ The settings file holds `APP_KEY` and the passwords. Without it, a backup cannot
 | Variable | Description | Default |
 |---|---|---|
 | `APP_KEY` | The secret key of the server. It protects sessions, signed links and encrypted values. Make it with `echo "base64:$(openssl rand -base64 32)"`. | none |
-| `APP_URL` | The address that the phones use, for example `https://photos.example.com`. Include a port if it is not 80 or 443. Invitation links, video links and the setup page are built from it. | `http://localhost` |
+| `APP_URL` | The address that the phones use, for example `https://photos.example.com`. Include a port if it is not 80 or 443. Invitation links, video links and the setup page are built from it. | `http://localhost:28461` |
 | `DB_PASSWORD` | The password of the database user. PostgreSQL gets it at its first start. Make it with `openssl rand -hex 32`. | none |
 | `SEAWEEDFS_KEY` | The access key of the media storage. Make it with `openssl rand -hex 32`. | none |
 | `SEAWEEDFS_SECRET` | The secret key of the media storage. Make it with `openssl rand -hex 32`. | none |
@@ -46,9 +46,9 @@ The settings file holds `APP_KEY` and the passwords. Without it, a backup cannot
 
 | Variable | Description | Default |
 |---|---|---|
-| `KINLORE_DOMAIN` | Your public host name. When it is set, Caddy in the API container gets a certificate and serves HTTPS. Empty: plain HTTP on port 80. `deploy/docker/reverse-proxy.yml` always uses plain HTTP, because your proxy does HTTPS. See [HTTPS and reverse proxy](/self-hosting/https-and-reverse-proxy). | empty |
-| `APP_PORT` | The host port for HTTP. | `80`; `8080` with `deploy/docker/reverse-proxy.yml` |
-| `APP_SSL_PORT` | The host port for HTTPS, TCP and UDP. Used only with `KINLORE_DOMAIN`. Not used with `deploy/docker/reverse-proxy.yml`. | `443` |
+| `KINLORE_DOMAIN` | Your public host name. When it is set, Caddy in the API container gets a certificate and serves HTTPS. Empty: plain HTTP on `APP_PORT`. `deploy/docker/reverse-proxy.yml` always uses plain HTTP, because your proxy does HTTPS. See [HTTPS and reverse proxy](/self-hosting/https-and-reverse-proxy). | empty |
+| `APP_PORT` | The host port for HTTP. Set `80` for built-in HTTPS. | `28461` |
+| `APP_SSL_PORT` | The host port for HTTPS, TCP and UDP. Used only with `KINLORE_DOMAIN`. Not used with `deploy/docker/reverse-proxy.yml`. Set `443` for built-in HTTPS. | `28462` |
 | `APP_BIND_ADDRESS` | The host address of the API ports. `127.0.0.1` makes the ports reachable only from this machine. | `0.0.0.0` (all addresses); `127.0.0.1` with `deploy/docker/reverse-proxy.yml` |
 | `APP_NAME` | The name on public pages, in the answer of `/api/auth/setup-status`, and in the export file. It is not the family name: the admin sets that in the app. | `Kinlore` |
 

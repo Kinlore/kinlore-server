@@ -7,7 +7,7 @@ services:
   api:
     # Only your proxy on this machine reaches the API; ports 80 and 443 stay free for it
     ports: !override
-      - "${APP_BIND_ADDRESS:-127.0.0.1}:${APP_PORT:-8080}:80"
+      - "${APP_BIND_ADDRESS:-127.0.0.1}:${APP_PORT:-28461}:80"
     environment:
       # Plain HTTP inside: your proxy does HTTPS
       KINLORE_DOMAIN: ""

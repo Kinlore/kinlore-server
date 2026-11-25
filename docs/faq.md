@@ -14,7 +14,7 @@ No. One server holds one family. A second family runs a second server. The app c
 
 ## Do I need a host name and HTTPS?
 
-Only for use on the internet. iPhones need HTTPS for an address on the internet. At home, the local address of the machine is enough, for example `http://192.168.1.20`. See [HTTPS and reverse proxy](/self-hosting/https-and-reverse-proxy).
+Only for use on the internet. iPhones need HTTPS for an address on the internet. At home, the local address of the machine is enough, for example `http://192.168.1.20:28461` with Docker. See [HTTPS and reverse proxy](/self-hosting/https-and-reverse-proxy).
 
 ## Can I keep the data in a folder of my choice?
 

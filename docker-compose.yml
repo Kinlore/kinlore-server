@@ -99,11 +99,11 @@ services:
     # Matches stopwaitsecs in docker/supervisord.conf: a running video or export job may finish
     stop_grace_period: 1h
     ports:
-      # Behind your own reverse proxy on this machine, add deploy/docker/reverse-proxy.yml (see docs/self-hosting/https-and-reverse-proxy.md)
-      - "${APP_BIND_ADDRESS:-0.0.0.0}:${APP_PORT:-80}:80"
+      # Built-in HTTPS on a public server: set APP_PORT=80 and APP_SSL_PORT=443. Behind your own reverse proxy: add deploy/docker/reverse-proxy.yml
+      - "${APP_BIND_ADDRESS:-0.0.0.0}:${APP_PORT:-28461}:80"
       # Used only when KINLORE_DOMAIN is set (automatic HTTPS)
-      - "${APP_BIND_ADDRESS:-0.0.0.0}:${APP_SSL_PORT:-443}:443"
-      - "${APP_BIND_ADDRESS:-0.0.0.0}:${APP_SSL_PORT:-443}:443/udp"
+      - "${APP_BIND_ADDRESS:-0.0.0.0}:${APP_SSL_PORT:-28462}:443"
+      - "${APP_BIND_ADDRESS:-0.0.0.0}:${APP_SSL_PORT:-28462}:443/udp"
     env_file:
       - path: ${API_ENV_FILE:-./kinlore-api/.env}
         required: false
@@ -113,7 +113,7 @@ services:
       APP_ENV: ${APP_ENV:-production}
       APP_KEY: ${APP_KEY:?Set APP_KEY in the .env file next to docker-compose.yml}
       APP_DEBUG: ${APP_DEBUG:-false}
-      APP_URL: ${APP_URL:-http://localhost}
+      APP_URL: ${APP_URL:-http://localhost:28461}
       # Your public host name: Caddy in this container then gets a certificate and serves HTTPS. Empty: plain HTTP.
       KINLORE_DOMAIN: ${KINLORE_DOMAIN:-}
       # Empty: the setup page asks for a generated token, printed in the log at start

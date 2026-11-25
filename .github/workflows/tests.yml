@@ -43,28 +43,30 @@ jobs:
       - uses: actions/checkout@v4
       - name: Plain HTTP mode (for your own reverse proxy)
         env:
-          APP_URL: http://localhost
+          APP_URL: http://localhost:28461
         run: |
           docker compose up -d --build --wait --wait-timeout 300
-          curl -fsS http://localhost/api/health
-          scripts/smoke-test.sh http://localhost "$SEED_USER_EMAIL" "$SEED_USER_PASSWORD"
+          curl -fsS http://localhost:28461/api/health
+          scripts/smoke-test.sh http://localhost:28461 "$SEED_USER_EMAIL" "$SEED_USER_PASSWORD"
       - name: Links use https behind a trusted proxy
         run: |
           sleep 61   # sign-in limit: 5 per minute
           # setup_url comes from APP_URL; the redirect of /setup follows the proxy headers
           curl -sS -o /dev/null -D - -H 'X-Forwarded-Proto: https' -H 'X-Forwarded-Host: photos.example.com' \
-            http://localhost/setup | grep -qi '^location: https://photos.example.com'
+            http://localhost:28461/setup | grep -qi '^location: https://photos.example.com'
       - name: Built-in HTTPS mode (KINLORE_DOMAIN)
         env:
           APP_URL: https://localhost
           KINLORE_DOMAIN: localhost
+          APP_PORT: 80
+          APP_SSL_PORT: 443
         run: |
           docker compose up -d --wait --wait-timeout 300
           curl -fsSk https://localhost/api/health
           test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost/api/health)" = 308
       - name: Reverse proxy and data folder (deploy/docker)
         env:
-          APP_URL: http://127.0.0.1:8080
+          APP_URL: http://127.0.0.1:28461
           COMPOSE_FILE: docker-compose.yml:deploy/docker/reverse-proxy.yml:deploy/docker/bind-mounts.yml
           DATA_LOCATION: ${{ runner.temp }}/kinlore-data
         run: |
@@ -72,10 +74,10 @@ jobs:
           docker compose up -d --wait --wait-timeout 300
           test -d "$DATA_LOCATION/postgres/18/docker"
           test "$(docker network inspect "$(basename "$PWD")_kinlore-network" --format '{{(index .IPAM.Config 0).Gateway}}')" = 172.31.250.1
-          scripts/smoke-test.sh http://127.0.0.1:8080 "$SEED_USER_EMAIL" "$SEED_USER_PASSWORD"
+          scripts/smoke-test.sh http://127.0.0.1:28461 "$SEED_USER_EMAIL" "$SEED_USER_PASSWORD"
           # a proxy on the host reaches the API from the gateway, which this file trusts
           curl -sS -o /dev/null -D - -H 'X-Forwarded-Proto: https' -H 'X-Forwarded-Host: photos.example.com' \
-            http://127.0.0.1:8080/setup | grep -qi '^location: https://photos.example.com'
+            http://127.0.0.1:28461/setup | grep -qi '^location: https://photos.example.com'
       - if: failure()
         run: docker compose logs --tail 80 api
 

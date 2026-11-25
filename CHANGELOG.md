@@ -7,6 +7,16 @@ The version numbers are explained in "Project status" in the [README](README.md)
 
 ## [Unreleased]
 
+### Changed
+
+- Docker: the default host ports are 28461 for HTTP and 28462 for HTTPS, also with `deploy/docker/reverse-proxy.yml` (was 8080 there). They no longer clash with a web server on the host. Built-in HTTPS sets `APP_PORT=80` and `APP_SSL_PORT=443`, because the certificate needs these ports.
+
+### Upgrade notes
+
+- **Docker, built-in HTTPS (`KINLORE_DOMAIN`):** add `APP_PORT=80` and `APP_SSL_PORT=443` to `.env` before you update, or the server moves to ports 28461 and 28462.
+- **Docker, plain HTTP without `APP_PORT` in `.env`:** the server moves from port 80 to port 28461. Change the address in the app and in `APP_URL`, or set `APP_PORT=80`.
+- **Docker, `deploy/docker/reverse-proxy.yml` without `APP_PORT`:** the server moves from `127.0.0.1:8080` to `127.0.0.1:28461`. Change the address in your proxy configuration, or set `APP_PORT=8080`.
+
 ## [1.3.0] - 2026-11-25
 
 Use this release with version 1.2.0 or newer of the mobile app. The update needs no manual step.

@@ -7,7 +7,7 @@ A **server** is the computer that keeps your family's photos and moments. Each f
 
 ## Before you start
 
-- You know the address of the server, for example `photos.example.com` or `192.168.1.20:8088`. The server owner can tell you.
+- You know the address of the server, for example `photos.example.com` or `192.168.1.20:28461`. The server owner can tell you.
 - For a first sign-in, you have an account. The admin creates the first account in a web browser. All other members join with an invitation link. See [Join with an invitation link](#join-with-an-invitation-link).
 
 ## Add the server and sign in

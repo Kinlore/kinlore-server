@@ -48,7 +48,10 @@ The API container has its own web server, Caddy. Caddy gets a certificate from L
    ```ini [.env]
    KINLORE_DOMAIN=photos.example.com
    APP_URL=https://photos.example.com
+   APP_PORT=80
+   APP_SSL_PORT=443
    ```
+   The certificate check of Let's Encrypt needs ports 80 and 443. Without these two lines, the server uses ports 28461 and 28462.
 2. Start the server again:
    ```sh [Start the server]
    docker compose up -d
@@ -64,7 +67,7 @@ Use `KINLORE_DOMAIN=localhost`. Caddy then makes its own certificate. Browsers a
 
 Use this way when another web server on this machine already uses ports 80 and 443. The file `deploy/docker/reverse-proxy.yml` changes three things:
 
-- The API listens only on `127.0.0.1:8080`. Only programs on this machine can reach it.
+- The API listens only on `127.0.0.1:28461`. Only programs on this machine can reach it.
 - The API serves plain HTTP. Your proxy does HTTPS.
 - The Docker network of Kinlore gets a fixed gateway, `172.31.250.1`. The API trusts the proxy headers from this address. So you do not have to set `TRUSTED_PROXIES`.
 
@@ -94,7 +97,7 @@ The file uses the `!override` tag. Older versions of Docker Compose stop with an
    :::
 3. Check that the API answers on this machine:
    ```sh [Check the API]
-   curl -fsS http://127.0.0.1:8080/api/health
+   curl -fsS http://127.0.0.1:28461/api/health
    ```
    The answer starts with `{"status":"ok"`.
 4. Set up your proxy with one of the examples below.
@@ -113,7 +116,7 @@ Kinlore uses no websockets, so your proxy needs no settings for them.
 
 ### Proxy examples
 
-Replace `photos.example.com` with your host name. If you changed `APP_PORT`, replace `8080` too.
+Replace `photos.example.com` with your host name. If you changed `APP_PORT`, replace `28461` too.
 
 ::: code-group
 
@@ -122,7 +125,7 @@ Replace `photos.example.com` with your host name. If you changed `APP_PORT`, rep
 # Caddy gets the certificate, sends the forwarded headers,
 # and has no size limit or timeout by default.
 photos.example.com {
-	reverse_proxy 127.0.0.1:8080
+	reverse_proxy 127.0.0.1:28461
 }
 ```
 
@@ -147,7 +150,7 @@ server {
     proxy_send_timeout 1800s;
 
     location / {
-        proxy_pass http://127.0.0.1:8080;
+        proxy_pass http://127.0.0.1:28461;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-Proto $scheme;
@@ -199,7 +202,7 @@ http:
     kinlore:
       loadBalancer:
         servers:
-          - url: http://127.0.0.1:8080
+          - url: http://127.0.0.1:28461
 ```
 
 :::
@@ -222,7 +225,7 @@ The proxy can also run on another machine in your network, for example a router 
    TRUSTED_PROXIES=192.168.1.10       # the machine with the proxy
    ```
 2. Restart the server with `docker compose down` and `docker compose up -d`.
-3. In the proxy examples above, replace `127.0.0.1:8080` with `192.168.1.20:8080`.
+3. In the proxy examples above, replace `127.0.0.1:28461` with `192.168.1.20:28461`.
 
 The API then sees the real address of the proxy. So `TRUSTED_PROXIES` must hold that address, not the gateway.
 
@@ -289,8 +292,8 @@ Then play a video in the app. A video plays only when its links use `https`.
 
 - **Caddy gets no certificate.** The host name does not point at the server, or port 80 or 443 is closed. Read the log: `docker compose logs api`. Without Docker: `journalctl -u caddy -n 50`.
 - **`docker compose up` stops with an error about `!override`.** Docker Compose is older than 2.24.4. Update Docker.
-- **`docker compose up` stops with `address already in use` on port 80.** `.env` still has `APP_PORT=80`. Remove the line, so the API uses port 8080.
-- **The proxy shows "502 Bad Gateway".** The API is not running, or the proxy uses the wrong port. Run `curl -fsS http://127.0.0.1:8080/api/health` on the server.
+- **`docker compose up` stops with `address already in use` on port 80.** `.env` still has `APP_PORT=80`. Remove the line, so the API uses port 28461.
+- **The proxy shows "502 Bad Gateway".** The API is not running, or the proxy uses the wrong port. Run `curl -fsS http://127.0.0.1:28461/api/health` on the server.
 - **Links start with `http://`, or videos do not play on an iPhone.** `APP_URL` must be the `https://` address. Your proxy must send `X-Forwarded-Proto`. Its address must be in `TRUSTED_PROXIES`. With `deploy/docker/reverse-proxy.yml`, remove any `TRUSTED_PROXIES` line from `.env`.
 - **The API does not start, and `docker compose logs seaweedfs-filer` shows `no such host`.** The network changed while the containers ran. Run `docker compose down`, then `docker compose up -d`.
 - **Large uploads fail with "413".** Your proxy limits the body size. In nginx, set `client_max_body_size 600m;`.

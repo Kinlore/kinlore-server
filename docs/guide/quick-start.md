@@ -29,13 +29,17 @@ sed -i "s|^SEAWEEDFS_KEY=.*|SEAWEEDFS_KEY=$(openssl rand -hex 32)|" .env
 sed -i "s|^SEAWEEDFS_SECRET=.*|SEAWEEDFS_SECRET=$(openssl rand -hex 32)|" .env
 ```
 
-Open the file with `nano .env`. Set your host name in two lines:
+Open the file with `nano .env`. Set your host name, and the standard web ports 80 and 443 that the certificate needs:
 
 ```diff [.env]
 -APP_URL=https://photos.example.com   # the address the phones use
 +APP_URL=https://photos.example.com
 -# KINLORE_DOMAIN=photos.example.com
 +KINLORE_DOMAIN=photos.example.com
+-# APP_PORT=80
++APP_PORT=80
+-# APP_SSL_PORT=443
++APP_SSL_PORT=443
 ```
 
 Save with `Ctrl+O`, then `Enter`, and close with `Ctrl+X`. Keep a copy of `.env` in a safe place. Without it, a backup cannot be used.

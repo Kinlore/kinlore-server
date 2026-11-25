@@ -49,8 +49,8 @@ To run `docker` without `sudo`, add your user to the `docker` group with `sudo u
 | Use | What you need |
 |---|---|
 | On the internet | A host name that points at the machine, for example `photos.example.com`, and HTTPS. iPhones need HTTPS for an address on the internet. Kinlore can get the certificate by itself. |
-| At home only | The address of the machine on your network, for example `http://192.168.1.20`. Plain HTTP works for local addresses. |
-| Ports | 80 and 443 for built-in HTTPS. Behind your own reverse proxy, the port of that proxy. |
+| At home only | The address of the machine on your network, for example `http://192.168.1.20:28461` with Docker. Plain HTTP works for local addresses. |
+| Ports | 80 and 443 for built-in HTTPS. Behind your own reverse proxy, the port of that proxy. Otherwise 28461 (HTTP) and 28462 (HTTPS), the Docker defaults. |
 
 For a server at home that must be reachable from the internet, see [Make a server at home reachable](/self-hosting/https-and-reverse-proxy#make-a-server-at-home-reachable).
 

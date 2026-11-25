@@ -8,7 +8,7 @@ For problems on the server itself, see [Server troubleshooting](../self-hosting/
 | Message | What to do |
 | --- | --- |
 | "Please enter a server URL" | Type the server address in **Server URL**. |
-| "Invalid server address" | Type only a host name or an IP address, with an optional port, for example `photos.example.com` or `192.168.1.20:8088`. |
+| "Invalid server address" | Type only a host name or an IP address, with an optional port, for example `photos.example.com` or `192.168.1.20:28461`. |
 | "Connection Failed" with "Could not connect to the server. Please check the URL and try again." | Check the address and the port. Check that the phone has a network connection. For a server at home, check that the phone uses the home network. Ask the server owner if the server runs. |
 | "Server is not responding correctly" | The address answers, but it is not a Kinlore server. Check the address with the server owner. |
 | "This server is not set up yet. ..." | The server has no admin yet. The server owner creates the admin in a web browser. See [Connect to a server](connect.md#when-the-server-is-not-set-up-yet). |

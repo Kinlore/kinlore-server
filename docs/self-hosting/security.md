@@ -24,7 +24,7 @@ Your server holds private photos of children. This page lists what Kinlore does 
 5. **Finish the setup soon** after the first start, and keep the setup token to yourself.
 6. **Update** when a new release comes out. Only the newest minor version gets security fixes. See [Updating](/self-hosting/updating).
 7. **Make backups**, and keep them in a second place. A backup holds the same private data as the server. Protect it the same way. See [Backup and restore](/self-hosting/backup-and-restore).
-8. **Open only the needed ports** in your firewall: 80 and 443, or the port of your proxy. Behind your own proxy, `deploy/docker/reverse-proxy.yml` keeps the Kinlore port on `127.0.0.1`, so only the proxy reaches it.
+8. **Open only the needed ports** in your firewall: 80 and 443 for built-in HTTPS, the port of your proxy, or 28461 for plain HTTP at home. Behind your own proxy, `deploy/docker/reverse-proxy.yml` keeps the Kinlore port on `127.0.0.1`, so only the proxy reaches it.
 9. **Give the admin role** only to a person you trust. The admin sees all members and can export everything.
 
 ## Check your server

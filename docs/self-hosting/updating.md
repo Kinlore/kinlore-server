@@ -59,6 +59,18 @@ On a host install, also check the workers: `systemctl is-active kinlore-queue ki
 
 Do the steps of every version between your version and the new one, oldest first.
 
+### From 1.3 to 1.4
+
+**Docker**
+
+The default host ports change to 28461 (HTTP) and 28462 (HTTPS). Before you update, check `.env`:
+
+- **Built-in HTTPS** (`KINLORE_DOMAIN` is set): add `APP_PORT=80` and `APP_SSL_PORT=443`. The certificate needs these ports.
+- **Plain HTTP at home, no `APP_PORT` line:** the server moves to port 28461. Add `:28461` to `APP_URL` and to the server address in the app, or add `APP_PORT=80` to keep port 80.
+- **`deploy/docker/reverse-proxy.yml`, no `APP_PORT` line:** the server moves to `127.0.0.1:28461`. Change the address in your proxy configuration, or add `APP_PORT=8080` to keep the old port.
+
+**Host install:** nothing to do.
+
 ### From 1.1 to 1.2
 
 **Docker**
