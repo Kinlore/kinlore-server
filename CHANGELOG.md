@@ -7,6 +7,10 @@ The version numbers are explained in "Project status" in the [README](README.md)
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-25
+
+Use this release with version 1.2.0 or newer of the mobile app.
+
 ### Added
 
 - A family name: the friendly name of the server. The admin sets it on the setup page (optional; the default is the admin's full name and "Family", for example "Anna Example Family") and changes it with `PUT /v1/family`. Members get it as `family_name` with every sync pull, and invitations show it in place of `APP_NAME`. Public pages and endpoints do not show it. The new migration adds the `settings` table.
@@ -122,6 +126,7 @@ First release.
 - Guide and configuration files for an install directly on a Linux host, with SQLite and the local disk.
 - OpenAPI description of the API.
 
-[Unreleased]: https://github.com/Kinlore/kinlore-server/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/Kinlore/kinlore-server/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/Kinlore/kinlore-server/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/Kinlore/kinlore-server/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/Kinlore/kinlore-server/releases/tag/v1.0.0

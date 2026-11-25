@@ -45,7 +45,7 @@ The pages are in [`docs/`](docs). The OpenAPI description of the API is [kinlore
 
 ## Project status
 
-The newest release is 1.1.0. Changes are listed in [CHANGELOG.md](CHANGELOG.md). Version numbers have the form `major.minor.patch`. A patch release has fixes only and needs no manual step. Use server 1.1 with app 1.1 or newer. Planned work is in the [roadmap](https://kinlore.github.io/kinlore-server/project/roadmap).
+The newest release is 1.2.0. Changes are listed in [CHANGELOG.md](CHANGELOG.md). Version numbers have the form `major.minor.patch`. A patch release has fixes only and needs no manual step. Use server 1.2 with app 1.2 or newer. Planned work is in the [roadmap](https://kinlore.github.io/kinlore-server/project/roadmap).
 
 ## Development and tests
 

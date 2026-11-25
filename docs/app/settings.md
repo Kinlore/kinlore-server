@@ -73,7 +73,7 @@ The app shows "Welcome to Kinlore".
 
 ## App version
 
-The bottom of the screen shows the version of the app, for example "Kinlore 1.1.0".
+The bottom of the screen shows the version of the app, for example "Kinlore 1.2.0".
 
 ## Problems
 

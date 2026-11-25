@@ -26,7 +26,7 @@ If you are not the person who builds the app, ask the owner of your family's ser
 - The app is tested on the iOS simulator and on the Android emulator. It is not tested on real phones yet.
 
 Use the newest release of the app with the newest release of the server. The server and the app change together.
-The app version shows at the bottom of the **Settings** tab, for example "Kinlore 1.1.0".
+The app version shows at the bottom of the **Settings** tab, for example "Kinlore 1.2.0".
 
 ## Permissions
 
