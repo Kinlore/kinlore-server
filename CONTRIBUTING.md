@@ -23,7 +23,7 @@ Problems in the mobile app belong in the [kinlore-mobile](https://github.com/Kin
 
 ## Propose a feature
 
-Open an issue with the "Feature request" form. Describe the problem for the family first, then your idea. Check [docs/ROADMAP.md](docs/ROADMAP.md) to see if the work is already planned. For a large change, wait for a reply on the issue before you write code.
+Open an issue with the "Feature request" form. Describe the problem for the family first, then your idea. Check the [roadmap](https://kinlore.github.io/kinlore-server/project/roadmap) to see if the work is already planned. For a large change, wait for a reply on the issue before you write code.
 
 ## Local development setup
 
@@ -64,7 +64,7 @@ Videos and exports are processed by a queue worker. Start one in a second termin
 php artisan queue:work --queue=video-processing,default
 ```
 
-To work on the full Docker stack instead, follow [docs/SELF_HOSTING.md](docs/SELF_HOSTING.md).
+To work on the full Docker stack instead, follow [Install with Docker](https://kinlore.github.io/kinlore-server/self-hosting/docker).
 
 ### Try the API by hand
 
@@ -87,12 +87,12 @@ There are three kinds of tests. The GitHub workflow runs all three on every push
    ```
    The last line must say `Failed: 0`. To test the Docker stack, start it with `SEED_USER_EMAIL` and `SEED_USER_PASSWORD` set in `.env`, then use those values.
 
-3. **Host-install test**: `scripts/test-bare-metal.sh`. It needs only Docker. It follows [docs/BARE_METAL.md](docs/BARE_METAL.md) in a clean Debian 13 container and runs the end-to-end test through Caddy and through nginx. It takes several minutes.
+3. **Host-install test**: `scripts/test-bare-metal.sh`. It needs only Docker. It follows the guide [docs/self-hosting/bare-metal.md](docs/self-hosting/bare-metal.md) in a clean Debian 13 container and runs the end-to-end test through Caddy and through nginx. It takes several minutes.
    ```sh
    scripts/test-bare-metal.sh
    ```
 
-Run the unit and feature tests before every pull request. Run the other two when you change the Docker files, `deploy/`, the install guides or the scripts.
+Run the unit and feature tests before every pull request. Run the other two when you change the Docker files, `deploy/`, the install guides in `docs/self-hosting/` or the scripts.
 
 ## Code style
 
@@ -100,7 +100,7 @@ Run the unit and feature tests before every pull request. Run the other two when
 - **Strict types.** Every PHP file starts with `declare(strict_types=1);`. Pint adds it when it is missing.
 - **Enums** in `app/Enums` hold fixed sets of values: roles, moment types, video and export statuses, interaction types. Use them, not strings.
 - **Laravel 13 attributes.** Models declare `#[Fillable]`, `#[Appends]` and `#[UsePolicy]` as attributes. Jobs declare `#[Queue]`, `#[Tries]` and `#[Timeout]`. Artisan commands declare `#[Signature]` and `#[Description]`. Follow the same form in new code.
-- **Responses.** API controllers return JSON through `App\Http\Responses\ApiResponse`, which builds the envelope of [docs/API_CONTRACT.md](docs/API_CONTRACT.md).
+- **Responses.** API controllers return JSON through `App\Http\Responses\ApiResponse`, which builds the envelope of [docs/reference/api.md](docs/reference/api.md).
 - **Permissions.** Check permissions with `User::hasPermission()` and the policies in `app/Policies`.
 - Add or change tests for each change of behaviour.
 
@@ -109,7 +109,7 @@ Run the unit and feature tests before every pull request. Run the other two when
 The mobile app depends on the API. When you add, remove or change an endpoint, a field or a rule, update in the same pull request:
 
 - [`kinlore-api/openapi.yaml`](kinlore-api/openapi.yaml), the OpenAPI description;
-- [`docs/API_CONTRACT.md`](docs/API_CONTRACT.md), the behaviour rules.
+- [`docs/reference/api.md`](docs/reference/api.md), the behaviour rules.
 
 `tests/Feature/OpenApiRoutesTest.php` compares the paths in `openapi.yaml` with the routes of the server. It fails when they differ. A change that breaks the app also needs a matching change in [kinlore-mobile](https://github.com/Kinlore/kinlore-mobile).
 
@@ -125,7 +125,7 @@ The mobile app depends on the API. When you add, remove or change an endpoint, a
 
 Maintainers make a release in these steps:
 
-1. In [CHANGELOG.md](CHANGELOG.md), rename `Unreleased` to the new version with the date, add an empty `Unreleased` section, and update the links at the end of the file. Put manual steps for server owners under "Upgrade notes".
+1. In [CHANGELOG.md](CHANGELOG.md), rename `Unreleased` to the new version with the date, add an empty `Unreleased` section, and update the links at the end of the file. Put manual steps for server owners under "Upgrade notes", and add them to "Extra steps per version" in [docs/self-hosting/updating.md](docs/self-hosting/updating.md).
 2. Update the version in "Project status" in [README.md](README.md) and in the table in [SECURITY.md](SECURITY.md).
 3. Commit this on `develop` as `chore: release X.Y.Z`, push, and wait for the tests.
 4. Move `main` to that commit, tag it, and push both:
@@ -155,4 +155,5 @@ chore: update Composer packages
 - Use the same word for the same thing everywhere.
 - Write for a reader who has never seen the project.
 - Show commands that work as they are written. Test them.
-- Update the documents in `docs/` in the same pull request as the change they describe. Add a line to the `Unreleased` section of [CHANGELOG.md](CHANGELOG.md) for a change that users notice.
+- The documentation site is in `docs/` (VitePress). Preview it with `cd docs && npm install && npm run docs:dev`. `npm run docs:build` fails on a dead link.
+- Update the pages in `docs/` in the same pull request as the change they describe. Describe what is true now; version history belongs only in [CHANGELOG.md](CHANGELOG.md), and upgrade steps on the page `docs/self-hosting/updating.md`. Add a line to the `Unreleased` section of [CHANGELOG.md](CHANGELOG.md) for a change that users notice.

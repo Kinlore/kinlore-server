@@ -11,7 +11,7 @@ use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 /**
- * The family name: set at setup, changed by the admin, seen by members only (docs/API_CONTRACT.md section 3).
+ * The family name: set at setup, changed by the admin, seen by members only (docs/reference/api.md section 3).
  */
 class FamilyNameTest extends TestCase
 {

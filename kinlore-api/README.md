@@ -26,7 +26,8 @@ Run them in this folder.
 | Format the code | `vendor/bin/pint` |
 | Check the media storage | `php artisan seaweedfs:test` |
 | Set a new password for a user | `php artisan kinlore:reset-password <email>` |
+| Show the setup token of a new server | `php artisan kinlore:setup-token` |
 
 For a local setup without a database server or S3 storage, set `DB_CONNECTION=sqlite` and `SEAWEEDFS_DRIVER=local` in `.env`. [CONTRIBUTING.md](../CONTRIBUTING.md) shows the exact lines.
 
-The API is described in [openapi.yaml](openapi.yaml) and in [docs/API_CONTRACT.md](../docs/API_CONTRACT.md).
+The API is described in [openapi.yaml](openapi.yaml) and in [docs/reference/api.md](../docs/reference/api.md) ([API rules](https://kinlore.github.io/kinlore-server/reference/api) on the documentation site). The commands for server owners are in [Commands](https://kinlore.github.io/kinlore-server/reference/commands).

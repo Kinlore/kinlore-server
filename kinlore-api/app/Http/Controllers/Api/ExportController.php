@@ -14,7 +14,7 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Library export (docs/API_CONTRACT.md section 8). index and store are admin only (routes),
+ * Library export (docs/reference/api.md section 8). index and store are admin only (routes),
  * download is a signed URL handed out by index.
  */
 class ExportController extends Controller

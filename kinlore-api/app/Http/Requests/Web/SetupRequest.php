@@ -8,7 +8,7 @@ use App\Services\FamilyService;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
- * The first-admin form on the web setup page (docs/API_CONTRACT.md section 3).
+ * The first-admin form on the web setup page (docs/reference/api.md section 3).
  */
 class SetupRequest extends FormRequest
 {

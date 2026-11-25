@@ -1,6 +1,6 @@
-# Kinlore Server Architecture
+# Architecture
 
-This document describes the parts of the Kinlore server and how they work together. It is for developers and for people who run the server. The exact behaviour of each endpoint is in [API_CONTRACT.md](API_CONTRACT.md) and [`kinlore-api/openapi.yaml`](../kinlore-api/openapi.yaml).
+This page describes the parts of the Kinlore server and how they work together. It is for developers and for people who run the server. The exact behaviour of each endpoint is in [API rules](/reference/api) and in [`kinlore-api/openapi.yaml`](https://github.com/Kinlore/kinlore-server/blob/develop/kinlore-api/openapi.yaml).
 
 ## Components
 
@@ -97,7 +97,7 @@ The app keeps a local database and works without a connection. Two endpoints kee
 - `POST /api/v1/sync/pull` returns the kids, moments and milestones that changed since the last pull. One page holds at most 2000 moments, in id order. While `has_more` is true, the app asks again with `next_cursor`. Kids and milestones come whole with the first page.
 - `POST /api/v1/sync/push` sends kids and moments that the app created, changed or deleted offline. Each change goes through the same permission rules as the REST endpoints. Photos and videos are not sent by sync; they use the upload endpoint.
 
-Times in sync payloads are milliseconds since the epoch. The full rules are in [API_CONTRACT.md](API_CONTRACT.md) section 9.
+Times in sync payloads are milliseconds since the epoch. The full rules are in [API rules, section 9](/reference/api#_9-sync).
 
 ## Source tree
 
@@ -109,7 +109,7 @@ Times in sync payloads are milliseconds since the epoch. The full rules are in [
 | `kinlore-api/app/Services` | Application logic: moments, sync, kids, interactions, file storage |
 | `kinlore-api/app/Jobs` | Queue jobs: `ProcessVideoJob`, `BuildExportJob` |
 | `kinlore-api/app/Models`, `app/Policies`, `app/Enums` | Models, access rules, fixed value sets |
-| `kinlore-api/app/Console/Commands` | `kinlore:reset-password`, `seaweedfs:test` |
+| `kinlore-api/app/Console/Commands` | `kinlore:reset-password`, `kinlore:setup-token`, `seaweedfs:test` |
 | `kinlore-api/routes` | API routes and browser pages |
 | `kinlore-api/database` | Migrations, factories, seeders, milestone list |
 | `kinlore-api/tests` | Unit and feature tests |
@@ -117,4 +117,5 @@ Times in sync payloads are milliseconds since the epoch. The full rules are in [
 | `kinlore-api/openapi.yaml` | OpenAPI description of the API |
 | `deploy/bare-metal` | Configuration files for a host install |
 | `scripts` | End-to-end test and host-install test |
+| `docs` | This documentation site (VitePress) |
 | `docker-compose.yml` | The Docker stack |

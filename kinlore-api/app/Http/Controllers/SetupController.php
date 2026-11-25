@@ -12,7 +12,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 
 /**
- * Web pages for the owner: the home page and the first-admin setup (docs/API_CONTRACT.md section 3).
+ * Web pages for the owner: the home page and the first-admin setup (docs/reference/api.md section 3).
  */
 class SetupController extends Controller
 {

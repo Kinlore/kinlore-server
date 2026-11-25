@@ -17,12 +17,12 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Offline sync for the app (docs/API_CONTRACT.md section 9).
+ * Offline sync for the app (docs/reference/api.md section 9).
  * Every time in a sync payload is integer milliseconds since the epoch, or null.
  */
 class SyncService
 {
-    /** Most moments in one pull response (docs/API_CONTRACT.md section 9). */
+    /** Most moments in one pull response (docs/reference/api.md section 9). */
     public const PULL_PAGE_SIZE = 2000;
 
     private const PUSH_MOMENT_TYPES = [MomentType::Story->value, MomentType::Milestone->value, MomentType::Growth->value];

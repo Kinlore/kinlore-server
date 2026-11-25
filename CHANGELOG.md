@@ -13,8 +13,8 @@ The version numbers are explained in "Project status" in the [README](README.md)
 
 ### Upgrade notes
 
-- **Docker:** PostgreSQL and Redis are no longer published on the host. If a tool on the host uses them, add the ports again in a `docker-compose.override.yml` (see "Security defaults" in [docs/SELF_HOSTING.md](docs/SELF_HOSTING.md)). The settings `DB_PORT`, `REDIS_FORWARD_PORT` and `BIND_ADDRESS` in the root `.env` have no effect any more.
-- **Host install:** copy the new `kinlore-queue-default.service` and the changed `kinlore-queue.service` and `kinlore-backup.sh` (see "Update" in [docs/BARE_METAL.md](docs/BARE_METAL.md)). Exports now have their own worker.
+- **Docker:** PostgreSQL and Redis are no longer published on the host. If a tool on the host uses them, add the ports again in a `docker-compose.override.yml` (see [Reach a database or storage port from the host](https://kinlore.github.io/kinlore-server/self-hosting/docker#reach-a-database-or-storage-port-from-the-host)). The settings `DB_PORT`, `REDIS_FORWARD_PORT` and `BIND_ADDRESS` in the root `.env` have no effect any more.
+- **Host install:** copy the new `kinlore-queue-default.service` and the changed `kinlore-queue.service` and `kinlore-backup.sh` (see [Updating](https://kinlore.github.io/kinlore-server/self-hosting/updating#from-1-1-to-1-2)). Exports now have their own worker.
 - **Setup of a new server:** the setup page always asks for a setup token. Without `SETUP_TOKEN`, get it with `php artisan kinlore:setup-token` or from the Docker log.
 - **Database:** two migrations run with the update. One adds the `settings` table. One fills the edit time of memories made before 1.1.0.
 
@@ -61,8 +61,8 @@ Use this release with version 1.1.0 or newer of the mobile app.
 
 ### Upgrade notes
 
-- **Docker:** add `SEAWEEDFS_KEY` and `SEAWEEDFS_SECRET` to `.env` before you start the new version. See "Update" in [docs/SELF_HOSTING.md](docs/SELF_HOSTING.md).
-- **Host install:** install `libheif-examples`, copy the PHP settings files again, and remove two timeout lines from the Caddy file. With S3 storage, set `SEAWEEDFS_KEY` and `SEAWEEDFS_SECRET` in `kinlore-api/.env`. See "Update" in [docs/BARE_METAL.md](docs/BARE_METAL.md).
+- **Docker:** add `SEAWEEDFS_KEY` and `SEAWEEDFS_SECRET` to `.env` before you start the new version. See [Updating](https://kinlore.github.io/kinlore-server/self-hosting/updating#from-1-0-to-1-1).
+- **Host install:** install `libheif-examples`, copy the PHP settings files again, and remove two timeout lines from the Caddy file. With S3 storage, set `SEAWEEDFS_KEY` and `SEAWEEDFS_SECRET` in `kinlore-api/.env`. See [Updating](https://kinlore.github.io/kinlore-server/self-hosting/updating#from-1-0-to-1-1).
 - **Database:** one migration runs with the update. It adds the columns for sync conflicts, removes likes that were stored twice, and drops the empty milestone `category` column.
 - **Other API clients:** moment and sync data no longer contain `photo_url`, `medium_url`, `thumbnail_url` and `hls_url`. Use `/file/{type}` and `/playback`. Milestones have no `category`, and `/api/health/detailed` needs an admin sign-in.
 

@@ -21,7 +21,7 @@ use Illuminate\Support\Facades\Storage;
 use ZipArchive;
 
 /**
- * Builds the export ZIP (docs/API_CONTRACT.md section 8):
+ * Builds the export ZIP (docs/reference/api.md section 8):
  * {Kid name}/{YYYY}/{YYYY-MM-DD}_{type}_{id8}.{ext}, {Kid name}/memories.json and kinlore-export.json.
  */
 #[Tries(1)]

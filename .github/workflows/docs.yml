@@ -1,0 +1,57 @@
+name: Docs
+
+# Builds the documentation site (VitePress, in docs/). The build fails on a broken link.
+# A push to main also publishes the site to GitHub Pages at https://kinlore.github.io/kinlore-server/.
+# One-time setup: repository Settings > Pages > Source: "GitHub Actions".
+on:
+  push:
+    branches: [main, develop]
+    paths: ['docs/**', '.github/workflows/docs.yml']
+  pull_request:
+    paths: ['docs/**', '.github/workflows/docs.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: docs
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history: "Last updated" on each page comes from git
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: docs/package-lock.json
+      - run: npm ci
+      - run: npm run docs:build
+        env:
+          DOCS_BASE: /kinlore-server/
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/.vitepress/dist
+
+  deploy:
+    # GitHub Pages on the free plan needs a public repository; a private one only builds.
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && !github.event.repository.private
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

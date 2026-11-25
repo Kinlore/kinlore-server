@@ -13,7 +13,7 @@ use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 /**
- * Roles and permissions (docs/API_CONTRACT.md section 1).
+ * Roles and permissions (docs/reference/api.md section 1).
  */
 class RoleAndPermissionTest extends TestCase
 {

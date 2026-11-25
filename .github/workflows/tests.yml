@@ -29,7 +29,7 @@ jobs:
       - run: cp .env.example .env && php artisan key:generate
       - run: php artisan test
 
-  # The Docker stack of docs/SELF_HOSTING.md, in both web server modes
+  # The Docker stack of docs/self-hosting/docker.md, in both web server modes
   docker:
     runs-on: ubuntu-latest
     env:
@@ -65,7 +65,7 @@ jobs:
       - if: failure()
         run: docker compose logs --tail 80 api
 
-  # The host install of docs/BARE_METAL.md, on a clean Debian, with Caddy and with nginx
+  # The host install of docs/self-hosting/bare-metal.md, on a clean Debian, with Caddy and with nginx
   bare-metal:
     runs-on: ubuntu-latest
     steps:

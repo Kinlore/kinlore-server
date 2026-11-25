@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\Storage;
 
 /**
  * Makes the HLS stream, thumbnail and medium image of an uploaded video,
- * then sets the moment's video_status to ready or failed (docs/API_CONTRACT.md section 6).
+ * then sets the moment's video_status to ready or failed (docs/reference/api.md section 6).
  */
 // shortcut: no retry, ffmpeg failures are almost always bad input; add retries if storage errors show up
 #[Queue('video-processing')]

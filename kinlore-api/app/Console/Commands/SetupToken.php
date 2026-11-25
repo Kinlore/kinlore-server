@@ -11,7 +11,7 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
 /**
- * For the server owner before the first admin exists (docs/SELF_HOSTING.md, "First admin").
+ * For the server owner before the first admin exists (docs/self-hosting/first-admin.md).
  */
 #[Signature('kinlore:setup-token')]
 #[Description('Show the token that the setup page asks for, while the server has no user')]

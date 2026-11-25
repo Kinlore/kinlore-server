@@ -1,5 +1,5 @@
 #!/bin/sh
-# Kinlore backup for a host install with SQLite and local media (docs/BARE_METAL.md, "Backups").
+# Kinlore backup for a host install with SQLite and local media (docs/self-hosting/backup-and-restore.md).
 # Usage: sudo kinlore-backup.sh /path/to/backup/folder
 # Keeps a consistent database copy, the media folder and the settings file.
 set -eu

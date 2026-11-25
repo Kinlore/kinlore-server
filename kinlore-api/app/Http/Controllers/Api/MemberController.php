@@ -14,7 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Admin-only member management (docs/API_CONTRACT.md section 4).
+ * Admin-only member management (docs/reference/api.md section 4).
  * All routes are behind the `can:admin` middleware, so the caller is the one admin.
  */
 class MemberController extends Controller

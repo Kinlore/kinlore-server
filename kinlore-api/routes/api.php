@@ -63,7 +63,7 @@ Route::prefix('auth')->group(function () {
 |--------------------------------------------------------------------------
 | Video players cannot send auth headers with HLS requests, and a browser
 | download of an export cannot either. These routes need a valid, unexpired
-| signature instead (see docs/API_CONTRACT.md, sections 6 and 8).
+| signature instead (see docs/reference/api.md, sections 6 and 8).
 */
 // No per-minute API limit here: a video player fetches many segments, and the signature already limits access.
 Route::prefix('v1')->middleware('signed')->withoutMiddleware('throttle:api')->group(function () {

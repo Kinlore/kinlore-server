@@ -56,7 +56,7 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
-    // Required for the first registration when set (docs/API_CONTRACT.md section 3)
+    // Required for the first registration when set (docs/reference/api.md section 3)
     'setup_token' => env('SETUP_TOKEN'),
 
     /*

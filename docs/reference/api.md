@@ -1,12 +1,13 @@
-# Kinlore API Contract
+# API rules
 
-This document lists the behaviour rules of the Kinlore API that the OpenAPI file cannot express: who may do what, which fields a payload holds, how sync pages its data, how signed links work, and similar rules. The server (`kinlore-api`) and the mobile app ([kinlore-mobile](https://github.com/Kinlore/kinlore-mobile)) both follow it.
+This page is for developers who work on the server or on a client. It lists the behaviour rules of the Kinlore API that the OpenAPI file cannot express: who may do what, which fields a payload holds, how sync pages its data, how signed links work, and similar rules. The server (`kinlore-api`) and the mobile app ([kinlore-mobile](https://github.com/Kinlore/kinlore-mobile)) both follow them.
 
-[`kinlore-api/openapi.yaml`](../kinlore-api/openapi.yaml) lists every endpoint with its parameters. It is written by hand from this file and the code. The test `tests/Feature/OpenApiRoutesTest.php` compares its paths with the server's routes.
+[`kinlore-api/openapi.yaml`](https://github.com/Kinlore/kinlore-server/blob/develop/kinlore-api/openapi.yaml) lists every endpoint with its parameters. Tools such as Postman can import it. The test `tests/Feature/OpenApiRoutesTest.php` compares its paths with the routes of the server.
 
-When the code and this file disagree, fix the code, or change this file on purpose together with the app. Code comments refer to the numbered sections of this file, so keep the numbers.
+When the code and this page disagree, fix the code, or change this page on purpose together with the app. Code comments refer to the numbered sections of this page (the file `docs/reference/api.md`), so keep the numbers.
 
-Conventions:
+## Conventions
+
 - Base path `/api`. Authenticated routes use `Authorization: Bearer <token>` (Sanctum). A token stops working after 90 days without use (`401`); the member signs in again.
 - JSON envelope: `{ success: bool, message?: string, data?: any, meta?: object, errors?: object }`. Exceptions: `GET /api/health` and `POST /api/v1/sync/pull` have no envelope (`sync/push` uses it).
 - Dates in REST bodies: ISO 8601 strings. Calendar dates: `YYYY-MM-DD`. **In sync payloads every time is integer milliseconds since the epoch, or `null`.** Never `0` for "no value".
@@ -44,7 +45,7 @@ Returned by login, register and `/auth/me` (`/auth/me` adds the count fields):
 
 ```json
 {
-  "id": 1, "name": "Ann", "email": "ann@example.com",
+  "id": 1, "name": "Anna Example", "email": "anna@example.com",
   "role": "admin", "is_admin": true,
   "permissions": { "add_content": true, "comment": true, "like": true, "download": true },
   "created_at": "2026-11-21T10:00:00+00:00",
@@ -58,7 +59,7 @@ Returned by login, register and `/auth/me` (`/auth/me` adds the count fields):
 
 ## 3. Setup, registration and invitations
 
-**First admin: web setup only.** The mobile app never creates the admin. After installing the server (Docker or bare metal), the owner opens `APP_URL` in a web browser:
+**First admin: web setup only.** The mobile app never creates the admin. After installing the server (with or without Docker), the owner opens `APP_URL` in a web browser:
 - `GET /` (web): when the instance has no user, redirects to `/setup`. Otherwise a small status page: "Kinlore is running", the server address to type in the app, and the app's sign-in steps. No user data.
 - `GET /setup` (web): the setup form (name, email, an optional family name, password, password confirmation, and the setup token). When the instance already has a user: redirect to `/`.
 - The setup token is `SETUP_TOKEN` when it is set. Without it, the server makes a random token and keeps it in `storage/app/setup-token` until the first admin exists. `php artisan kinlore:setup-token` prints it, and the Docker container prints it in its log at start. No HTTP response contains the token.
@@ -78,7 +79,7 @@ API:
 
 **Family name.** The family name is the friendly name of this server, at most 60 characters. The app shows it in place of the server address.
 
-- It is stored at setup. An empty field gives the admin's full name and "Family", for example "Anna Example Family". The full name keeps two relatives with the same last name apart. A server set up before version 1.2 uses the same suggestion until the admin sets a name.
+- It is stored at setup. An empty field gives the admin's full name and "Family", for example "Anna Example Family". The full name keeps two relatives with the same last name apart. When no name is stored, the server uses the same suggestion.
 - `PUT /v1/family { name }` (admin): changes it. Returns `{ family_name }`.
 - Members get it as `family_name` in every sync pull page, so a new name reaches each phone with its next sync.
 - The holder of a valid invitation sees it as `instance_name` in `GET /auth/invitations/{token}` and on the invitation page.
@@ -113,7 +114,7 @@ Moment payload (REST and the inside of `data.moment`):
   - growth: JSON `kid_id, moment_type=growth, exif_date (measured on), height_cm?, weight_kg?, head_circumference_cm?, description?`. At least one measurement is required.
   - `moments.user_id` is set to the caller. Throttle: 60 per minute.
   - **Videos** are stored and the response returns at once with `video_status=processing`. A queued job makes the HLS stream and sets `ready` or `failed`. The client must not wait for processing.
-  - **Allowed files:** JPEG, PNG, GIF, WebP, HEIC/HEIF, MP4, MOV, M4V, AVI, MKV and WebM, up to 512 MB.
+  - **Allowed files:** JPEG, PNG, GIF, WebP, HEIC/HEIF, MP4, MOV, M4V, AVI, MKV and WebM, up to 500 MB.
   - **Same file again:** a photo or video with the same `device_asset_id` and file size as an existing moment of the kid returns that moment with `200`, not a new one. A new upload of a video whose `video_status` is `failed` replaces the failed moment.
   - **Storage failure:** `500` when the file cannot be stored. Nothing is kept, so the client may send it again.
   - **Duplicate check:** `GET /v1/kids/{kid}/moments/uploaded-identifiers` lists the files that are already uploaded. Videos whose `video_status` is `failed` are not listed, so the app uploads them again.
@@ -168,7 +169,7 @@ Response: `{ success: true, data: { kids_created: [{ local_id, id }], moments_cr
 
 ## 10. Reverse proxy
 
-The API trusts `X-Forwarded-Proto`, `X-Forwarded-Host`, `X-Forwarded-Port` and `X-Forwarded-For` from the addresses in `TRUSTED_PROXIES` (default: private networks). Signed links, invite links, the web setup page and redirects then use the public `https` address. The Docker image has Caddy as its web server: with `KINLORE_DOMAIN` set it serves HTTPS with its own certificate, otherwise plain HTTP for your own reverse proxy. Examples are in `docs/SELF_HOSTING.md` and `docs/BARE_METAL.md`.
+The API trusts `X-Forwarded-Proto`, `X-Forwarded-Host`, `X-Forwarded-Port` and `X-Forwarded-For` from the addresses in `TRUSTED_PROXIES` (default: private networks). Signed links, invite links, the web setup page and redirects then use the public `https` address. The Docker image has Caddy as its web server: with `KINLORE_DOMAIN` set it serves HTTPS with its own certificate, otherwise plain HTTP for your own reverse proxy. Examples are in [HTTPS and reverse proxy](/self-hosting/https-and-reverse-proxy).
 
 ## 11. Health
 

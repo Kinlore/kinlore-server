@@ -16,7 +16,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Look-back: on this day, then and now (docs/API_CONTRACT.md section 7).
+ * Look-back: on this day, then and now (docs/reference/api.md section 7).
  */
 class LookbackController extends Controller
 {

@@ -45,7 +45,7 @@ class User extends Authenticatable
         ];
     }
 
-    // Roles and permissions: docs/API_CONTRACT.md section 1.
+    // Roles and permissions: docs/reference/api.md section 1.
     protected function isAdmin(): Attribute
     {
         return Attribute::make(get: fn (): bool => $this->role === Role::Admin);
@@ -72,7 +72,7 @@ class User extends Authenticatable
         return array_combine(self::PERMISSIONS, array_map($this->hasPermission(...), self::PERMISSIONS));
     }
 
-    /** User payload shared by login, register, /auth/me and members (docs/API_CONTRACT.md section 2). */
+    /** User payload shared by login, register, /auth/me and members (docs/reference/api.md section 2). */
     public function toPayload(): array
     {
         return [

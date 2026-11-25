@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\URL;
 
 /**
- * A ZIP of the whole family library on the API server's disk (docs/API_CONTRACT.md section 8).
+ * A ZIP of the whole family library on the API server's disk (docs/reference/api.md section 8).
  */
 #[Fillable(['user_id', 'status', 'path', 'size_bytes', 'error', 'completed_at'])]
 class Export extends Model

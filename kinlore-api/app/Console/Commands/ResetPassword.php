@@ -10,7 +10,7 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
 /**
- * For the server owner when someone forgot a password (docs/SELF_HOSTING.md).
+ * For the server owner when someone forgot a password (docs/self-hosting/maintenance.md).
  */
 #[Signature('kinlore:reset-password {email} {--password= : New password; asked for when left out}')]
 #[Description('Set a new password for a user and sign them out on all devices')]

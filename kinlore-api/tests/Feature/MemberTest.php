@@ -14,7 +14,7 @@ use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 /**
- * Member management by the admin (docs/API_CONTRACT.md section 4).
+ * Member management by the admin (docs/reference/api.md section 4).
  */
 class MemberTest extends TestCase
 {

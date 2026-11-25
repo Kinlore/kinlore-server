@@ -817,7 +817,7 @@ class MomentService
     }
 
     /**
-     * Signed HLS URL for the player (docs/API_CONTRACT.md section 6).
+     * Signed HLS URL for the player (docs/reference/api.md section 6).
      *
      * @return array{hls_url: string, expires_at: string}
      */

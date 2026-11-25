@@ -13,7 +13,7 @@ use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 /**
- * First admin through the web setup page (docs/API_CONTRACT.md sections 3 and 10).
+ * First admin through the web setup page (docs/reference/api.md sections 3 and 10).
  */
 class WebSetupTest extends TestCase
 {

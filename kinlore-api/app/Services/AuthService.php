@@ -242,7 +242,7 @@ class AuthService
         return $user->createToken('mobile-app')->plainTextToken;
     }
 
-    // docs/API_CONTRACT.md section 2
+    // docs/reference/api.md section 2
     private function userPayload(User $user): array
     {
         return $user->toPayload() + ['email_verified_at' => $user->email_verified_at?->toIso8601String()];

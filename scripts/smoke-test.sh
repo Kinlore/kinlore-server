@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# End-to-end check of a running Kinlore API against docs/API_CONTRACT.md.
+# End-to-end check of a running Kinlore API against docs/reference/api.md.
 # Usage: scripts/smoke-test.sh <base url> <admin email> <admin password>
 #   e.g. scripts/smoke-test.sh http://localhost:8088 admin@example.test 'TestPassword123!'
 # Optional: SMOKE_EXPORT_WAIT=<seconds> when the instance already holds large videos.

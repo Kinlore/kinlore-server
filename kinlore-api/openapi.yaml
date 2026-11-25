@@ -7,7 +7,7 @@ info:
 
     This file describes the code in `kinlore-api` (routes, controllers, form requests,
     services and model payloads). The agreement between server and app is
-    `docs/API_CONTRACT.md`; where the two differ, this file follows the code.
+    `docs/reference/api.md`; where the two differ, this file follows the code.
 
     ## Conventions
     - Base path `/api`. The public invitation page `/invite/{token}` is outside `/api`.

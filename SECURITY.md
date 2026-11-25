@@ -33,4 +33,4 @@ This policy covers the Kinlore server: the API, the Docker setup and the host-in
 
 A problem in a dependency (Laravel, PHP, PostgreSQL, SeaweedFS, Redis, Caddy) belongs to that project, unless Kinlore's use of it causes the problem.
 
-If you run a Kinlore server, see [docs/SELF_HOSTING.md](docs/SELF_HOSTING.md) for HTTPS, reverse proxies and backups.
+If you run a Kinlore server, see [Security](https://kinlore.github.io/kinlore-server/self-hosting/security), [HTTPS and reverse proxy](https://kinlore.github.io/kinlore-server/self-hosting/https-and-reverse-proxy) and [Backup and restore](https://kinlore.github.io/kinlore-server/self-hosting/backup-and-restore).

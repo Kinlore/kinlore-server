@@ -47,7 +47,7 @@ class Invitation extends Model
         $query->whereNull('accepted_at')->where('expires_at', '>', now());
     }
 
-    /** Permissions as they will apply: only `family` members are limited (docs/API_CONTRACT.md section 1). */
+    /** Permissions as they will apply: only `family` members are limited (docs/reference/api.md section 1). */
     public function permissionsArray(): array
     {
         return array_combine(User::PERMISSIONS, array_map(
@@ -56,7 +56,7 @@ class Invitation extends Model
         ));
     }
 
-    /** Invitation item for the admin endpoints (docs/API_CONTRACT.md section 3). */
+    /** Invitation item for the admin endpoints (docs/reference/api.md section 3). */
     public function toItem(): array
     {
         return [

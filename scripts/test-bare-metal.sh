@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Proves docs/BARE_METAL.md (the export of the two 300 MB test videos needs several minutes on a small machine): runs the guide's commands on a clean Debian 13 in a throwaway
+# Proves docs/self-hosting/bare-metal.md (the export of the two 300 MB test videos needs several minutes on a small machine): runs the guide's commands on a clean Debian 13 in a throwaway
 # container (no Docker Compose, no services of this repo), then runs the end-to-end smoke test
 # against the result, once through Caddy and once through nginx.
 # Usage: scripts/test-bare-metal.sh        Needs: docker.

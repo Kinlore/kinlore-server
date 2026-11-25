@@ -14,7 +14,7 @@ use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 /**
- * Setup status, the first admin, invitations and the public invite page (docs/API_CONTRACT.md sections 2 and 3).
+ * Setup status, the first admin, invitations and the public invite page (docs/reference/api.md sections 2 and 3).
  */
 class SetupAndInvitationTest extends TestCase
 {

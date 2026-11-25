@@ -12,8 +12,8 @@ body:
     attributes:
       label: How do you run the server?
       options:
-        - Docker (docs/SELF_HOSTING.md)
-        - Host install without Docker (docs/BARE_METAL.md)
+        - Docker
+        - Host install without Docker
         - Local development setup
     validations:
       required: true

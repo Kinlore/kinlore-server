@@ -132,7 +132,7 @@ class Kid extends Model
         return $colors[array_rand($colors)];
     }
 
-    /** API resource format (docs/API_CONTRACT.md section 5). */
+    /** API resource format (docs/reference/api.md section 5). */
     #[\Override]
     public function toArray(): array
     {
