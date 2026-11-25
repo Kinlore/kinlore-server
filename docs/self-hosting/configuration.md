@@ -1,142 +1,167 @@
-# Configuration
+# Environment variables
 
-The server reads its settings from environment variables. An environment variable is a name with a value, such as `APP_URL=https://photos.example.com`. You write them in a settings file. This page lists every setting that Kinlore uses, with its meaning, its default, and when to change it.
+The server reads its settings from environment variables. An environment variable is a name with a value, for example `APP_URL=https://photos.example.com`. This page lists every variable, with its meaning and its default.
 
-## Where the settings are
+::: warning After a change, recreate the containers
+Run `docker compose up -d` in the folder of `docker-compose.yml`. Docker Compose then makes the changed containers again with the new values. `docker compose restart` is not enough: a restarted container keeps its old values.
 
-| Install | Settings file |
-|---|---|
-| Docker | `.env` **next to `docker-compose.yml`**. Start from `.env.example`. |
-| Without Docker | `kinlore-api/.env`. Start from `deploy/bare-metal/env.example`. |
+On a host install, run `sudo -u www-data php artisan config:cache` in `/srv/kinlore/kinlore-api`, then `sudo systemctl restart kinlore-queue kinlore-queue-default`.
+:::
 
-After a change:
+## Where the variables are
 
-- **Docker:** run `docker compose up -d`. The API container starts again with the new values.
-- **Without Docker:** run `sudo -u www-data php artisan config:cache` in `/srv/kinlore/kinlore-api`, then `sudo systemctl restart kinlore-queue kinlore-queue-default`.
+| Install | File | Start from |
+|---|---|---|
+| Docker | `.env` in the folder of `docker-compose.yml` | `.env.example` |
+| Host install | `kinlore-api/.env` | `deploy/bare-metal/env.example` |
 
-::: warning Keep the settings file safe
+::: details How Docker passes the variables
+`docker-compose.yml` passes a fixed list of names from `.env` to the API container. This page lists these names in the groups from [Required](#required) to [Advanced](#advanced). A name that is not in that list has no effect in `.env`.
+
+For the other names, use a second file: `kinlore-api/.env`. The API container reads it when it exists. Set `API_ENV_FILE` to use another path. A value from `.env` wins over the same name in `kinlore-api/.env`.
+:::
+
+::: danger Keep the settings file safe
 The settings file holds `APP_KEY` and the passwords. Without it, a backup cannot be used. Save it with every backup. Never share it.
 :::
 
-### How Docker passes the settings
+## Required
 
-`docker-compose.yml` passes a fixed list of names from `.env` to the API container. The tables below mark these names with **Docker: yes**. A name that is not in that list has no effect in the root `.env`.
+`docker compose` stops with a message such as `Set APP_KEY in the .env file next to docker-compose.yml` when one of these is empty.
 
-For the other names, use a second file: `kinlore-api/.env`. The API container reads it when it exists. Set `API_ENV_FILE` to use another path. A value from the root `.env` wins over the same name in `kinlore-api/.env`.
-
-## Required settings
-
-| Name | Meaning | Default | Docker |
-|---|---|---|---|
-| `APP_KEY` | The secret key of the server. It protects sessions, signed links and encrypted values. Make it with `echo "base64:$(openssl rand -base64 32)"` (Docker) or `php artisan key:generate` (without Docker). | none | yes, required |
-| `APP_URL` | The address that the phones use, for example `https://photos.example.com`. Include a port if it is not 80 or 443. Invitation links, video links and the setup page are built from it. | `http://localhost` | yes |
-| `DB_PASSWORD` | The password of the database user. In Docker, PostgreSQL gets this password at its first start. | none | yes, required |
-| `SEAWEEDFS_KEY` | The access key of the media storage. Make it with `openssl rand -hex 32`. | none | yes, required |
-| `SEAWEEDFS_SECRET` | The secret key of the media storage. Make it with `openssl rand -hex 32`. | none | yes, required |
-
-In Docker, `docker compose` stops with a message such as `Set APP_KEY in the .env file next to docker-compose.yml` when a required value is missing. Without Docker, `SEAWEEDFS_KEY` and `SEAWEEDFS_SECRET` are needed only with `SEAWEEDFS_DRIVER=s3`.
+| Variable | Description | Default |
+|---|---|---|
+| `APP_KEY` | The secret key of the server. It protects sessions, signed links and encrypted values. Make it with `echo "base64:$(openssl rand -base64 32)"`. | none |
+| `APP_URL` | The address that the phones use, for example `https://photos.example.com`. Include a port if it is not 80 or 443. Invitation links, video links and the setup page are built from it. | `http://localhost` |
+| `DB_PASSWORD` | The password of the database user. PostgreSQL gets it at its first start. Make it with `openssl rand -hex 32`. | none |
+| `SEAWEEDFS_KEY` | The access key of the media storage. Make it with `openssl rand -hex 32`. | none |
+| `SEAWEEDFS_SECRET` | The secret key of the media storage. Make it with `openssl rand -hex 32`. | none |
 
 ::: danger Do not change these after the first start
 - A new `APP_KEY` stops every signed link and every encrypted value.
-- In Docker, PostgreSQL keeps the first `DB_PASSWORD`. A new value in `.env` does not change the database password, and the API can then not connect.
+- PostgreSQL keeps the first `DB_PASSWORD`. A new value in `.env` does not change the database password, and the API can then not connect.
 :::
+
+## Address and HTTPS
+
+| Variable | Description | Default |
+|---|---|---|
+| `KINLORE_DOMAIN` | Your public host name. When it is set, Caddy in the API container gets a certificate and serves HTTPS. Empty: plain HTTP on port 80. `deploy/docker/reverse-proxy.yml` always uses plain HTTP, because your proxy does HTTPS. See [HTTPS and reverse proxy](/self-hosting/https-and-reverse-proxy). | empty |
+| `APP_PORT` | The host port for HTTP. | `80`; `8080` with `deploy/docker/reverse-proxy.yml` |
+| `APP_SSL_PORT` | The host port for HTTPS, TCP and UDP. Used only with `KINLORE_DOMAIN`. Not used with `deploy/docker/reverse-proxy.yml`. | `443` |
+| `APP_BIND_ADDRESS` | The host address of the API ports. `127.0.0.1` makes the ports reachable only from this machine. | `0.0.0.0` (all addresses); `127.0.0.1` with `deploy/docker/reverse-proxy.yml` |
+| `APP_NAME` | The name on public pages, in the answer of `/api/auth/setup-status`, and in the export file. It is not the family name: the admin sets that in the app. | `Kinlore` |
+
+## Reverse proxy and network
+
+A reverse proxy is a web server in front of Kinlore, for example Caddy or nginx on the host. See [HTTPS and reverse proxy](/self-hosting/https-and-reverse-proxy).
+
+| Variable | Description | Default |
+|---|---|---|
+| `COMPOSE_FILE` | The Compose files to use, separated by `:`. Docker Compose reads this name itself. Add `deploy/docker/reverse-proxy.yml` for a reverse proxy on this machine, and `deploy/docker/bind-mounts.yml` for data in a folder of your choice. Example: `docker-compose.yml:deploy/docker/reverse-proxy.yml`. | `docker-compose.yml` (and `docker-compose.override.yml` if it exists) |
+| `TRUSTED_PROXIES` | The addresses of reverse proxies whose `X-Forwarded-*` headers the server trusts. A comma list of addresses and networks. `*` trusts every address. See [Trusted proxies](/self-hosting/https-and-reverse-proxy#trusted-proxies). | `127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16` (all private networks); the value of `KINLORE_GATEWAY` with `deploy/docker/reverse-proxy.yml` |
+| `KINLORE_SUBNET` | With `deploy/docker/reverse-proxy.yml`: the fixed network of the containers. Change it only when it overlaps a network that you already use. | `172.31.250.0/24` |
+| `KINLORE_GATEWAY` | With `deploy/docker/reverse-proxy.yml`: the address of the host in that network. A proxy on the host reaches the server from this address, so `TRUSTED_PROXIES` takes this value when it is not set. | `172.31.250.1` |
+
+## Data locations
+
+| Variable | Description | Default |
+|---|---|---|
+| `DATA_LOCATION` | With `deploy/docker/bind-mounts.yml`: the folder for all data, with one subfolder per service. Docker makes missing folders at the first start. Set it before the first start. See [Data locations](/self-hosting/data-locations). | `/srv/data/kinlore` |
+| `API_ENV_FILE` | The path of an extra settings file for the API container. The file may be missing. | `./kinlore-api/.env` |
+
+Without `deploy/docker/bind-mounts.yml`, the data is in Docker volumes.
 
 ## First admin
 
-| Name | Meaning | Default | Docker |
-|---|---|---|---|
-| `SETUP_TOKEN` | The token that the setup page asks for. Empty: the server makes a random token. See [Create the first admin](/self-hosting/first-admin). | empty | yes |
-| `SEED_USER_NAME` | Name of an admin that the server creates by itself, with no setup page. | `Admin` in Docker, `Admin User` without Docker | yes |
-| `SEED_USER_EMAIL` | Email address of that admin. With `SEED_USER_PASSWORD`, it turns this function on. | empty | yes |
-| `SEED_USER_PASSWORD` | Password of that admin. | empty | yes |
+See [Create the first admin](/self-hosting/first-admin).
 
-The server creates the seeded admin only while it has no user.
-
-## Name and mode
-
-| Name | Meaning | Default | Docker |
-|---|---|---|---|
-| `APP_NAME` | The name on public pages, in the answer of `/api/auth/setup-status`, and in the export file. It is not the family name. Members see the family name, which the admin sets in the app. | `Kinlore` | yes |
-| `APP_ENV` | The mode of the application. Keep `production`. | `production` | yes |
-| `APP_DEBUG` | Shows error details in answers. Keep `false` on a real server: details can show private data. | `false` | yes |
-
-## Network and HTTPS (Docker)
-
-These settings exist only in Docker. See [HTTPS and reverse proxy](/self-hosting/https-and-reverse-proxy).
-
-| Name | Meaning | Default |
+| Variable | Description | Default |
 |---|---|---|
-| `KINLORE_DOMAIN` | Your public host name. When it is set, Caddy in the API container gets a certificate and serves HTTPS. Empty: plain HTTP on port 80. | empty |
-| `APP_PORT` | Host port for HTTP. Change it when a reverse proxy on the host uses port 80, for example to `8080`. | `80` |
-| `APP_SSL_PORT` | Host port for HTTPS, TCP and UDP. Used only with `KINLORE_DOMAIN`. Move it when your own proxy uses port 443. | `443` |
-| `APP_BIND_ADDRESS` | The host address of the API ports. Set `127.0.0.1` when a proxy on the same machine is the only way in. | `0.0.0.0` (all addresses) |
-| `API_ENV_FILE` | Path of the extra settings file for the API container. The file may be missing. | `./kinlore-api/.env` |
+| `SETUP_TOKEN` | The token that the setup page asks for. Empty: the server makes a random token. | empty |
+| `SEED_USER_NAME` | The name of an admin that the server creates by itself, without the setup page. | `Admin` |
+| `SEED_USER_EMAIL` | The email address of that admin. With `SEED_USER_PASSWORD`, it turns this on. | empty |
+| `SEED_USER_PASSWORD` | The password of that admin. | empty |
 
-## Reverse proxy
-
-| Name | Meaning | Default | Docker |
-|---|---|---|---|
-| `TRUSTED_PROXIES` | Addresses of reverse proxies whose `X-Forwarded-*` headers the server trusts. A comma list of addresses and networks. `*` trusts every address. Set it to the address of your proxy. | `127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16` (private networks); `127.0.0.1` in `deploy/bare-metal/env.example` | yes |
+The server creates this admin only while it has no user.
 
 ## Database
 
-| Name | Meaning | Default | Docker |
-|---|---|---|---|
-| `DB_CONNECTION` | The database type: `pgsql` (PostgreSQL) or `sqlite`. | `pgsql` in Docker, `sqlite` without Docker | yes |
-| `DB_DATABASE` | The database name. For SQLite, the path of the database file. | `kinlore_db` in Docker, `/var/lib/kinlore/database.sqlite` in `env.example` | yes |
-| `DB_USERNAME` | The database user. | `kinlore_user` in Docker | yes |
-| `DB_HOST` | The database server, for PostgreSQL without Docker. | `127.0.0.1` | no (fixed to the PostgreSQL container) |
-| `DB_PORT` | The port of the database server. | `5432` | no (fixed) |
-| `DB_BUSY_TIMEOUT` | SQLite only: how long a request waits for a locked database, in milliseconds. | `5000` | no |
-| `DB_JOURNAL_MODE` | SQLite only: the journal mode. Keep `wal`. | `wal` | no |
+Set these only before the first start. PostgreSQL makes the database and the user once.
 
-In Docker, set `DB_DATABASE` and `DB_USERNAME` only before the first start. PostgreSQL makes them once.
+| Variable | Description | Default |
+|---|---|---|
+| `DB_DATABASE` | The database name. | `kinlore_db` |
+| `DB_USERNAME` | The database user. | `kinlore_user` |
+| `DB_CONNECTION` | The database type. Keep `pgsql` (PostgreSQL). | `pgsql` |
 
-## Media storage
+## Storage
 
-All photos and videos go through one storage. Its settings start with `SEAWEEDFS_` because Docker uses SeaweedFS. Without Docker, the same names select a folder on the disk or any S3 storage. S3 is a common way to store files over the network.
+All photos and videos go through one storage. In Docker, this is SeaweedFS, a storage with an S3 interface. S3 is a common way to store files over the network.
 
-| Name | Meaning | Default | Docker |
-|---|---|---|---|
-| `FILESYSTEM_DISK` | The storage name in the code. Keep `seaweedfs`. | `seaweedfs` | yes |
-| `SEAWEEDFS_DRIVER` | `s3` for S3 storage, `local` for a folder on the disk. | `s3`; `local` in `env.example` | no (Docker uses `s3`) |
-| `MEDIA_ROOT` | With `local`: the folder for photos and videos. | `storage/app/media` in `kinlore-api`; `/var/lib/kinlore/media` in `env.example` | no |
-| `SEAWEEDFS_ENDPOINT` | With `s3`: the address of the S3 storage. | `http://kinlore-seaweedfs-filer:8333` | yes |
-| `SEAWEEDFS_BUCKET` | With `s3`: the bucket name. A bucket is a top-level folder of S3 storage. | `kinlore` | yes |
-| `SEAWEEDFS_REGION` | With `s3`: the region of the storage. | `us-east-1` | no |
-| `SEAWEEDFS_USE_PATH_STYLE_ENDPOINT` | With `s3`: put the bucket name in the path of the address. Most self-hosted S3 storage needs `true`. | `true` | fixed to `true` |
-| `SEAWEEDFS_URL` | A base address of the storage. The app never uses it; `php artisan seaweedfs:test` prints it. | `http://localhost:8333` | yes |
-
-## Cache, sessions and queue
-
-| Name | Meaning | Default | Docker |
-|---|---|---|---|
-| `CACHE_STORE` | Where the cache and the rate limits are kept: `redis` or `database`. | `redis` in Docker, `database` without Docker | yes |
-| `SESSION_DRIVER` | Where browser sessions of the setup page are kept. | `file` in Docker, `database` without Docker | yes |
-| `QUEUE_CONNECTION` | Where background jobs wait for a worker. Keep `database`: the workers read from it. | `database` | yes |
-| `DB_QUEUE_RETRY_AFTER` | Seconds after which a job that has not finished is given to a worker again. Keep it longer than the longest job (an export can take one hour). | `3700` | no |
-| `SANCTUM_STATEFUL_DOMAINS` | Browser addresses that may sign in with a cookie. The app uses tokens, not cookies. You do not need to change it. | `localhost,localhost:8081` in Docker | yes |
-
-## Videos
-
-| Name | Meaning | Default | Docker |
-|---|---|---|---|
-| `VIDEO_QUALITY_VARIANTS` | The heights of the video stream, a comma list. Fewer heights make the conversion faster and use less disk. | `720,480,240` | no |
-| `FFMPEG_BINARIES` | Path of the `ffmpeg` command. | `ffmpeg`; `/usr/bin/ffmpeg` in `env.example` | no |
-| `FFPROBE_BINARIES` | Path of the `ffprobe` command. | `ffprobe`; `/usr/bin/ffprobe` in `env.example` | no |
-| `FFMPEG_TEMPORARY_FILES_ROOT` | Folder for temporary files during a conversion. Change it when `/tmp` is small. | the system temporary folder | no |
+| Variable | Description | Default |
+|---|---|---|
+| `FILESYSTEM_DISK` | The storage name in the code. Keep `seaweedfs`. | `seaweedfs` |
+| `SEAWEEDFS_ENDPOINT` | The address of the S3 storage. | `http://kinlore-seaweedfs-filer:8333` |
+| `SEAWEEDFS_BUCKET` | The bucket name. A bucket is a top-level folder of S3 storage. | `kinlore` |
+| `SEAWEEDFS_URL` | A base address of the storage. The app does not use it; `php artisan seaweedfs:test` prints it. | `http://localhost:8333` |
 
 ## Logs
 
-| Name | Meaning | Default | Docker |
-|---|---|---|---|
-| `LOG_CHANNEL` | The log setup. Keep `stack`. | `stack` | yes |
-| `LOG_STACK` | Where the log goes. `daily` writes one file per day. `single` writes one file that grows. | `daily` in Docker and `env.example`; `single` otherwise | yes |
-| `LOG_LEVEL` | The lowest level that is written. `debug` writes the most; `error` the least. | `warning` in Docker and `env.example` | yes |
-| `LOG_DAILY_DAYS` | With `daily`: how many days of log files are kept. | `14` | no |
+The log files are in `storage/logs` of the API. See [Maintenance](/self-hosting/maintenance#logs).
 
-The log files are in `kinlore-api/storage/logs`. See [Maintenance](/self-hosting/maintenance#logs).
+| Variable | Description | Default |
+|---|---|---|
+| `LOG_CHANNEL` | The log setup. Keep `stack`. | `stack` |
+| `LOG_STACK` | `daily` writes one file per day. `single` writes one file that grows. | `daily` |
+| `LOG_LEVEL` | The lowest level that is written. `debug` writes the most; `error` the least. | `warning` |
 
-## Other settings
+## Advanced
 
-The server is a Laravel application. Laravel reads more settings, for example for mail. Kinlore does not send email, so you do not need them.
+You do not need to change these.
+
+| Variable | Description | Default |
+|---|---|---|
+| `APP_ENV` | The mode of the application. Keep `production`. | `production` |
+| `APP_DEBUG` | Shows error details in answers. Keep `false`: details can show private data. | `false` |
+| `CACHE_STORE` | Where the cache and the rate limits are kept: `redis` or `database`. | `redis` |
+| `SESSION_DRIVER` | Where browser sessions of the setup page are kept. | `file` |
+| `QUEUE_CONNECTION` | Where background jobs wait for a worker. Keep `database`: the workers read from it. | `database` |
+| `SANCTUM_STATEFUL_DOMAINS` | Browser addresses that may sign in with a cookie. The app uses tokens, not cookies. | `localhost,localhost:8081` |
+
+## Host install only
+
+A host install reads all variables above from `kinlore-api/.env`, except the Docker-only ones (`KINLORE_DOMAIN`, `APP_PORT`, `APP_SSL_PORT`, `APP_BIND_ADDRESS`, `COMPOSE_FILE`, `KINLORE_SUBNET`, `KINLORE_GATEWAY`, `DATA_LOCATION`, `API_ENV_FILE`). Some defaults differ, and these variables come in addition. See [Host install without Docker](/self-hosting/bare-metal).
+
+| Variable | Description | Default |
+|---|---|---|
+| `DB_CONNECTION` | `sqlite` (one file) or `pgsql` (PostgreSQL). | `sqlite` |
+| `DB_DATABASE` | For SQLite, the path of the database file. For PostgreSQL, the database name. | `/var/lib/kinlore/database.sqlite` in `env.example` |
+| `DB_HOST` | PostgreSQL only: the database server. | `127.0.0.1` |
+| `DB_PORT` | PostgreSQL only: the port of the database server. | `5432` |
+| `DB_USERNAME` | PostgreSQL only: the database user. | `root` |
+| `DB_BUSY_TIMEOUT` | SQLite only: how long a request waits for a locked database, in milliseconds. | `5000` |
+| `DB_JOURNAL_MODE` | SQLite only: the journal mode. Keep `wal`. | `wal` |
+| `SEAWEEDFS_DRIVER` | `local` for a folder on the disk, `s3` for S3 storage. With `s3`, also set `SEAWEEDFS_ENDPOINT`, `SEAWEEDFS_KEY`, `SEAWEEDFS_SECRET` and `SEAWEEDFS_BUCKET`. | `s3`; `local` in `env.example` |
+| `MEDIA_ROOT` | With `local`: the folder for photos and videos. | `storage/app/media`; `/var/lib/kinlore/media` in `env.example` |
+| `SEAWEEDFS_REGION` | With `s3`: the region of the storage. | `us-east-1` |
+| `SEAWEEDFS_USE_PATH_STYLE_ENDPOINT` | With `s3`: put the bucket name in the path of the address. Most self-hosted S3 storage needs `true`. In Docker, it is always `true`. | `true` |
+| `CACHE_STORE` | `database` needs no Redis. | `database` |
+| `SESSION_DRIVER` | Where browser sessions are kept. | `database` |
+| `TRUSTED_PROXIES` | The web server on the same machine. | `127.0.0.1` in `env.example` |
+| `LOG_STACK` | See [Logs](#logs). | `single`; `daily` in `env.example` |
+| `LOG_LEVEL` | See [Logs](#logs). | `debug`; `warning` in `env.example` |
+| `LOG_DAILY_DAYS` | With `daily`: how many days of log files are kept. Also works in Docker through `kinlore-api/.env`. | `14` |
+| `DB_QUEUE_RETRY_AFTER` | Seconds after which a job that has not finished goes to a worker again. Keep it longer than the longest job (an export can take one hour). | `3700` |
+| `VIDEO_QUALITY_VARIANTS` | The heights of the video stream, a comma list. Fewer heights make the conversion faster and use less disk. | `720,480,240` |
+| `FFMPEG_BINARIES` | The path of the `ffmpeg` command. | `ffmpeg`; `/usr/bin/ffmpeg` in `env.example` |
+| `FFPROBE_BINARIES` | The path of the `ffprobe` command. | `ffprobe`; `/usr/bin/ffprobe` in `env.example` |
+| `FFMPEG_TEMPORARY_FILES_ROOT` | A folder for temporary files during a conversion. Change it when `/tmp` is small. | the system temporary folder |
+
+`kinlore-api/.env.example` is the file for developers. Its other names are standard Laravel settings, for example for mail. Kinlore sends no email, so you do not need them.
+
+## Next steps
+
+- [Create the first admin](/self-hosting/first-admin)
+- [HTTPS and reverse proxy](/self-hosting/https-and-reverse-proxy)
+- [Security](/self-hosting/security)

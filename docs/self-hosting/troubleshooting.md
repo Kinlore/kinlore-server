@@ -6,10 +6,14 @@ This page lists common problems of the server, their causes and their fixes. Pro
 
 Most problems show in the log.
 
-```sh
-docker compose logs api --tail 100                              # Docker
-sudo tail -n 50 /srv/kinlore/kinlore-api/storage/logs/laravel-$(date +%F).log   # host install
+::: code-group
+```sh [Docker]
+docker compose logs api --tail 100
 ```
+```sh [Host install]
+sudo tail -n 50 /srv/kinlore/kinlore-api/storage/logs/laravel-$(date +%F).log
+```
+:::
 
 More log commands are in [Maintenance](/self-hosting/maintenance#logs).
 
@@ -17,11 +21,13 @@ More log commands are in [Maintenance](/self-hosting/maintenance#logs).
 
 | What you see | Cause and fix |
 |---|---|
-| `docker compose up` stops with `Set APP_KEY in the .env file next to docker-compose.yml` (or another name) | A required value is empty in `.env` next to `docker-compose.yml`. Fill it in. See [Configuration](/self-hosting/configuration#required-settings). |
+| `docker compose up` stops with `Set APP_KEY in the .env file next to docker-compose.yml` (or another name) | A required value is empty in `.env` next to `docker-compose.yml`. Fill it in. See [Required variables](/self-hosting/configuration#required). |
 | The API container restarts again and again, and the log says `Database not reachable` | The API cannot reach PostgreSQL. Often `DB_PASSWORD` changed after the first start. PostgreSQL keeps the first password. Put the first value back. |
-| A port is already in use | Another program uses port 80 or 443. Stop it, or move the API to other ports with `APP_PORT` and `APP_SSL_PORT`. See [HTTPS and reverse proxy](/self-hosting/https-and-reverse-proxy#your-own-reverse-proxy-docker). |
+| `docker compose up` stops with `address already in use` or `port is already allocated` | Another program uses port 80 or 443, often a web server on the host. `sudo ss -ltnp 'sport = :80'` names it (use `:443` for the other port). Stop that program, or keep it and put Kinlore behind it with `deploy/docker/reverse-proxy.yml`. See [Choose your setup](/self-hosting/docker#step-3-choose-your-setup). |
+| `docker compose` stops with an error about `!override` | Docker Compose is older than 2.24.4. `deploy/docker/reverse-proxy.yml` needs a newer version. Check with `docker compose version`, then update Docker. See [Requirements](/self-hosting/requirements#docker-and-docker-compose). |
+| A log shows `permission denied` for a folder under `DATA_LOCATION` | With `deploy/docker/bind-mounts.yml`, each service writes as its own user into its subfolder. Keep the data folder on a local Linux file system such as ext4. Network shares and disks with FAT or NTFS often do not keep the owner of a file. After a copy, check that you used `cp -a`. See [Data locations](/self-hosting/data-locations). |
 | The setup page does not accept the token | Print the token again with `php artisan kinlore:setup-token`. If `SETUP_TOKEN` is set, enter that value. See [Create the first admin](/self-hosting/first-admin). |
-| A changed setting has no effect | Docker: run `docker compose up -d`. Host install: run `sudo -u www-data php artisan config:cache`. In Docker, check that the name is passed to the container. See [How Docker passes the settings](/self-hosting/configuration#how-docker-passes-the-settings). |
+| A changed variable has no effect | Docker: run `docker compose up -d`; `docker compose restart` is not enough. Host install: run `sudo -u www-data php artisan config:cache`. In Docker, check that the name is passed to the container. See [Where the variables are](/self-hosting/configuration#where-the-variables-are). |
 
 ## Web server and HTTPS
 
@@ -30,14 +36,15 @@ More log commands are in [Maintenance](/self-hosting/maintenance#logs).
 | The browser shows "502" or "Bad Gateway" (host install) | PHP-FPM is not running, or the web server cannot reach its socket. Run `systemctl status php8.5-fpm`. For Caddy: `sudo usermod -aG www-data caddy`, then restart Caddy. |
 | A page shows "500" | Read the log. On a host install, often `storage` or `/var/lib/kinlore` is not owned by `www-data`. |
 | No certificate | The host name does not point at the server, or port 80 or 443 is closed. |
-| Links start with `http://`, and videos do not play on an iPhone | `APP_URL` must be the `https://` address. Behind a proxy, its address must be in `TRUSTED_PROXIES`. See [Trusted proxies](/self-hosting/https-and-reverse-proxy#trusted-proxies). |
+| Links start with `http://`, and videos do not play on an iPhone | `APP_URL` must be the `https://` address. Behind a proxy, the address of the proxy must be in `TRUSTED_PROXIES`. With `deploy/docker/reverse-proxy.yml`, that is `172.31.250.1`, and the file sets it by itself; remove any other `TRUSTED_PROXIES` line from `.env`. See [Trusted proxies](/self-hosting/https-and-reverse-proxy#trusted-proxies). |
+| All members hit the sign-in limit at the same time | The server sees the proxy as the client of every request, because `TRUSTED_PROXIES` does not hold the address of the proxy. The rate limits then count all members as one. Set `TRUSTED_PROXIES` to the address of the proxy, then run `docker compose up -d`. |
 
 ## Uploads and videos
 
 | What you see | Cause and fix |
 |---|---|
 | A large upload fails with "413" or "POST data is too large" | Host install: the PHP files of step 4 are missing, or PHP-FPM was not restarted. A proxy in front can also limit the size. One file can be up to 500 MB. |
-| A long upload stops after some time | A reverse proxy in front has a timeout. See [What your proxy must do](/self-hosting/https-and-reverse-proxy#what-your-proxy-must-do). |
+| A long upload stops after some time | A reverse proxy in front has a timeout. See [HTTPS and reverse proxy](/self-hosting/https-and-reverse-proxy). |
 | A video stays at "processing" | The video worker does not run. Docker: read `docker compose logs api`. Host install: `systemctl status kinlore-queue`, and FFmpeg must be at `/usr/bin/ffmpeg`. |
 | A video shows as failed | Read the log for the error. Delete the moment in the app and upload the video again. |
 | An HEIC photo from an iPhone has no preview | Host install: the HEIC decoder is missing. Run `sudo apt install -y libheif-examples`. |
@@ -52,12 +59,12 @@ Do one or both:
 
 - **Lower the number of PHP-FPM workers.** Fewer uploads can then run at the same time.
   - Docker: make a file `fpm-small.conf` next to `docker-compose.yml` with these two lines:
-    ```ini
+    ```ini [Limit PHP-FPM workers]
     [www]
     pm.max_children = 4
     ```
-    Add it to `docker-compose.override.yml`, then run `docker compose up -d`:
-    ```yaml
+    Add it to `docker-compose.override.yml`, then run `docker compose up -d`. With `COMPOSE_FILE` in `.env`, also add `:docker-compose.override.yml` to the end of that line:
+    ```yaml [docker-compose.override.yml]
     services:
       api:
         volumes:
@@ -65,7 +72,7 @@ Do one or both:
     ```
   - Host install: set `pm.max_children = 4` in `/etc/php/8.5/fpm/pool.d/zz-kinlore.conf`, then run `sudo systemctl restart php8.5-fpm`.
 - **Add swap.** Swap is disk space that the system uses as extra memory.
-  ```sh
+  ```sh [Add swap space]
   sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile
   echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
   ```
@@ -86,3 +93,9 @@ The end-to-end test tries every feature against a running server and shows what 
 ## Ask for help
 
 If the problem stays, open an issue. See [Contributing](/project/contributing).
+
+## Next steps
+
+- [Maintenance](/self-hosting/maintenance)
+- [Data locations](/self-hosting/data-locations)
+- [Updating](/self-hosting/updating)

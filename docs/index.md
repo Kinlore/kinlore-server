@@ -10,8 +10,8 @@ hero:
       text: Quick start
       link: /guide/quick-start
     - theme: alt
-      text: Self-hosting
-      link: /self-hosting/requirements
+      text: Install
+      link: /self-hosting/docker
     - theme: alt
       text: App guide
       link: /app/install

@@ -3,6 +3,9 @@ set -e
 
 echo "🚀 Starting Kinlore API..."
 
+# An empty bind mount (deploy/docker/bind-mounts.yml) has none of the folders Laravel writes to
+mkdir -p storage/app/private storage/app/public storage/framework/cache storage/framework/sessions storage/framework/views storage/logs
+
 # Wait for database to be ready
 echo "⏳ Waiting for database..."
 # About 2 minutes, then stop with the error: a wrong DB_PASSWORD never gets better by waiting

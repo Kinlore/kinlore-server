@@ -1,0 +1,23 @@
+# Kinlore behind a reverse proxy on this machine (Caddy, nginx, Traefik, ...).
+# Turn it on in .env: COMPOSE_FILE=docker-compose.yml:deploy/docker/reverse-proxy.yml
+# Needs Docker Compose 2.24.4 or later (the !override tag).
+# Guide: docs/self-hosting/https-and-reverse-proxy.md
+
+services:
+  api:
+    # Only your proxy on this machine reaches the API; ports 80 and 443 stay free for it
+    ports: !override
+      - "${APP_BIND_ADDRESS:-127.0.0.1}:${APP_PORT:-8080}:80"
+    environment:
+      # Plain HTTP inside: your proxy does HTTPS
+      KINLORE_DOMAIN: ""
+      # Your proxy reaches the container through Docker's port relay, so the API sees the network gateway
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-${KINLORE_GATEWAY:-172.31.250.1}}
+
+networks:
+  kinlore-network:
+    # A fixed gateway makes TRUSTED_PROXIES known before the first start
+    ipam:
+      config:
+        - subnet: ${KINLORE_SUBNET:-172.31.250.0/24}
+          gateway: ${KINLORE_GATEWAY:-172.31.250.1}

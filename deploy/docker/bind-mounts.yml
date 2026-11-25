@@ -1,0 +1,26 @@
+# All Kinlore data in one folder of your choice, instead of Docker volumes.
+# Turn it on in .env: COMPOSE_FILE=docker-compose.yml:deploy/docker/bind-mounts.yml
+# and set DATA_LOCATION. Docker creates the missing folders at the first start.
+# Guide: docs/self-hosting/data-locations.md
+
+services:
+  postgres:
+    volumes:
+      - ${DATA_LOCATION:-/srv/data/kinlore}/postgres:/var/lib/postgresql
+  seaweedfs-master:
+    volumes:
+      - ${DATA_LOCATION:-/srv/data/kinlore}/seaweedfs/master:/data
+  seaweedfs-volume:
+    volumes:
+      - ${DATA_LOCATION:-/srv/data/kinlore}/seaweedfs/volume:/data
+  seaweedfs-filer:
+    volumes:
+      - ${DATA_LOCATION:-/srv/data/kinlore}/seaweedfs/filer:/data
+  redis:
+    volumes:
+      - ${DATA_LOCATION:-/srv/data/kinlore}/redis:/data
+  api:
+    volumes:
+      - ${DATA_LOCATION:-/srv/data/kinlore}/api/storage:/var/www/html/storage
+      - ${DATA_LOCATION:-/srv/data/kinlore}/caddy/data:/data
+      - ${DATA_LOCATION:-/srv/data/kinlore}/caddy/config:/config

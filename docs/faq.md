@@ -16,9 +16,13 @@ No. One server holds one family. A second family runs a second server. The app c
 
 Only for use on the internet. iPhones need HTTPS for an address on the internet. At home, the local address of the machine is enough, for example `http://192.168.1.20`. See [HTTPS and reverse proxy](/self-hosting/https-and-reverse-proxy).
 
+## Can I keep the data in a folder of my choice?
+
+Yes. With Docker, one line in `.env` puts all data in one folder, for example on a second disk. See [Data locations](/self-hosting/data-locations).
+
 ## Docker or not?
 
-Choose Docker when you are not sure. One command starts every part. Without Docker, you install PHP and a web server yourself, but you need less: SQLite and a folder on the disk are enough. See [Requirements](/self-hosting/requirements).
+Choose Docker when you are not sure. One command starts every part. See [Install with Docker Compose](/self-hosting/docker). Without Docker, you install PHP and a web server yourself, but you need less: SQLite and a folder on the disk are enough. See [Requirements](/self-hosting/requirements).
 
 ## Does the server change my photos?
 
@@ -59,3 +63,9 @@ Kinlore is free software under the GNU Affero General Public License, version 3.
 ## Where do I report a bug?
 
 See [Contributing](/project/contributing). Report security problems in private, as [SECURITY.md](https://github.com/Kinlore/kinlore-server/blob/develop/SECURITY.md) explains.
+
+## Next steps
+
+- [Requirements](/self-hosting/requirements)
+- [Updating](/self-hosting/updating)
+- [Troubleshooting](/self-hosting/troubleshooting)

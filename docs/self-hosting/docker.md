@@ -1,92 +1,113 @@
-# Install with Docker
+# Install with Docker Compose (recommended)
 
-This guide installs the Kinlore server with Docker Compose. Docker Compose starts several containers from one file, `docker-compose.yml`.
+This page installs the Kinlore server with Docker Compose. One command starts the API, the database and the media storage.
 
-## What you get
+**What you need:** a Linux machine with Docker and Docker Compose 2.24.4 or newer, `git` and `openssl`. See [Requirements](/self-hosting/requirements).
 
-| Part | Container |
-|---|---|
-| API: Caddy (web server), PHP-FPM and two queue workers (one for videos, one for exports) | `kinlore-api` |
-| Database | PostgreSQL 18 (`kinlore-postgres`) |
-| Media storage with an S3 interface | SeaweedFS (`kinlore-seaweedfs-master`, `kinlore-seaweedfs-volume`, `kinlore-seaweedfs-filer`) |
-| Cache and rate limits | Redis (`kinlore-redis`) |
+## Step 1: Get the files
 
-A queue worker is a background process. It converts videos and builds exports, so the app does not have to wait.
+::: tip Permission denied?
+The commands on this page run `docker` without `sudo`. Add your user to the `docker` group once with `sudo usermod -aG docker $USER`, then sign out and in again. Or put `sudo` before each `docker` command.
+:::
 
-Only the API container is reachable from outside. PostgreSQL, Redis and SeaweedFS have no port on the host.
-
-## What you need
-
-- A Linux machine with Docker and Docker Compose. See [Requirements](/self-hosting/requirements).
-- `git` and `openssl`.
-- For use on the internet: a host name that points at the machine.
-
-## Steps
-
-1. Get the code:
-   ```sh
-   git clone https://github.com/Kinlore/kinlore-server.git
-   cd kinlore-server
-   ```
-2. Copy the settings file. Docker Compose reads the file `.env` **next to `docker-compose.yml`**:
-   ```sh
-   cp .env.example .env
-   ```
-3. Make the secret values. Each command prints one value:
-   ```sh
-   echo "base64:$(openssl rand -base64 32)"   # APP_KEY
-   openssl rand -hex 32                       # DB_PASSWORD
-   openssl rand -hex 32                       # SEAWEEDFS_KEY
-   openssl rand -hex 32                       # SEAWEEDFS_SECRET
-   ```
-4. Open `.env` (for example with `nano .env`) and set the five required values:
-   ```ini
-   APP_KEY=base64:...
-   APP_URL=https://photos.example.com
-   DB_PASSWORD=...
-   SEAWEEDFS_KEY=...
-   SEAWEEDFS_SECRET=...
-   ```
-   `APP_URL` is the address that the phones use. Invitation and video links are built from it.
-5. Choose how the server gets HTTPS:
-   - **Built in:** set `KINLORE_DOMAIN=photos.example.com`. Ports 80 and 443 must be free and open.
-   - **Your own reverse proxy:** leave `KINLORE_DOMAIN` empty. See [HTTPS and reverse proxy](/self-hosting/https-and-reverse-proxy).
-   - **Home network only:** leave `KINLORE_DOMAIN` empty and set `APP_URL` to the local address, for example `http://192.168.1.20`.
-6. Start the stack:
-   ```sh
-   docker compose up -d --build
-   ```
-   The API container prepares the database at each start. Then it starts the web server and the workers.
-7. Create the admin account. See [Create the first admin](/self-hosting/first-admin).
-
-Every other setting is optional. They are listed in [Configuration](/self-hosting/configuration).
-
-## Check that it worked
-
-```sh
-docker compose ps
-curl -fsS http://localhost/api/health
+```sh [Get the newest release]
+git clone https://github.com/Kinlore/kinlore-server.git
+cd kinlore-server
 ```
 
-- All containers show `running`. The API and the database show `healthy` after a short time.
-- `curl` prints a line that starts with `{"status":"ok"`.
-- With `KINLORE_DOMAIN` set, `curl -fsS https://photos.example.com/api/health` gives the same result.
+The `main` branch always holds the newest release. Run all other commands on this page in the folder `kinlore-server`.
 
-To test every feature, run the end-to-end test. It creates test data, so run it before the family starts. See [Commands](/reference/commands#end-to-end-test).
+## Step 2: Fill in `.env`
 
-## When it does not work
+The file `.env` holds your settings. Docker Compose reads it from the folder of `docker-compose.yml`. These commands copy the example file and write a new random secret into each required line:
 
-- `docker compose up` stops with `Set APP_KEY in the .env file next to docker-compose.yml`, or the same message for another name: that value is empty in `.env`.
-- The API container restarts again and again: read its log with `docker compose logs api`. After about two minutes without a database, it stops and prints the database error. A wrong `DB_PASSWORD` is a common cause.
-- More problems and fixes are in [Troubleshooting](/self-hosting/troubleshooting).
+```sh [Make the secrets]
+cp .env.example .env
+sed -i "s|^APP_KEY=.*|APP_KEY=base64:$(openssl rand -base64 32)|" .env
+sed -i "s|^DB_PASSWORD=.*|DB_PASSWORD=$(openssl rand -hex 32)|" .env
+sed -i "s|^SEAWEEDFS_KEY=.*|SEAWEEDFS_KEY=$(openssl rand -hex 32)|" .env
+sed -i "s|^SEAWEEDFS_SECRET=.*|SEAWEEDFS_SECRET=$(openssl rand -hex 32)|" .env
+```
+
+Then open the file with `nano .env` and set `APP_URL`. This is the address that the phones use. The required lines now look like this:
+
+```ini [.env]
+APP_KEY=base64:...            # the secret key of the server
+APP_URL=https://photos.example.com
+DB_PASSWORD=...               # the database password
+SEAWEEDFS_KEY=...             # the two keys of the media storage
+SEAWEEDFS_SECRET=...
+```
+
+::: danger Keep `.env` safe, and keep these values
+Save a copy of `.env` in a safe place. Without it, a backup cannot be used. Do not change `APP_KEY` or `DB_PASSWORD` after the first start.
+:::
+
+All other variables are optional. See [Environment variables](/self-hosting/configuration).
+
+## Step 3: Choose your setup
+
+Add the line of your setup to `.env`. A reverse proxy is a web server in front of Kinlore that handles HTTPS.
+
+| Setup | Line in `.env` | Details |
+|---|---|---|
+| Built-in HTTPS on this machine. Ports 80 and 443 must be free and open. | `KINLORE_DOMAIN=photos.example.com` | [HTTPS and reverse proxy](/self-hosting/https-and-reverse-proxy) |
+| Behind your own reverse proxy on this machine. The server listens on `127.0.0.1:8080` and trusts the proxy by itself. | `COMPOSE_FILE=docker-compose.yml:deploy/docker/reverse-proxy.yml` | [HTTPS and reverse proxy](/self-hosting/https-and-reverse-proxy#behind-a-reverse-proxy-on-this-machine) |
+| Data in a folder of your choice. Set it before the first start. | `COMPOSE_FILE=docker-compose.yml:deploy/docker/bind-mounts.yml`<br>`DATA_LOCATION=/srv/data/kinlore` | [Data locations](/self-hosting/data-locations) |
+
+To use both files, write `COMPOSE_FILE=docker-compose.yml:deploy/docker/reverse-proxy.yml:deploy/docker/bind-mounts.yml`.
+
+::: tip Only for your home network?
+Add no line. Set `APP_URL` to the address of the machine, for example `http://192.168.1.20`. The server then answers plain HTTP on port 80.
+:::
+
+## Step 4: Start the server
+
+```sh [Start the server]
+docker compose up -d --build
+```
+
+The first start builds the server image. This takes some minutes. Watch the API come up with `docker compose logs -f api`. The line `Initialization complete` means that the API runs. Stop the log with `Ctrl+C`. Then check the health of all containers:
+
+```sh [Check the server]
+docker compose ps
+docker compose exec api curl -fsS http://localhost:8080/api/health
+```
+
+All containers show `running`, and the API shows `healthy`. The second command prints a line that starts with `{"status":"ok"`.
+
+::: details It does not start
+- **`Set APP_KEY in the .env file next to docker-compose.yml`**, or the same message for another name: that line is empty in `.env`.
+- **`address already in use`**: another program uses port 80 or 443.
+- **The API restarts again and again:** read `docker compose logs api`. A wrong `DB_PASSWORD` is a common cause.
+
+More fixes are in [Troubleshooting](/self-hosting/troubleshooting).
+:::
+
+## Step 5: Create the admin account
+
+The setup page asks for a setup token. The token proves that you own the server. Print it:
+
+```sh [Print the setup token]
+docker compose exec api php artisan kinlore:setup-token
+```
+
+The API also writes the token in its log at each start: `docker compose logs api | grep "Setup token"`.
+
+Open `APP_URL` in a web browser, for example `https://photos.example.com`. Fill in the form and paste the token. The details are in [Create the first admin](/self-hosting/first-admin).
+
+## Next steps
+
+- [Connect the app](/app/connect)
+- [Invite your family](/tutorials/invite-your-family)
+- [Back up the server](/self-hosting/backup-and-restore)
+- [Updating](/self-hosting/updating)
 
 ## Reach a database or storage port from the host
 
-The database, Redis and the S3 port of SeaweedFS have no port on the host. So the stack also starts on a host that runs its own PostgreSQL or Redis.
+PostgreSQL, Redis and the S3 port of SeaweedFS have no port on the host. To reach one of them, for example with a database tool, make a file `docker-compose.override.yml` next to `docker-compose.yml`. Keep only the services you need, and pick a free host port:
 
-To reach one of them from the host, for example with a database tool, make a file `docker-compose.override.yml` next to `docker-compose.yml`. Docker Compose reads it by itself. Keep only the services you need, and pick a free host port:
-
-```yaml
+```yaml [docker-compose.override.yml]
 services:
   seaweedfs-filer:
     ports:
@@ -99,10 +120,4 @@ services:
       - "127.0.0.1:6379:6379"
 ```
 
-Then run `docker compose up -d`. The address `127.0.0.1` keeps the ports reachable only from this machine.
-
-## Next steps
-
-- [Create the first admin](/self-hosting/first-admin)
-- [Backup and restore](/self-hosting/backup-and-restore)
-- [Maintenance](/self-hosting/maintenance)
+Then run `docker compose up -d`. The address `127.0.0.1` keeps the ports reachable only from this machine. With `COMPOSE_FILE` in `.env`, add `:docker-compose.override.yml` to the end of that line: Docker Compose then does not read the file by itself.

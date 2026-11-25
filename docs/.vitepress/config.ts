@@ -10,38 +10,51 @@ export default defineConfig({
   themeConfig: {
     nav: [
       { text: 'Guide', link: '/guide/what-is-kinlore' },
-      { text: 'Self-hosting', link: '/self-hosting/requirements' },
+      { text: 'Install', link: '/self-hosting/docker' },
       { text: 'App', link: '/app/install' },
-      { text: 'Tutorials', link: '/tutorials/move-or-restore-a-server' },
+      { text: 'Tutorials', link: '/tutorials/invite-your-family' },
       { text: 'Reference', link: '/reference/api' },
       { text: 'FAQ', link: '/faq' },
     ],
     sidebar: [
       {
-        text: 'Guide',
+        text: 'Getting started',
         items: [
           { text: 'What is Kinlore?', link: '/guide/what-is-kinlore' },
           { text: 'Quick start', link: '/guide/quick-start' },
         ],
       },
       {
-        text: 'Self-hosting',
+        text: 'Install',
         items: [
           { text: 'Requirements', link: '/self-hosting/requirements' },
-          { text: 'Install with Docker', link: '/self-hosting/docker' },
-          { text: 'Install without Docker', link: '/self-hosting/bare-metal' },
-          { text: 'Create the first admin', link: '/self-hosting/first-admin' },
-          { text: 'Configuration', link: '/self-hosting/configuration' },
+          { text: 'Docker Compose (recommended)', link: '/self-hosting/docker' },
+          { text: 'Host install without Docker', link: '/self-hosting/bare-metal' },
+          { text: 'First admin', link: '/self-hosting/first-admin' },
+          { text: 'Environment variables', link: '/self-hosting/configuration' },
+        ],
+      },
+      {
+        text: 'Guides',
+        items: [
           { text: 'HTTPS and reverse proxy', link: '/self-hosting/https-and-reverse-proxy' },
+          { text: 'Data locations', link: '/self-hosting/data-locations' },
+          { text: 'Move or restore a server', link: '/tutorials/move-or-restore-a-server' },
+        ],
+      },
+      {
+        text: 'Administration',
+        items: [
           { text: 'Backup and restore', link: '/self-hosting/backup-and-restore' },
           { text: 'Updating', link: '/self-hosting/updating' },
           { text: 'Maintenance', link: '/self-hosting/maintenance' },
           { text: 'Security', link: '/self-hosting/security' },
           { text: 'Troubleshooting', link: '/self-hosting/troubleshooting' },
+          { text: 'Commands', link: '/reference/commands' },
         ],
       },
       {
-        text: 'Mobile app',
+        text: 'App guide',
         items: [
           { text: 'Install the app', link: '/app/install' },
           { text: 'Connect to a server', link: '/app/connect' },
@@ -61,7 +74,6 @@ export default defineConfig({
         items: [
           { text: 'Invite your family', link: '/tutorials/invite-your-family' },
           { text: 'Upload your phone photos', link: '/tutorials/upload-your-phone-photos' },
-          { text: 'Move or restore a server', link: '/tutorials/move-or-restore-a-server' },
         ],
       },
       {
@@ -69,7 +81,6 @@ export default defineConfig({
         items: [
           { text: 'API rules', link: '/reference/api' },
           { text: 'Architecture', link: '/reference/architecture' },
-          { text: 'Commands', link: '/reference/commands' },
         ],
       },
       {

@@ -20,16 +20,16 @@ Your server holds private photos of children. This page lists what Kinlore does 
 1. **Use HTTPS** for a server on the internet. See [HTTPS and reverse proxy](/self-hosting/https-and-reverse-proxy).
 2. **Keep the secret values secret.** `APP_KEY`, `DB_PASSWORD`, `SEAWEEDFS_KEY` and `SEAWEEDFS_SECRET` must be long random values. Make them with `openssl`, as the install guides show. On a host install, `.env` belongs to `root:www-data` with the mode `640`.
 3. **Keep `APP_DEBUG=false`** on a real server. Error details can show private data.
-4. **Set `TRUSTED_PROXIES`** to the address of your reverse proxy, if you use one. The default trusts all private networks.
+4. **Set `TRUSTED_PROXIES`** to the address of your reverse proxy, if you use one. The default trusts all private networks. `deploy/docker/reverse-proxy.yml` sets it to the address of your proxy by itself (`172.31.250.1`). See [Trusted proxies](/self-hosting/https-and-reverse-proxy#trusted-proxies).
 5. **Finish the setup soon** after the first start, and keep the setup token to yourself.
 6. **Update** when a new release comes out. Only the newest minor version gets security fixes. See [Updating](/self-hosting/updating).
 7. **Make backups**, and keep them in a second place. A backup holds the same private data as the server. Protect it the same way. See [Backup and restore](/self-hosting/backup-and-restore).
-8. **Open only the needed ports** in your firewall: 80 and 443, or the port of your proxy.
+8. **Open only the needed ports** in your firewall: 80 and 443, or the port of your proxy. Behind your own proxy, `deploy/docker/reverse-proxy.yml` keeps the Kinlore port on `127.0.0.1`, so only the proxy reaches it.
 9. **Give the admin role** only to a person you trust. The admin sees all members and can export everything.
 
 ## Check your server
 
-```sh
+```sh [Check that .env is hidden]
 curl -s -o /dev/null -w '%{http_code}\n' https://photos.example.com/.env   # must print 404
 ```
 
@@ -38,3 +38,9 @@ On a host install, also run `sudo -u www-data php artisan about --only=environme
 ## Report a security problem
 
 Do not open a public issue. Follow [SECURITY.md](https://github.com/Kinlore/kinlore-server/blob/develop/SECURITY.md). It explains how to report a problem in private.
+
+## Next steps
+
+- [HTTPS and reverse proxy](/self-hosting/https-and-reverse-proxy)
+- [Backup and restore](/self-hosting/backup-and-restore)
+- [Updating](/self-hosting/updating)
