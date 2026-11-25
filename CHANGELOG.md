@@ -7,6 +7,10 @@ The version numbers are explained in "Project status" in the [README](README.md)
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-11-25
+
+Use this release with version 1.2.0 or newer of the mobile app. The update needs no manual step.
+
 ### Added
 
 - The server keeps one copy of each photo or video per child. An upload of a file that the child already has (the same bytes, by MD5 hash, from any member or phone) returns the existing moment with `200`. A deleted moment does not count.
@@ -163,7 +167,8 @@ First release.
 - Guide and configuration files for an install directly on a Linux host, with SQLite and the local disk.
 - OpenAPI description of the API.
 
-[Unreleased]: https://github.com/Kinlore/kinlore-server/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/Kinlore/kinlore-server/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/Kinlore/kinlore-server/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/Kinlore/kinlore-server/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/Kinlore/kinlore-server/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/Kinlore/kinlore-server/compare/v1.1.0...v1.2.0

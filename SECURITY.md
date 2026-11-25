@@ -4,13 +4,14 @@
 
 | Version | Security fixes |
 | --- | --- |
-| 1.4.x | Yes |
-| 1.3.x | No. Update to 1.4. |
-| 1.2.x | No. Update to 1.4. |
-| 1.1.x | No. Update to 1.4. |
-| 1.0.x | No. Update to 1.4. |
+| 1.5.x | Yes |
+| 1.4.x | No. Update to 1.5. |
+| 1.3.x | No. Update to 1.5. |
+| 1.2.x | No. Update to 1.5. |
+| 1.1.x | No. Update to 1.5. |
+| 1.0.x | No. Update to 1.5. |
 
-Only the newest minor version gets fixes. They are released as a new patch version (1.4.1, 1.4.2 and so on). Always run the newest release.
+Only the newest minor version gets fixes. They are released as a new patch version (1.5.1, 1.5.2 and so on). Always run the newest release.
 
 ## Report a vulnerability
 
