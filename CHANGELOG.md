@@ -7,6 +7,10 @@ The version numbers are explained in "Project status" in the [README](README.md)
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-11-25
+
+Use this release with version 1.2.0 or newer of the mobile app. Docker installs: read the upgrade notes before you update.
+
 ### Changed
 
 - Docker: the default host ports are 28461 for HTTP and 28462 for HTTPS, also with `deploy/docker/reverse-proxy.yml` (was 8080 there). They no longer clash with a web server on the host. Built-in HTTPS sets `APP_PORT=80` and `APP_SSL_PORT=443`, because the certificate needs these ports.
@@ -155,7 +159,8 @@ First release.
 - Guide and configuration files for an install directly on a Linux host, with SQLite and the local disk.
 - OpenAPI description of the API.
 
-[Unreleased]: https://github.com/Kinlore/kinlore-server/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/Kinlore/kinlore-server/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/Kinlore/kinlore-server/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/Kinlore/kinlore-server/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/Kinlore/kinlore-server/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/Kinlore/kinlore-server/compare/v1.0.0...v1.1.0
