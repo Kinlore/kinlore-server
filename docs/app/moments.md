@@ -75,9 +75,11 @@ You can add a growth record offline. The app sends it at the next sync.
 
 ## See a moment
 
-1. On the timeline, tap a moment. The app shows it on the full screen.
+1. On the timeline, tap a moment. The app shows it on the full screen, below the header.
 2. Swipe left or right to see the next moment.
-3. To close, tap the **X** button ("Close").
+3. To close, tap the back button in the header ("Back").
+
+The age of each shown child at the date of the moment is at the bottom left. The heart and the comment button are at the bottom right.
 
 ## Like a moment
 
@@ -90,7 +92,7 @@ A like needs a connection to the server.
 ## Comment on a moment
 
 1. Open the moment on the full screen.
-2. Tap the comment button. The app opens the details of the moment.
+2. Tap the comment button. The details of the moment open on the lower half of the screen. Scroll the list to see all comments.
 3. Type your text in "Write a comment...".
 4. Tap the send button ("Send comment").
 
