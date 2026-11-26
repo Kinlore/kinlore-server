@@ -7,6 +7,10 @@ The version numbers are explained in "Project status" in the [README](README.md)
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-11-26
+
+Use this release with version 1.2.0 or newer of the mobile app. The update needs no manual step.
+
 ### Fixed
 
 - Look-back "then and now" uses only photos with a photo date (`exif_date`) taken on or after the child's birth day. Before, a pregnancy photo, or a scan with only an upload date, could be the "then" photo. A child with no birth date gets no pair.
@@ -171,7 +175,8 @@ First release.
 - Guide and configuration files for an install directly on a Linux host, with SQLite and the local disk.
 - OpenAPI description of the API.
 
-[Unreleased]: https://github.com/Kinlore/kinlore-server/compare/v1.5.0...HEAD
+[Unreleased]: https://github.com/Kinlore/kinlore-server/compare/v1.5.1...HEAD
+[1.5.1]: https://github.com/Kinlore/kinlore-server/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/Kinlore/kinlore-server/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/Kinlore/kinlore-server/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/Kinlore/kinlore-server/compare/v1.2.0...v1.3.0
