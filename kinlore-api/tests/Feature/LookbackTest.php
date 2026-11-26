@@ -44,17 +44,25 @@ class LookbackTest extends TestCase
         $this->getJson('/api/v1/lookback?date=21-11-2026')->assertStatus(422);
     }
 
-    public function test_then_and_now_needs_two_photos_six_months_apart(): void
+    public function test_then_and_now_pairs_dated_photos_from_birth_six_months_apart(): void
     {
-        $mia = Kid::factory()->create(['name' => 'Mia']);
+        $mia = Kid::factory()->create(['name' => 'Mia', 'date_of_birth' => '2024-12-20']);
+        // before birth (a pregnancy photo) and without a photo date: never part of the pair
+        Moment::factory()->create(['kid_id' => $mia->id, 'moment_type' => 'photo', 'exif_date' => '2024-10-01 10:00:00']);
+        Moment::factory()->create(['kid_id' => $mia->id, 'moment_type' => 'photo', 'exif_date' => null]);
         $first = Moment::factory()->create(['kid_id' => $mia->id, 'moment_type' => 'photo', 'exif_date' => '2025-01-01 10:00:00']);
         Moment::factory()->create(['kid_id' => $mia->id, 'moment_type' => 'photo', 'exif_date' => '2025-05-01 10:00:00']);
         $last = Moment::factory()->create(['kid_id' => $mia->id, 'moment_type' => 'photo', 'exif_date' => '2025-09-01 10:00:00']);
         Moment::factory()->create(['kid_id' => $mia->id, 'moment_type' => 'story', 'exif_date' => '2026-09-01 10:00:00']);
 
-        $leo = Kid::factory()->create(['name' => 'Leo']);
+        $leo = Kid::factory()->create(['name' => 'Leo', 'date_of_birth' => '2024-12-20']);
         Moment::factory()->create(['kid_id' => $leo->id, 'moment_type' => 'photo', 'exif_date' => '2025-01-01 10:00:00']);
         Moment::factory()->create(['kid_id' => $leo->id, 'moment_type' => 'photo', 'exif_date' => '2025-05-01 10:00:00']);
+
+        // not born yet: no pair, even with photos a year apart
+        $ava = Kid::factory()->create(['name' => 'Ava', 'date_of_birth' => null, 'due_date' => '2027-01-01']);
+        Moment::factory()->create(['kid_id' => $ava->id, 'moment_type' => 'photo', 'exif_date' => '2025-01-01 10:00:00']);
+        Moment::factory()->create(['kid_id' => $ava->id, 'moment_type' => 'photo', 'exif_date' => '2026-01-01 10:00:00']);
 
         Sanctum::actingAs(User::factory()->create());
 

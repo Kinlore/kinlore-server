@@ -40,7 +40,7 @@ The selected button has a different color, and the grid shows only the moments o
 **Look-back cards** show older moments at the top of the timeline. The server selects the moments.
 
 - **On this day**: photos, videos and stories of the same day and month in earlier years, for example "On this day · 2 years ago".
-- **Then and now**: the first photo and the newest photo of a child, side by side, with their dates. This card shows only when the two photos are at least 6 months apart.
+- **Then and now**: the first photo of a child taken after the birth and the newest photo, side by side, with the age of the child in each. Only photos with a photo date from the camera count, so photos from before the birth, scans and screenshots are not used. This card shows only when the two photos are at least 6 months apart.
 
 The cards show only when these conditions are true:
 

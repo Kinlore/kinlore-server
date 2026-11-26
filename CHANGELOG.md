@@ -7,6 +7,10 @@ The version numbers are explained in "Project status" in the [README](README.md)
 
 ## [Unreleased]
 
+### Fixed
+
+- Look-back "then and now" uses only photos with a photo date (`exif_date`) taken on or after the child's birth day. Before, a pregnancy photo, or a scan with only an upload date, could be the "then" photo. A child with no birth date gets no pair.
+
 ## [1.5.0] - 2026-11-25
 
 Use this release with version 1.2.0 or newer of the mobile app. The update needs no manual step.

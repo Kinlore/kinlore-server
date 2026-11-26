@@ -135,7 +135,7 @@ Moment payload (REST and the inside of `data.moment`):
   "then_and_now": [ { "kid_id": "…", "kid_name": "Mia", "then": moment, "now": moment } ] }
 ```
 - `on_this_day`: photo, video and story moments whose display date has the same month and day in an earlier year. Newest year first. At most 10 moments per year.
-- `then_and_now`: for each kid with at least two photos that are at least 6 months apart, the earliest photo and the latest photo.
+- `then_and_now`: for each born kid, the first photo taken on or after the birth day and the latest photo, when they are at least 6 months apart. Only photos with an `exif_date` count. Kids without a `date_of_birth` get no pair.
 
 ## 8. Export (admin only)
 

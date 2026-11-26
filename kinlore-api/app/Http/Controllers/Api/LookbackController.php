@@ -60,16 +60,22 @@ class LookbackController extends Controller
     }
 
     /**
-     * For each kid, the earliest and the latest photo when they are at least 6 months apart.
+     * For each born kid, the first photo taken on or after the birth day and the latest photo,
+     * when they are at least 6 months apart. Only photos with a photo date (exif_date) count:
+     * the upload date of a scan or a screenshot says nothing about the kid's age.
      */
     private function thenAndNow(User $user): array
     {
         $pairs = [];
 
-        foreach (Kid::orderBy('created_at')->get() as $kid) {
-            $photos = fn () => Moment::forPayload($user)->where('kid_id', $kid->id)->where('moment_type', MomentType::Photo);
-            $then = $photos()->orderByDate('asc')->first();
-            $now = $photos()->orderByDate('desc')->first();
+        foreach (Kid::whereNotNull('date_of_birth')->orderBy('created_at')->get() as $kid) {
+            $photos = fn () => Moment::forPayload($user)
+                ->where('kid_id', $kid->id)
+                ->where('moment_type', MomentType::Photo)
+                ->whereNotNull('exif_date')
+                ->whereDate('exif_date', '>=', $kid->date_of_birth->toDateString());
+            $then = $photos()->orderBy('exif_date')->first();
+            $now = $photos()->orderByDesc('exif_date')->first();
 
             if ($then && $now && $then->display_date->copy()->addMonths(6)->lte($now->display_date)) {
                 $pairs[] = [
