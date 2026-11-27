@@ -387,6 +387,8 @@ class SyncService
             'latitude' => $moment->latitude,
             'longitude' => $moment->longitude,
             'orientation' => $moment->orientation,
+            'width' => $moment->width,
+            'height' => $moment->height,
             'duration' => $moment->duration,
             'video_status' => $moment->video_status?->value,
             'height_cm' => $moment->height_cm,

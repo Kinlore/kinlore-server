@@ -19,6 +19,7 @@ This page lists the commands that a server owner uses. Artisan is the command to
 |---|---|
 | `php artisan kinlore:setup-token` | Prints the token that the setup page asks for, while the server has no user. With `SETUP_TOKEN` set, it tells you to use that value. See [Create the first admin](/self-hosting/first-admin). |
 | `php artisan kinlore:reset-password <email>` | Sets a new password for a user and signs them out on all devices. It asks for the password. `--password=<new password>` gives it on the command line instead; the password then shows in the shell history. The password needs at least 8 characters. |
+| `php artisan kinlore:media-dimensions` | Fills the width and height of older photos and videos, so the app can lay out the timeline before the images load. Run it once after the update to 1.6. A video gets the size that its conversion saved. A photo gets the size of its preview: the real size up to 1200 pixels wide, else the same ratio at 1200 pixels wide. It works in groups of 200 and changes only moments without a size, so you can run it again at any time. A file that it cannot read is skipped, counted in the result and written to the log. `--dry-run` shows the counts and changes nothing. Phones get the new sizes at their next sync. |
 | `php artisan seaweedfs:test` | Writes, reads, lists and deletes a test file in the media storage, then prints the storage settings. It works for S3 storage and the local disk. |
 
 ## Laravel commands

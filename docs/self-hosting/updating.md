@@ -59,6 +59,18 @@ On a host install, also check the workers: `systemctl is-active kinlore-queue ki
 
 Do the steps of every version between your version and the new one, oldest first.
 
+### From 1.5 to 1.6
+
+**Docker and host install**
+
+After the update, fill the size of the photos and videos that you already have. The app needs it for the timeline. Run this command once (see [How to run an Artisan command](/reference/commands#how-to-run-an-artisan-command)):
+
+```sh [Fill the media sizes]
+php artisan kinlore:media-dimensions
+```
+
+It reads one small preview per photo, so it can take some minutes on a large library. The last line shows how many moments it filled and how many files it could not read. Phones get the sizes at their next sync. New uploads get their size by themselves.
+
 ### From 1.3 to 1.4
 
 **Docker**

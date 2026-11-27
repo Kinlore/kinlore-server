@@ -111,7 +111,9 @@ Kid payload: `{ id, user_id, name, date_of_birth: "YYYY-MM-DD"|null, due_date: "
 Types: `photo`, `video`, `story`, `milestone`, `growth`.
 
 Moment payload (REST and the inside of `data.moment`):
-`{ id, kid_id, user_id: int|null, uploader_name: string|null, moment_type, title, description, milestone_id, exif_date (ISO|null), display_date (ISO, exif_date or created_at), latitude: number|null, longitude: number|null, orientation, camera_make, camera_model, file_size, mime_type, original_filename, device_asset_id, duration: number|null (seconds), video_status: "processing"|"ready"|"failed"|null, height_cm: number|null, weight_kg: number|null, head_circumference_cm: number|null, likes_count, comments_count, is_liked, created_at, updated_at, media?: {...}, milestone?: {...} }`. It has no file links: the app uses `/file/{type}` and `/playback`.
+`{ id, kid_id, user_id: int|null, uploader_name: string|null, moment_type, title, description, milestone_id, exif_date (ISO|null), display_date (ISO, exif_date or created_at), latitude: number|null, longitude: number|null, orientation, width: int|null, height: int|null, camera_make, camera_model, file_size, mime_type, original_filename, device_asset_id, duration: number|null (seconds), video_status: "processing"|"ready"|"failed"|null, height_cm: number|null, weight_kg: number|null, head_circumference_cm: number|null, likes_count, comments_count, is_liked, created_at, updated_at, media?: {...}, milestone?: {...} }`. It has no file links: the app uses `/file/{type}` and `/playback`.
+
+`width` and `height` are the pixel size of the photo or video as it is shown: after the EXIF orientation of a photo and after the rotation of a video. They are `null` for story, milestone and growth moments, for a video that is still processing, and for an older photo or video that `php artisan kinlore:media-dimensions` has not filled. For an older photo, that command stores the size of the 1200-pixel preview: the ratio is right, the size can be smaller than the original.
 
 - `POST /v1/moments`:
   - photo/video: multipart `kid_id, file (required, also with moment_type=photo|video), title?, description?, device_asset_id?, exif_date?, latitude?, longitude?, camera_make?, camera_model?, orientation?`.
@@ -161,7 +163,7 @@ Response: `{ changes: { kids: {created, updated, deleted}, moments: {created, up
 - The server returns rows with `updated_at >= lastPulledAt - 1000` (database times have second precision). The client must therefore **upsert** every row in `created` and `updated` (insert when missing, otherwise update all fields). Rows may come again.
 - `deleted`: ids of kids and moments soft-deleted since `lastPulledAt - 1000`, including the moments of deleted kids.
 - Kid row: `{ id, user_id, name, date_of_birth, due_date, avatar_color, created_at, updated_at }` (times in ms, dates as ms at UTC midnight, or null).
-- Moment row: `{ id, kid_id, user_id, uploader_name, moment_type, title, description, milestone_id, exif_date, latitude, longitude, orientation, duration, video_status, height_cm, weight_kg, head_circumference_cm, likes_count, comments_count, is_liked, file_size, mime_type, device_asset_id, created_at, updated_at }`. No file fields. `is_liked` is for the caller.
+- Moment row: `{ id, kid_id, user_id, uploader_name, moment_type, title, description, milestone_id, exif_date, latitude, longitude, orientation, width, height, duration, video_status, height_cm, weight_kg, head_circumference_cm, likes_count, comments_count, is_liked, file_size, mime_type, device_asset_id, created_at, updated_at }`. No file fields. `width` and `height` are as in the moment payload (section 6). `is_liked` is for the caller.
 
 `POST /v1/sync/push` request: `{ changes: { kids: {created, updated, deleted}, moments: {created, updated, deleted} }, lastPulledAt }`.
 - Kid fields: `id, name, date_of_birth (ms|null), due_date (ms|null), avatar_color`. The server keeps the client `id`.
