@@ -133,10 +133,8 @@ class MomentService
                 'processing_started_at' => now(),
             ]);
 
-            // Videos are processed by a queued job so the upload returns at once
-            if ($type === MomentType::Photo) {
-                $this->processPhoto($media, $file, $basePath);
-            }
+            // Videos are processed by a queued job so the upload returns at once; it sets their size
+            $size = $type === MomentType::Photo ? $this->processPhoto($media, $file, $basePath) : [];
 
             $media->refresh();
             $moment = Moment::create([
@@ -162,7 +160,7 @@ class MomentService
                 'camera_make' => $media->camera_make,
                 'camera_model' => $media->camera_model,
                 'video_status' => $type === MomentType::Video ? VideoStatus::Processing : null,
-            ]);
+            ] + $size);
         } catch (\Throwable $e) {
             Log::error('Media upload failed: '.$e->getMessage());
             $media?->forceDelete();
@@ -213,7 +211,8 @@ class MomentService
         return ['moment' => $moment];
     }
 
-    private function processPhoto(Media $media, UploadedFile $file, string $basePath): void
+    /** @return array{width: int, height: int} display size of the photo */
+    private function processPhoto(Media $media, UploadedFile $file, string $basePath): array
     {
         $thumbnailPath = "{$basePath}/thumbnail.jpg";
         $mediumPath = "{$basePath}/medium.jpg";
@@ -230,7 +229,7 @@ class MomentService
                 $source = $decoded;
             }
 
-            $this->storePreviews($source, $thumbnailPath, $mediumPath);
+            $size = $this->storePreviews($source, $thumbnailPath, $mediumPath);
         } finally {
             if ($decoded) {
                 @unlink($decoded);
@@ -243,15 +242,17 @@ class MomentService
             'thumbnail_url' => $thumbnailPath,
             'medium_url' => $mediumPath,
         ]);
+
+        return $size;
     }
 
-    private function storePreviews(string $source, string $thumbnailPath, string $mediumPath): void
+    /** @return array{width: int, height: int} size after the EXIF orientation */
+    private function storePreviews(string $source, string $thumbnailPath, string $mediumPath): array
     {
         // Generate medium (1200px width)
-        $mediumImage = Image::decodePath($source)
-            ->orient()
-            ->scaleDown(width: 1200)
-            ->encode(new JpegEncoder(quality: 85));
+        $image = Image::decodePath($source)->orient();
+        $size = ['width' => $image->width(), 'height' => $image->height()];
+        $mediumImage = $image->scaleDown(width: 1200)->encode(new JpegEncoder(quality: 85));
 
         $this->storage->store($mediumPath, (string) $mediumImage);
 
@@ -262,6 +263,8 @@ class MomentService
             ->encode(new JpegEncoder(quality: 80));
 
         $this->storage->store($thumbnailPath, (string) $thumbnailImage);
+
+        return $size;
     }
 
     // Run by ProcessVideoJob: make the HLS stream and set the moment's video_status to ready or failed.
@@ -286,6 +289,8 @@ class MomentService
             'medium_url' => $media->getRawMediumUrl(),
             'hls_url' => $media->getRawHlsUrl(),
             'duration' => $media->duration,
+            'width' => $media->width,
+            'height' => $media->height,
             'video_status' => VideoStatus::Ready,
         ]);
     }
@@ -334,7 +339,8 @@ class MomentService
                 ->export()
                 ->getFrameContents();
 
-            // Use GD to create resized versions
+            // Use GD to create resized versions. ffmpeg applies the rotation tag when it decodes (autorotate is on
+            // by default), so this frame and the width and height saved below are already the display size.
             $sourceImage = imagecreatefromstring($frameContent) ?: throw new \RuntimeException('Cannot decode the video frame');
             $origWidth = imagesx($sourceImage);
             $origHeight = imagesy($sourceImage);

@@ -13,6 +13,8 @@ The version numbers are explained in "Project status" in the [README](README.md)
 
 ### Added
 
+- Every moment in the REST payload and in the sync pull has `width` and `height`: the pixel size of the photo or video as it is shown, after the EXIF orientation of a photo and the rotation of a video. They are `null` for story, milestone and growth moments and for a video that is still processing. The app can lay out the timeline before an image loads.
+- `php artisan kinlore:media-dimensions` fills `width` and `height` of older photos and videos. Run it once after this update. An older photo gets the size of its 1200-pixel preview, so the ratio is exact but the size can be smaller than the original. It skips and counts files it cannot read, and `--dry-run` changes nothing. Phones get the sizes at their next sync. See [Updating](docs/self-hosting/updating.md#from-1-5-to-1-6).
 - `POST /auth/login` and `POST /auth/register` accept an optional `device_name` (up to 60 characters). It is the session `name` in `GET /auth/sessions`, so the app can show each signed-in device. Without it the name stays `mobile-app`. `POST /auth/refresh` keeps the name.
 
 ### Fixed
@@ -21,6 +23,10 @@ The version numbers are explained in "Project status" in the [README](README.md)
 - Invitation links, the invite page and the setup address no longer use a placeholder `APP_URL`. When `APP_URL` is empty, `localhost`, `127.0.0.1`, `::1`, `0.0.0.0` or a host under `example.com`, `example.org` or `example.net`, the server uses the address of the request. A real `APP_URL` is still used as before.
 - `POST /v1/invitations` returns `public_url_configured` (bool), so the app can tell the admin to set `APP_URL`. `GET /health/detailed` has a `public_url` check, and `php artisan kinlore:setup-token` prints a warning.
 - `openapi.yaml` describes `device_name`, the session `name`, `public_url_configured` in `POST /v1/invitations` and the `public_url` check of `GET /health/detailed`.
+
+### Upgrade notes
+
+- **Docker and host install:** after the update, run `php artisan kinlore:media-dimensions` once. It fills the size of the photos and videos that you already have. See [Updating](docs/self-hosting/updating.md#from-1-5-to-1-6).
 
 ## [1.5.1] - 2026-11-26
 

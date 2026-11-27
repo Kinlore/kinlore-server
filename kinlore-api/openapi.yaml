@@ -2237,6 +2237,14 @@ components:
           type: [integer, 'null']
           minimum: 1
           maximum: 8
+        width:
+          type: [integer, 'null']
+          minimum: 1
+          description: Pixels as the photo or video is shown: after the EXIF orientation of a photo and the rotation of a video. `null` for story, growth and milestone moments, a video still processing, and an older photo or video that `kinlore:media-dimensions` has not filled.
+        height:
+          type: [integer, 'null']
+          minimum: 1
+          description: Pixels as shown. See `width`.
         camera_make:
           type: [string, 'null']
         camera_model:
@@ -2793,7 +2801,7 @@ components:
     SyncMomentRow:
       type: object
       description: All times in milliseconds. No file fields; the app uses `/file/{type}`.
-      required: [id, kid_id, user_id, uploader_name, moment_type, title, description, milestone_id, exif_date, latitude, longitude, orientation, duration, video_status, height_cm, weight_kg, head_circumference_cm, likes_count, comments_count, is_liked, file_size, mime_type, device_asset_id, created_at, updated_at]
+      required: [id, kid_id, user_id, uploader_name, moment_type, title, description, milestone_id, exif_date, latitude, longitude, orientation, width, height, duration, video_status, height_cm, weight_kg, head_circumference_cm, likes_count, comments_count, is_liked, file_size, mime_type, device_asset_id, created_at, updated_at]
       properties:
         id:
           type: string
@@ -2822,6 +2830,14 @@ components:
           type: [number, 'null']
         orientation:
           type: [integer, 'null']
+        width:
+          type: [integer, 'null']
+          minimum: 1
+          description: Pixels as the photo or video is shown: after the EXIF orientation of a photo and the rotation of a video. `null` for story, growth and milestone moments, a video still processing, and an older photo or video that `kinlore:media-dimensions` has not filled.
+        height:
+          type: [integer, 'null']
+          minimum: 1
+          description: Pixels as shown. See `width`.
         duration:
           type: [number, 'null']
           description: Seconds.
