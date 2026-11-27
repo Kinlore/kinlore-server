@@ -93,9 +93,11 @@ test "${#SETUP}" -ge 32
 CSRF=$(curl -fsS -c /tmp/setup-jar http://localhost/setup | sed -n 's/.*name="_token" value="\([^"]*\)".*/\1/p')
 test -n "$CSRF"
 curl -fsS -b /tmp/setup-jar -o /tmp/setup-done.html --data-urlencode "_token=$CSRF" --data-urlencode "setup_token=$SETUP" \
-  --data-urlencode "name=$SEED_USER_NAME" --data-urlencode "email=$SEED_USER_EMAIL" \
+  --data-urlencode "first_name=${SEED_USER_NAME%% *}" --data-urlencode "last_name=${SEED_USER_NAME#* }" --data-urlencode "email=$SEED_USER_EMAIL" \
   --data-urlencode "password=$SEED_USER_PASSWORD" --data-urlencode "password_confirmation=$SEED_USER_PASSWORD" http://localhost/setup
 grep -q 'Your admin account is ready' /tmp/setup-done.html
+# No friendly_name sent: the server suggests "<first> <last> Family"
+grep -q 'Test Admin Family' /tmp/setup-done.html
 test ! -e storage/app/setup-token
 runuser -u www-data -- php artisan kinlore:setup-token | grep -q 'already set up'
 echo "admin created with the setup token; the token file is gone"
