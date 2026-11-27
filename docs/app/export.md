@@ -7,11 +7,12 @@ An **export** is one ZIP file with all original photos and videos and all moment
 ## Start an export
 
 1. Open the **Settings** tab.
-2. In the family section, tap **Export**. The header shows the family name.
-3. Tap **Start export**.
-4. The new export shows in the list with the status **Waiting**, then **Building**.
-5. Pull the list down to see the newest status.
-6. When the status is **Ready**, the list shows the size of the file.
+2. Under **Servers**, tap the server that shows **In use**. The app shows its **Server** screen.
+3. Under **Family**, tap **Export**. The header shows the server name.
+4. Tap **Start export**.
+5. The new export shows in the list with the status **Waiting**, then **Building**.
+6. Pull the list down to see the newest status.
+7. When the status is **Ready**, the list shows the size of the file.
 
 The server builds the file. You can close the app while it works. A large library takes time.
 

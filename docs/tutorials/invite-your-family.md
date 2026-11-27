@@ -12,19 +12,20 @@ In the example, the admin invites Ben to the server of "Anna Example Family" at 
 
 ## Part 1: The admin makes the invitation
 
-1. Open the **Settings** tab. The card at the top shows the family name. With several families, check that it is the right family, or tap **Switch family**.
-2. In the family section, tap **Invite someone**. The app shows "Invite to Anna Example Family", with the server address.
-3. In **Email (optional)**, type the email of the person, for example `ben@example.com`. Then only this address can use the invitation. You can also leave the field empty.
-4. Under **Role**, tap a role:
+1. Open the **Settings** tab. Under **Servers**, tap the server of the family, for example "Anna Example Family". With several servers, check that this server shows **In use**. If not, tap **Switch to this server**.
+2. Under **Family**, tap **Members**.
+3. Tap **Invite someone**. The app shows "Invite to Anna Example Family", with the server address.
+4. In **Email (optional)**, type the email of the person, for example `ben@example.com`. Then only this address can use the invitation. You can also leave the field empty.
+5. Under **Role**, tap a role:
    - **Partner** for a person who manages the children and the moments with you, for example the other parent.
    - **Family** for all other people, for example grandparents.
-5. For **Family**, choose the permissions. All four are on. Turn off what the person may not do:
+6. For **Family**, choose the permissions. All four are on. Turn off what the person may not do:
    - **Add photos and moments**
    - **Comment**
    - **Like**
    - **Download original files**
-6. Under **Expires after**, tap the number of days, for example **7 days**.
-7. Tap **Create invitation**.
+7. Under **Expires after**, tap the number of days, for example **7 days**.
+8. Tap **Create invitation**.
 
 The app shows "Invitation ready", with a **Web page** link and an **App link**. The links start with the public address of the server, for example `https://photos.example.com/invite/...`.
 
@@ -43,7 +44,7 @@ Send the invitation only to the person that you invite. Anyone with the link can
 
 ### Check that it worked
 
-In **Settings**, tap **Members**. The invitation is under **Pending invitations**, with the role, "invited by" with your name, and the date when it expires.
+On the **Members** screen, the invitation is under **Pending invitations**, with the role, "invited by" with your name, and the date when it expires.
 
 ## Part 3: The invited person joins
 
@@ -73,7 +74,7 @@ If the link does not open the app:
 ### Check that it worked
 
 - On the phone of the person, the timeline shows the children of the family.
-- In **Settings**, the card at the top shows the family name, and the person's name and role, for example "You: Ben, Family".
+- In **Settings**, under **Servers**, the server shows the family name, and the person's name and role, for example "Ben, Family".
 - On the admin's phone, open **Members**. The person is in the list of members, and the invitation is no longer under **Pending invitations**.
 
 ## Part 4: The first sign-in on another phone
@@ -85,7 +86,7 @@ The account now exists. On a second phone, or after a sign-out, the person signs
 3. Type the **Email** and the **Password**.
 4. Tap **Sign in**.
 
-If the person already uses Kinlore for another family, they add this family in **Settings** with **Add another family**. See [Several families](../app/multiple-servers.md#add-a-family).
+If the person already uses Kinlore with another server, they add this server in **Settings** with **Add a server**. See [Several servers](../app/multiple-servers.md#add-a-server).
 
 ## Change the rights later
 

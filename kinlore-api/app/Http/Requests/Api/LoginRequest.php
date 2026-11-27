@@ -19,6 +19,8 @@ class LoginRequest extends FormRequest
         return [
             'email' => 'required|email',
             'password' => 'required',
+            // Shown in the app's list of signed-in devices; empty becomes null (ConvertEmptyStringsToNull).
+            'device_name' => ['nullable', 'string', 'max:60', 'not_regex:/[\x00-\x1F\x7F]/'],
         ];
     }
 

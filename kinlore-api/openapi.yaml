@@ -241,6 +241,10 @@ paths:
                   format: email
                 password:
                   type: string
+                device_name:
+                  type: [string, 'null']
+                  maxLength: 60
+                  description: Up to 60 characters of plain text, no control characters. Trimmed. Names the token in `GET /auth/sessions`. Empty or missing gives `mobile-app`.
       responses:
         '200':
           description: Signed in
@@ -1922,6 +1926,7 @@ components:
           type: integer
         name:
           type: string
+          description: The `device_name` sent at login or registration, or `mobile-app` when none was sent. `POST /auth/refresh` keeps it.
         abilities:
           type: array
           items:
@@ -1954,6 +1959,10 @@ components:
         invite_token:
           type: string
           maxLength: 64
+        device_name:
+          type: [string, 'null']
+          maxLength: 60
+          description: Up to 60 characters of plain text, no control characters. Trimmed. Names the token in `GET /auth/sessions`. Empty or missing gives `mobile-app`.
 
     SetupStatus:
       type: object
@@ -2033,7 +2042,7 @@ components:
       allOf:
         - $ref: '#/components/schemas/Invitation'
         - type: object
-          required: [token, invite_link, invite_url]
+          required: [token, invite_link, invite_url, public_url_configured]
           properties:
             token:
               type: string
@@ -2045,6 +2054,9 @@ components:
               type: string
               format: uri
               description: '`{APP_URL}/invite/{token}`, the public HTML page.'
+            public_url_configured:
+              type: boolean
+              description: False when APP_URL is empty or a placeholder. The links then use the address of this request.
 
     Member:
       type: object
@@ -2719,6 +2731,20 @@ components:
               type: object
             memory:
               type: object
+            public_url:
+              type: object
+              description: A warning only; it does not change `status`.
+              required: [status, url]
+              properties:
+                status:
+                  type: string
+                  enum: [ok, warning]
+                url:
+                  type: string
+                  description: The public address the server uses for links.
+                message:
+                  type: string
+                  description: Only with `warning`. APP_URL is empty or a placeholder.
             php:
               type: object
 

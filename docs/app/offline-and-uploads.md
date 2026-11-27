@@ -4,7 +4,7 @@ This page explains what the app can do without a connection to the server, how t
 
 ## The copy on the phone
 
-The app keeps a copy of the family's data on the phone. Each family has its own copy.
+The app keeps a copy of the family's data on the phone. Each server has its own copy.
 The timeline reads from this copy. So you can open the app and see the timeline when the phone is offline.
 
 A **sync** is the exchange of changes between the phone and the server:
@@ -18,7 +18,7 @@ The app syncs at these times:
 
 - When the app starts.
 - After you sign in.
-- When you switch to another family.
+- When you switch to another server.
 - When you pull the timeline down and release it.
 - After you save a child, a story or a growth record.
 
@@ -38,7 +38,7 @@ The app does not sync by itself when the network comes back. When you are online
 | Like, comment or delete a comment | No. |
 | Look-back cards | No. The cards do not show. |
 | Members, invitations, export, family name, signed-in devices | No. |
-| Sign in, join with an invitation, or add a family | No. |
+| Sign in, join with an invitation, or add a server | No. |
 
 ## The upload queue
 
@@ -51,7 +51,7 @@ The **upload queue** is the list of photos and videos that wait to go to the ser
 - When the server has an item, the moment takes the place of the preview. Uploaded moments show no icon.
 - The queue sends one item at a time, and it sends the original file.
 - When the app starts again, the queue continues with the items that are not sent yet. It starts after the first sync.
-- Each family has its own queue. When you switch to another family, the items of the first family wait. They continue when you switch back.
+- Each server has its own queue. When you switch to another server, the items of the first server wait. They continue when you switch back.
 
 ### Keep the app open for speed
 
@@ -142,8 +142,8 @@ If the item fails again, the server refuses it. See [Troubleshooting](troublesho
 Changes that did not reach the server yet are only on this phone.
 These actions would delete them, so the app checks first:
 
-- **Reset and sync** in **Settings** sends the changes first. It stops if some changes cannot be sent.
+- **Reset and sync**, on the **Server** screen in **Settings**, sends the changes first. It stops if some changes cannot be sent.
 - **Reset this phone** in **Settings** warns you with the number of unsent changes.
-- **Remove from this phone**, on the details of a family, refuses to remove a family while the app knows that it has unsent changes.
+- **Remove from this phone**, on the **Server** screen, refuses to remove a server while the app knows that it has unsent changes.
 
-See [Settings](settings.md) and [Several families](multiple-servers.md).
+See [Settings](settings.md) and [Several servers](multiple-servers.md).

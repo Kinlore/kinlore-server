@@ -33,7 +33,7 @@ When the app shows the sign-in screen without a reason, your sign-in ended. For 
 | "Use at least 8 characters." | Type a longer password. |
 | "The email has already been taken." | An account with this email exists. Tap **Already have an account? Sign in**. |
 | "A valid invitation is required to join this instance." | The invitation is not valid, or it is for another email address. Ask the admin for a new invitation. |
-| "Invitation for another server" | You are signed in, and the link is for another family. In **Settings**, tap **Add another family** and add the server of the invitation. On its sign-in screen, tap **I have an invitation** and paste the link. See [Several families](multiple-servers.md#add-a-family). |
+| "Invitation for another server" | You are signed in, and the link is for another server. In **Settings**, tap **Add a server** and add the server of the invitation. On its sign-in screen, tap **I have an invitation** and paste the link. See [Several servers](multiple-servers.md#add-a-server). |
 | "The server has no public address" (on the admin's phone, after **Create invitation**) | The links use the address of the admin's phone. People outside your home network may not open them. The server owner sets `APP_URL`. See [APP_URL placeholder](../self-hosting/configuration.md#app-url-placeholder). |
 
 ## Children
@@ -97,18 +97,19 @@ The server refuses a file in these cases:
 
 You can remove failed items with **Remove failed**. The photos and videos stay on the phone.
 
-## Families
+## Servers
 
 | Message | What to do |
 | --- | --- |
-| "Server already configured" | The family is already on this phone. Find it on the **Families** screen. |
-| "Test the connection first." | Tap **Test connection** before **Add family**. |
+| "Server already configured" | The server is already on this phone. Find it under **Servers** in **Settings**. |
+| "Test the connection first." | Tap **Test connection** before **Add server**. |
 | "Server not reachable" | The server does not answer. Check the address, the port and the network. |
 | "Server address not found" | The host name is wrong, or the phone cannot find it. Check the spelling. |
-| "Could not open" with the name of a family | The app could not switch to the family. Check the connection and try again. |
-| "Cannot remove this family" | You cannot remove the active family. Switch to another family first. |
-| "Cannot remove this server yet" | The family has unsent changes on this phone. Switch to it and let them sync first. |
-| "Name not saved. Check the connection and try again." | The server did not save the family name. Check the connection and try again. |
+| "Could not open" with the name of a server, or "Could not switch to this server." | The app could not switch to the server. Check the connection and try again. |
+| "The server was added, but it did not open. Open it from Settings." | In **Settings**, tap the new server, then tap **Switch to this server** or **Sign in to this server**. |
+| "Cannot remove this server" | You cannot remove the server in use. Switch to another server first. With one server, use **Reset this phone** in **Settings**. |
+| "Cannot remove this server yet" | The server has unsent changes on this phone. Switch to it and let them sync first. |
+| "Name not saved. Check the connection and try again." | The server did not save the name. Check the connection and try again. |
 
 ## Members, devices and export
 
@@ -137,5 +138,5 @@ You can remove failed items with **Remove failed**. The photos and videos stay o
 
 - Pull the timeline down to start a sync.
 - Close the app and open it again.
-- In **Settings**, use **Reset and sync**. See [Settings](settings.md#reset-and-sync).
+- In **Settings**, tap the server in use, then tap **Reset and sync**. See [Settings](settings.md#reset-and-sync).
 - Ask the server owner to check the server. See [Server troubleshooting](../self-hosting/troubleshooting.md).

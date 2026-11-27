@@ -8,7 +8,7 @@ The **Timeline** tab shows the moments of the active child, newest first, in a g
 To choose the child, tap the name of the child at the top of the screen. See [Children](children.md#choose-the-active-child).
 
 - The top of the screen shows the name and the age of the child.
-- When the phone has more than one family, the family name shows above the name of the child. Tap it to switch to another family. See [Several families](multiple-servers.md#switch-to-another-family).
+- When the phone has more than one server, the server name shows above the name of the child. Tap it to open "Choose a server". See [Several servers](multiple-servers.md#switch-to-another-server).
 - When you scroll, a small label shows the age of the child at the date of the moments on the screen.
 - When the timeline shows several children, each moment has a small badge in the color of its child, with its first letter.
 - Photos, videos, stories, milestones and growth records each have their own look in the grid.

@@ -14,3 +14,4 @@ storage/app/public/*
 storage/framework/views/*
 storage/framework/testing/*
 storage/framework/cache/*
+bootstrap/cache/*.php

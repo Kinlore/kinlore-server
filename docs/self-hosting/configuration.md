@@ -48,6 +48,8 @@ The server treats `APP_URL` as a placeholder when it is empty, `localhost`, `127
 
 To see the problem, look at `checks.public_url` in `GET /api/health/detailed`, or at the warning of `php artisan kinlore:setup-token`. The app can also warn the admin when an invitation is made.
 
+With Docker, set `APP_URL` in the `.env` next to `docker-compose.yml`. A variable `APP_URL` in the shell that runs `docker compose` wins over that file, and `kinlore-api/.env` does not set it. The server prints the address it uses when it starts: `docker compose logs api | grep "Public address"`.
+
 To fix it, set `APP_URL` to the public address, then run `docker compose up -d` (host install: `sudo -u www-data php artisan config:cache`). Invitations made before the change keep their old link. Revoke them and make new ones.
 
 ## Address and HTTPS

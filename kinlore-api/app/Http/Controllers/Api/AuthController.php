@@ -66,6 +66,7 @@ class AuthController extends Controller
             $validated['email'],
             // The rule is only `required`, so a JSON number must become a string.
             $request->string('password')->toString(),
+            $validated['device_name'] ?? null,
         );
 
         return ApiResponse::success($result, 'Login successful');

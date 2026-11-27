@@ -7,10 +7,16 @@ The version numbers are explained in "Project status" in the [README](README.md)
 
 ## [Unreleased]
 
+### Added
+
+- `POST /auth/login` and `POST /auth/register` accept an optional `device_name` (up to 60 characters). It is the session `name` in `GET /auth/sessions`, so the app can show each signed-in device. Without it the name stays `mobile-app`. `POST /auth/refresh` keeps the name.
+
 ### Fixed
 
+- Docker: a configuration cache in the build folder (`kinlore-api/bootstrap/cache/config.php`) is no longer copied into the image, and every start removes an old cache before it reads the environment. An old cache could keep an old `APP_URL` through `git pull` and a rebuild. The server prints its public address at start.
 - Invitation links, the invite page and the setup address no longer use a placeholder `APP_URL`. When `APP_URL` is empty, `localhost`, `127.0.0.1`, `::1`, `0.0.0.0` or a host under `example.com`, `example.org` or `example.net`, the server uses the address of the request. A real `APP_URL` is still used as before.
 - `POST /v1/invitations` returns `public_url_configured` (bool), so the app can tell the admin to set `APP_URL`. `GET /health/detailed` has a `public_url` check, and `php artisan kinlore:setup-token` prints a warning.
+- `openapi.yaml` describes `device_name`, the session `name`, `public_url_configured` in `POST /v1/invitations` and the `public_url` check of `GET /health/detailed`.
 
 ## [1.5.1] - 2026-11-26
 

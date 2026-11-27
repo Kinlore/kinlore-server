@@ -2,7 +2,7 @@
 
 This page tells you how to add, edit and delete a child, how to add a baby that is not born yet, and how to choose the child that the timeline shows.
 
-A **child** has a profile with a name, a birth date or a due date, and a color. Each moment belongs to one child. Each child belongs to one family: the family that you add it to.
+A **child** has a profile with a name, a birth date or a due date, and a color. Each moment belongs to one child. Each child belongs to one server: the server that you add it to.
 
 ## Who may do what
 
@@ -26,12 +26,13 @@ For a born child, the app also adds a "First Meeting" milestone on the birth dat
 ## Add another child
 
 1. Open the **Settings** tab.
-2. In the family section, tap **Children**. The header shows the family name.
-3. Tap the **+** button at the top right ("Add child").
-4. The app shows "Add child", with "Adds to" and the family name. Type the **Name**.
-5. If the baby is not born yet, turn on **Expecting a baby?** and pick the **Due date**. Else pick the **Birth date**.
-6. Under **Color**, tap a color.
-7. Tap the check mark at the top right ("Save").
+2. Under **Servers**, tap the server that shows **In use**. The app shows its **Server** screen.
+3. Under **Family**, tap **Children**. The header shows the server name.
+4. Tap the **+** button at the top right ("Add child").
+5. The app shows "Add child", with "Adds to" and the server name. Type the **Name**.
+6. If the baby is not born yet, turn on **Expecting a baby?** and pick the **Due date**. Else pick the **Birth date**.
+7. Under **Color**, tap a color.
+8. Tap the check mark at the top right ("Save").
 
 ### Check that it worked
 
@@ -47,7 +48,7 @@ You can add a baby before the birth.
 
 ### When the baby is born
 
-1. Open **Settings** > **Children** and tap the child.
+1. Open **Settings**, tap the server in use, then tap **Children** and tap the child.
 2. Turn off **Expecting a baby?**.
 3. Pick the **Birth date**.
 4. Change the **Name** if necessary.
@@ -57,7 +58,7 @@ The app keeps the due date.
 
 ## Edit a child
 
-1. Open **Settings** > **Children**.
+1. Open **Settings**, tap the server in use, then tap **Children**.
 2. Tap the child. The app shows "Edit child".
 3. Change the **Name**, the dates or the **Color**.
 4. Tap the check mark at the top right ("Save").
@@ -71,7 +72,7 @@ If you may not edit the child, the fields are not active and the screen has no c
 When you delete a child, the app also deletes all the moments of that child, for all members.
 You can also delete the last child of the family. The app then shows "Add your first child".
 
-1. Open **Settings** > **Children**.
+1. Open **Settings**, tap the server in use, then tap **Children**.
 2. Swipe the child to the left and tap the trash button. Or tap the child and tap **Delete child**.
 3. The app asks "Delete" with the name of the child and the family. Tap **Delete**.
 
@@ -88,7 +89,7 @@ The **active child** is the child that the timeline shows. The other members of 
 3. Tap a child.
 
 The **Children** screen in **Settings** marks the active child with **Active**.
-Each family keeps its own active child.
+Each server keeps its own active child.
 
 ### Show several children together
 
