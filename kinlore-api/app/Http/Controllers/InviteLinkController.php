@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Services\AuthService;
 use App\Services\FamilyService;
+use App\Support\PublicUrl;
 use Illuminate\Http\Response;
 
 /**
@@ -26,7 +27,7 @@ class InviteLinkController extends Controller
             // Only the holder of a valid invitation sees the family name.
             'instanceName' => $invitation ? $this->family->name() : config('app.name'),
             'invitation' => $invitation,
-            'server' => config('app.url'),
+            'server' => PublicUrl::base(),
         ], $invitation ? 200 : 404);
     }
 }

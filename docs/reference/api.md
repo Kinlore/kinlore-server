@@ -68,13 +68,16 @@ Returned by login, register and `/auth/me` (`/auth/me` adds the count fields):
 - Behind a reverse proxy, the pages and form action use the proxy's `https` address (trusted proxies, section 10).
 
 API:
-- `GET /auth/setup-status` (public): `{ needs_setup: bool, setup_token_required: bool, instance_name: string, setup_url: string }`. `setup_url` is `{APP_URL}/setup`. `setup_token_required` is the same as `needs_setup`. The app uses it to tell the user to finish setup in a browser.
+- `GET /auth/setup-status` (public): `{ needs_setup: bool, setup_token_required: bool, instance_name: string, setup_url: string }`. `setup_url` is `{base}/setup` (see the public address rule below). `setup_token_required` is the same as `needs_setup`. The app uses it to tell the user to finish setup in a browser.
 - `POST /auth/register`: `name, email, password, password_confirmation, invite_token` (required). It only registers invited users and gives them the role and permissions of the invitation. On an instance with no user it returns `403` with the message "Finish setup in a web browser at {setup_url}". A taken email gives a `422` email error only together with a valid invitation; without one the answer is the invitation error.
 - `GET /auth/invitations/{token}` (public, throttled 10/min): `200 { valid: true, email: string|null, role, invited_by: { name }, expires_at, instance_name }`, or `404` when unknown, used or expired.
 - Invitation item (admin endpoints): `{ id, email, role, permissions: {...}, invited_by: { id, name }, expires_at, created_at }`.
-- `POST /v1/invitations` (admin): `{ email?, role?: partner|family (default family), permissions?: { add_content?, comment?, like?, download? }, expires_in_days?: 1..30 (default 7) }` → `201` invitation item plus `token`, `invite_link`, `invite_url`:
-  - `invite_link` = `kinlore://invite/{token}?server={urlencoded APP_URL}`
-  - `invite_url` = `{APP_URL}/invite/{token}`: a small public HTML page with an "Open in Kinlore" button (the `invite_link`), the server address and the token, for people who get the link in a message app.
+- `POST /v1/invitations` (admin): `{ email?, role?: partner|family (default family), permissions?: { add_content?, comment?, like?, download? }, expires_in_days?: 1..30 (default 7) }` → `201` invitation item plus `token`, `invite_link`, `invite_url`, `public_url_configured`:
+  - `invite_link` = `kinlore://invite/{token}?server={urlencoded base}`
+  - `invite_url` = `{base}/invite/{token}`: a small public HTML page with an "Open in Kinlore" button (the `invite_link`), the server address and the token, for people who get the link in a message app.
+  - `public_url_configured` (bool): `false` when `APP_URL` is empty or a placeholder. The links then use the address of this request. The app can tell the admin to set `APP_URL`.
+
+**Public address rule.** `{base}` is `APP_URL` when it is a real address. `APP_URL` is then used even when the request comes in on another host name. `APP_URL` is a placeholder when it is empty, `localhost`, `127.0.0.1`, `::1`, `0.0.0.0`, or a host under `example.com`, `example.org` or `example.net`. Then `{base}` is the address of the request, as seen through the trusted proxies (section 10). This rule applies to `invite_link`, `invite_url`, `setup_url`, the invite page and the setup pages.
 - `GET /v1/invitations` (admin): pending invitations. `DELETE /v1/invitations/{id}` (admin): revoke.
 
 **Family name.** The family name is the friendly name of this server, at most 60 characters. The app shows it in place of the server address.
@@ -173,4 +176,4 @@ The API trusts `X-Forwarded-Proto`, `X-Forwarded-Host`, `X-Forwarded-Port` and `
 
 ## 11. Health
 
-`GET /health` (public, no envelope): `{ status, timestamp, service }`. `GET /health/detailed` (admin only).
+`GET /health` (public, no envelope): `{ status, timestamp, service }`. `GET /health/detailed` (admin only). Its `checks.public_url` has `status: "warning"` when `APP_URL` is empty or a placeholder (see the public address rule in section 3), and `"ok"` otherwise. The warning does not change the overall status.

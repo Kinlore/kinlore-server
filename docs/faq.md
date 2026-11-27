@@ -10,7 +10,7 @@ See [Install the app](/app/install).
 
 ## Can one server hold several families?
 
-No. One server holds one family. A second family runs a second server. The app can hold several servers. See [Several servers](/app/multiple-servers).
+No. One server holds one family. A second family runs a second server. The app can hold several families. See [Several families](/app/multiple-servers).
 
 ## Do I need a host name and HTTPS?
 

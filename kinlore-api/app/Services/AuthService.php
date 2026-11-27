@@ -9,6 +9,7 @@ use App\Models\Invitation;
 use App\Models\Kid;
 use App\Models\Moment;
 use App\Models\User;
+use App\Support\PublicUrl;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -46,12 +47,10 @@ class AuthService
         ];
     }
 
-    // From APP_URL when set: url() follows the request Host header, which any client chooses.
+    // From APP_URL when it is real: url() follows the request Host header, which any client chooses.
     public function setupUrl(): string
     {
-        $base = config('app.url');
-
-        return filled($base) ? rtrim($base, '/').'/setup' : url('/setup');
+        return PublicUrl::base().'/setup';
     }
 
     /**

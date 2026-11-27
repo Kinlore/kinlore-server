@@ -7,6 +7,11 @@ The version numbers are explained in "Project status" in the [README](README.md)
 
 ## [Unreleased]
 
+### Fixed
+
+- Invitation links, the invite page and the setup address no longer use a placeholder `APP_URL`. When `APP_URL` is empty, `localhost`, `127.0.0.1`, `::1`, `0.0.0.0` or a host under `example.com`, `example.org` or `example.net`, the server uses the address of the request. A real `APP_URL` is still used as before.
+- `POST /v1/invitations` returns `public_url_configured` (bool), so the app can tell the admin to set `APP_URL`. `GET /health/detailed` has a `public_url` check, and `php artisan kinlore:setup-token` prints a warning.
+
 ## [1.5.1] - 2026-11-26
 
 Use this release with version 1.2.0 or newer of the mobile app. The update needs no manual step.

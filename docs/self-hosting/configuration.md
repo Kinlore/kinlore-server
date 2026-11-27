@@ -32,7 +32,7 @@ The settings file holds `APP_KEY` and the passwords. Without it, a backup cannot
 | Variable | Description | Default |
 |---|---|---|
 | `APP_KEY` | The secret key of the server. It protects sessions, signed links and encrypted values. Make it with `echo "base64:$(openssl rand -base64 32)"`. | none |
-| `APP_URL` | The address that the phones use, for example `https://photos.example.com`. Include a port if it is not 80 or 443. Invitation links, video links and the setup page are built from it. | `http://localhost:28461` |
+| `APP_URL` | The public address that the phones and invited people use, for example `https://kinlore.yourfamily.net`. Include a port if it is not 80 or 443. Invitation links, the invite page and the setup address are built from it. Replace the example value: see [APP_URL placeholder](#app-url-placeholder). | `http://localhost:28461` |
 | `DB_PASSWORD` | The password of the database user. PostgreSQL gets it at its first start. Make it with `openssl rand -hex 32`. | none |
 | `SEAWEEDFS_KEY` | The access key of the media storage. Make it with `openssl rand -hex 32`. | none |
 | `SEAWEEDFS_SECRET` | The secret key of the media storage. Make it with `openssl rand -hex 32`. | none |
@@ -41,6 +41,14 @@ The settings file holds `APP_KEY` and the passwords. Without it, a backup cannot
 - A new `APP_KEY` stops every signed link and every encrypted value.
 - PostgreSQL keeps the first `DB_PASSWORD`. A new value in `.env` does not change the database password, and the API can then not connect.
 :::
+
+### APP_URL placeholder {#app-url-placeholder}
+
+The server treats `APP_URL` as a placeholder when it is empty, `localhost`, `127.0.0.1`, `::1`, `0.0.0.0`, or a host under `example.com`, `example.org` or `example.net`, such as `photos.example.com` from the example file. Then it builds the links from the address of the request. That is the address that the admin's phone used. This is only a fallback: on a phone that uses a local address, the links do not work for other people. The request address comes from the `Host` header, which the client sends. So with a placeholder, the public invite page and setup pages show back the host name of whoever asks. A shared cache in front of the server must therefore keep these pages apart by host name, or not store them. Set a real `APP_URL`, and none of this applies.
+
+To see the problem, look at `checks.public_url` in `GET /api/health/detailed`, or at the warning of `php artisan kinlore:setup-token`. The app can also warn the admin when an invitation is made.
+
+To fix it, set `APP_URL` to the public address, then run `docker compose up -d` (host install: `sudo -u www-data php artisan config:cache`). Invitations made before the change keep their old link. Revoke them and make new ones.
 
 ## Address and HTTPS
 

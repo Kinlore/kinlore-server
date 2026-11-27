@@ -3,7 +3,7 @@
 This page tells you how to connect the app to your family's server, sign in, and join a family with an invitation link.
 It also explains the family name, and what to do when the server is not set up yet.
 
-A **server** is the computer that keeps your family's photos and moments. Each family has its own server. Each server has one **admin**: the person who manages the family.
+A **server** is the computer that keeps your family's photos and moments. In Kinlore, one server is one family. Each family has one **admin**: the person who manages the family.
 
 ## Before you start
 
@@ -13,27 +13,27 @@ A **server** is the computer that keeps your family's photos and moments. Each f
 ## Add the server and sign in
 
 1. Open the app. The app shows "Welcome to Kinlore".
-2. In **Server URL**, type the address of the server. You can add a port, for example `photos.example.com:8443`.
+2. In **Server address**, type the address of the server. You can add a port, for example `photos.example.com:8443`.
 3. Tap **Continue**.
-4. The app shows "Welcome Back" and the address of the server.
+4. The app shows "Welcome back" and the address of the server.
 5. Type your **Email** and your **Password**.
-6. Tap **Sign In**.
+6. Tap **Sign in**.
 
 If you type no `https://` or `http://`, the app tries `https://` first. It tries `http://` only for an address on a home network.
 
-To use a different server, tap **Change server** on the sign-in screen.
+To use a different server, tap **Change server** on the sign-in screen. When the phone has more than one family, the button is **Use another family**. It opens "Choose a family". See [Several families](multiple-servers.md#switch-to-another-family).
 
 ### What you see after the sign-in
 
 - The app shows "Loading your family..." while it gets the family's data from the server.
 - When the family has children, the app shows the **Timeline** tab.
-- When the family has no child yet and you are the admin or a partner, the app shows "Create Kid Profile". See [Children](children.md).
+- When the family has no child yet and you are the admin or a partner, the app shows "Add your first child". See [Children](children.md).
 - When the family has no child yet and you are a family member, the app shows "No child yet". Ask the admin to add a child, then tap **Check again**.
 
 ### Check that it worked
 
 - The **Timeline** tab shows the moments of a child.
-- Open the **Settings** tab. The row under **Server** shows the family name. The row under **Account** shows your name, your email and your role.
+- Open the **Settings** tab. The card at the top shows the family name, the server address, and your name and role.
 
 ## Join with an invitation link
 
@@ -48,20 +48,20 @@ The admin can send two links:
 
 1. On your phone, tap the app link. Or open the web page and tap its button to open the app.
 2. If the phone does not know this server yet, the app asks "Join photos.example.com?" (with the address of the server). Tap **Join** only if you know and trust this server.
-3. The app shows "Create Account". It tells you who invited you and with which role.
-4. Type **Your Name**, **Email**, **Password** and **Confirm Password**. The password must have at least 8 characters. If the invitation is for one email address, the app fills in that address.
-5. Tap **Create Account & Join**.
+3. The app shows "Create your account". It tells you who invited you and with which role.
+4. Type **Your name**, **Email**, **Password** and **Repeat the password**. The password must have at least 8 characters. If the invitation is for one email address, the app fills in that address.
+5. Tap **Create account and join**.
 
 ### Join with a pasted link or code
 
 Use these steps when the link does not open the app.
 
 1. Open the app.
-2. Type the server address in **Server URL** and tap **Continue**.
+2. Type the server address in **Server address** and tap **Continue**.
 3. On the sign-in screen, tap **I have an invitation**.
 4. In **Invitation link or token**, paste the invitation link. You can also paste only the invitation code (the token).
-5. Tap **Use Invitation**.
-6. Fill in the form and tap **Create Account & Join**.
+5. Tap **Use invitation**.
+6. Fill in the form and tap **Create account and join**.
 
 ### Check that it worked
 
@@ -74,8 +74,8 @@ The **family name** is the name of the server for all its members, for example "
 - The server owner can set the family name when they set up the server.
 - The admin can change the family name in the app. See [Family and permissions](family-and-permissions.md#change-the-family-name).
 - The app gets the family name from the server with each sync. A **sync** is the exchange of changes between the phone and the server.
-- The app shows the family name in place of the server address: in the server list, in **Settings**, on the **Children** screen and in the child switcher.
-- A member who is not the admin can give the server a different name on their own phone only. See [Multiple servers](multiple-servers.md#rename-a-server-on-this-phone).
+- The app shows the family name in place of the server address: in **Settings**, in "Choose a family", on the **Families** screen, and in the header of the family screens, for example **Children** and **Members**.
+- A member who is not the admin can give the family a different name on their own phone only. See [Several families](multiple-servers.md#rename-a-family-on-this-phone).
 
 ## When the server is not set up yet
 
@@ -90,8 +90,8 @@ If the server has no admin, the app shows a message like this: "This server is n
 
 ## Problems
 
-- **"Connection Failed"**: the app could not reach the server. Check the address, the port and the network of the phone. See [Troubleshooting](troubleshooting.md).
-- **"Invalid server address"**: the address has a wrong form. Type only the host name or the IP address, with an optional port.
+- **"Could not connect to the server. Check the address and your internet connection, then try again."**: the app could not reach the server. Check the address, the port and the network of the phone. See [Troubleshooting](troubleshooting.md).
+- **"Enter a domain or IP, with an optional port, ..."**: the address has a wrong form. Type only the host name or the IP address, with an optional port.
 - **"This invitation is not valid. It is used, expired or unknown. Ask for a new invitation."**: ask the admin for a new invitation.
 - **"This invitation has no server address. Paste the full invitation link."**: you pasted only the code, and the phone does not know the server yet. Type the server address first, or paste the full link.
 - For more messages, see [Troubleshooting](troubleshooting.md).

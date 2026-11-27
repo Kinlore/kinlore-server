@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\Role;
+use App\Support\PublicUrl;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Attributes\Scope;
@@ -72,11 +73,11 @@ class Invitation extends Model
 
     public function inviteLink(): string
     {
-        return "kinlore://invite/{$this->token}?server=".rawurlencode((string) config('app.url'));
+        return "kinlore://invite/{$this->token}?server=".rawurlencode(PublicUrl::base());
     }
 
     public function inviteUrl(): string
     {
-        return rtrim((string) config('app.url'), '/')."/invite/{$this->token}";
+        return PublicUrl::base()."/invite/{$this->token}";
     }
 }

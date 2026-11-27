@@ -12,7 +12,7 @@ Kinlore is a self-hosted family photo journal. One Kinlore server holds **one fa
 - **Roles and permissions.** A partner can add and change everything. A family member can view, and can add moments, like, comment and download when the admin allows it. The full rules are in [API rules, section 1](/reference/api#_1-roles-and-permissions).
 - **Two ways to run it.** With Docker (PostgreSQL, SeaweedFS, Caddy with optional built-in HTTPS), see [Install with Docker](/self-hosting/docker). Or directly on a Linux host, where SQLite and the local disk are enough, see [Install without Docker](/self-hosting/bare-metal).
 
-A family that wants a second space runs a second server. The app can hold several servers by address.
+A family that wants a second space runs a second server. The app can hold several families, one server each, and switch between them.
 
 ## Planned work
 
@@ -24,4 +24,4 @@ Open items, most useful first.
 4. Tag one moment to several children, and access per child for each member.
 5. A web app for viewing, and for upload from a desktop computer.
 6. Uploads that continue on Android after the system stops the app in the background. iOS does this; on Android the upload starts again when the app opens.
-7. Smaller items: look-back in the time zone of the family, a "Change password" item for every member, a sessions screen (the API can list and revoke sign-ins), and cleanup of expired invitations.
+7. Smaller items: look-back in the time zone of the family, a "Change password" item for every member, and cleanup of expired invitations.

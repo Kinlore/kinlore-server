@@ -6,6 +6,7 @@ namespace App\Console\Commands;
 
 use App\Models\User;
 use App\Services\AuthService;
+use App\Support\PublicUrl;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
@@ -33,6 +34,9 @@ class SetupToken extends Command
 
         $this->line('Setup token: '.$auth->setupToken());
         $this->line('Open '.$auth->setupUrl().' and enter this token to create the admin account.');
+        if (! PublicUrl::isConfigured()) {
+            $this->warn('APP_URL is empty or a placeholder. Set it to the public address of this server, or invite links will not work.');
+        }
 
         return self::SUCCESS;
     }

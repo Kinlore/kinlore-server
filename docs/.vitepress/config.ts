@@ -63,7 +63,7 @@ export default defineConfig({
           { text: 'Timeline and look-back', link: '/app/timeline-and-look-back' },
           { text: 'Family and permissions', link: '/app/family-and-permissions' },
           { text: 'Offline use and uploads', link: '/app/offline-and-uploads' },
-          { text: 'Several servers', link: '/app/multiple-servers' },
+          { text: 'Several families', link: '/app/multiple-servers' },
           { text: 'Settings', link: '/app/settings' },
           { text: 'Export', link: '/app/export' },
           { text: 'Troubleshooting', link: '/app/troubleshooting' },

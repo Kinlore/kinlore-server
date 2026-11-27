@@ -16,7 +16,7 @@ One Kinlore server holds one family.
 - **Shared data.** All members see all children and all moments.
 - **A family name.** The server has a name, for example "Anna Example Family". Members see it in the app and on invitations. A stranger who finds the server address does not see it.
 
-A family that wants a second, separate space runs a second server. The app can hold several servers. See [Several servers](/app/multiple-servers).
+A family that wants a second, separate space runs a second server. The app can hold several families. See [Several families](/app/multiple-servers).
 
 ## Roles
 

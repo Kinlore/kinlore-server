@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Support\PublicUrl;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -45,7 +46,12 @@ class HealthController extends Controller
         // 5. Memory
         $checks['memory'] = $this->checkMemory();
 
-        // 6. PHP Version
+        // 6. Public address for invite and setup links: a warning only, the server still works
+        $checks['public_url'] = PublicUrl::isConfigured()
+            ? ['status' => 'ok', 'url' => PublicUrl::base()]
+            : ['status' => 'warning', 'url' => PublicUrl::base(), 'message' => 'APP_URL is empty or a placeholder; links use the address of this request. Set APP_URL to the public address.'];
+
+        // 7. PHP Version
         $checks['php'] = [
             'version' => PHP_VERSION,
             'extensions' => $this->getRequiredExtensions(),
