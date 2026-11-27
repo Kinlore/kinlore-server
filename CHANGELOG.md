@@ -7,6 +7,10 @@ The version numbers are explained in "Project status" in the [README](README.md)
 
 ## [Unreleased]
 
+### Changed
+
+- The setup page asks for **First name** and **Last name** instead of one name, and the optional family name field is now **Friendly name**. It fills in with "<first> <last> Family" as the admin types, and the admin can change it to anything. It is saved as the family name, which the app shows as the server's name.
+
 ### Added
 
 - `POST /auth/login` and `POST /auth/register` accept an optional `device_name` (up to 60 characters). It is the session `name` in `GET /auth/sessions`, so the app can show each signed-in device. Without it the name stays `mobile-app`. `POST /auth/refresh` keeps the name.

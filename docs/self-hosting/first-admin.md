@@ -31,9 +31,10 @@ The setup page always asks for a setup token. So a stranger cannot take over a n
 
    The command prints `Setup token:` and the token. If `SETUP_TOKEN` is set, it tells you to use that value. In Docker, the token is also in the log of each start: `docker compose logs api | grep "Setup token"`.
 2. Open the server address in a web browser, for example `https://photos.example.com`. An empty server sends you to `/setup`.
-3. Enter your name, your email address and a password two times. The password needs at least 8 characters.
-4. Enter a family name, or leave the field empty. Empty gives your full name and "Family", for example "Anna Example Family". The name can have up to 60 characters. You can change it later in the app.
-5. Paste the setup token and send the form.
+3. Enter your **First name** and **Last name**.
+4. Check the **Friendly name**. It fills in from your name as you type, for example "Anna Example Family". Change it to anything you like, for example "The Smiths": after you type in it, it no longer follows your name. Your family sees this name in the app and on invitations, and the app shows it as the name of the server. It can have up to 60 characters, and you can change it later in the app. An empty field gives the same suggestion.
+5. Enter your email address and a password two times. The password needs at least 8 characters.
+6. Paste the setup token and send the form.
 
 The page shows "Your admin account is ready", with the server address and the email address to use in the app.
 

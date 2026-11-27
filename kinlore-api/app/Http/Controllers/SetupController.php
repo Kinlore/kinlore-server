@@ -47,7 +47,14 @@ class SetupController extends Controller
             return redirect('/');
         }
 
-        $user = $this->authService->createFirstAdmin($request->validated());
+        $data = $request->validated();
+        $user = $this->authService->createFirstAdmin([
+            'name' => $data['name'],
+            'email' => $data['email'],
+            'password' => $data['password'],
+            'family_name' => $data['friendly_name'] ?? null,
+            'setup_token' => $data['setup_token'],
+        ]);
 
         // The new admin sees the family name; the public pages keep APP_NAME.
         return view('setup-done', ['instanceName' => $this->family->name(), 'email' => $user->email] + $this->pageData());

@@ -18,7 +18,8 @@ class FamilyNameTest extends TestCase
     use RefreshDatabase;
 
     private const FORM = [
-        'name' => 'Anna Example',
+        'first_name' => 'Anna',
+        'last_name' => 'Example',
         'email' => 'anna@example.test',
         'password' => 'correct horse 42',
         'password_confirmation' => 'correct horse 42',
@@ -31,6 +32,27 @@ class FamilyNameTest extends TestCase
         config(['app.setup_token' => 'the-secret', 'app.name' => 'Kinlore']);
     }
 
+    /** The name the app gets with each sync page. */
+    private function actingAsAdminAndPull(): string
+    {
+        Sanctum::actingAs(User::first());
+
+        return $this->pulledName();
+    }
+
+    public function test_setup_joins_first_and_last_name_and_requires_both(): void
+    {
+        $this->post('/setup', ['first_name' => '  Anna ', 'last_name' => ' van  Dijk '] + self::FORM)->assertOk();
+        $this->assertSame('Anna van Dijk', User::first()->name);
+        $this->assertSame('Anna van Dijk Family', app(FamilyService::class)->name());
+
+        User::query()->delete();
+        $this->from('/setup')->post('/setup', ['first_name' => ''] + self::FORM)->assertRedirect('/setup')->assertSessionHasErrors('first_name');
+        $this->from('/setup')->post('/setup', ['last_name' => ''] + self::FORM)->assertRedirect('/setup')->assertSessionHasErrors('last_name');
+        $this->from('/setup')->post('/setup', ['friendly_name' => str_repeat('x', 61)] + self::FORM)->assertSessionHasErrors('friendly_name');
+        $this->assertDatabaseCount('users', 0);
+    }
+
     private function pulledName(): string
     {
         return $this->postJson('/api/v1/sync/pull', ['lastPulledAt' => null])->assertOk()->json('family_name');
@@ -38,17 +60,19 @@ class FamilyNameTest extends TestCase
 
     public function test_setup_stores_the_given_name_or_suggests_the_admins_full_name(): void
     {
-        // The field is optional: only the other fields are `required`.
-        $form = $this->get('/setup')->assertOk()->assertSee('name="family_name"', false)->getContent();
-        $this->assertSame(1, preg_match('/<input id="family_name"[^>]*>/', $form, $input));
+        // Friendly name is optional: only the other fields are `required`.
+        $form = $this->get('/setup')->assertOk()->assertSee('name="friendly_name"', false)->getContent();
+        $this->assertSame(1, preg_match('/<input id="friendly_name"[^>]*>/', $form, $input));
         $this->assertStringNotContainsString('required', $input[0]);
-        $this->assertSame(5, substr_count($form, ' required'));
+        $this->assertSame(6, substr_count($form, ' required'));
+        $this->assertStringContainsString("getElementById('friendly_name')", $form);
 
-        $this->post('/setup', self::FORM + ['family_name' => 'The Smiths'])->assertOk()->assertSee('The Smiths is set up');
+        $this->post('/setup', self::FORM + ['friendly_name' => 'The Smiths'])->assertOk()->assertSee('The Smiths is set up');
         $this->assertSame('The Smiths', app(FamilyService::class)->name());
+        $this->assertSame('The Smiths', $this->actingAsAdminAndPull());
 
         User::query()->delete();
-        $this->post('/setup', self::FORM + ['family_name' => ''])->assertOk()->assertSee('Anna Example Family is set up');
+        $this->post('/setup', self::FORM + ['friendly_name' => ''])->assertOk()->assertSee('Anna Example Family is set up');
 
         // Stored at setup: a later change of the admin's own name does not rename the family.
         User::first()->update(['name' => 'Anna Other']);
