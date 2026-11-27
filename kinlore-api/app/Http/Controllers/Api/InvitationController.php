@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\StoreInvitationRequest;
 use App\Http\Responses\ApiResponse;
 use App\Models\Invitation;
+use App\Support\PublicUrl;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Str;
 
@@ -49,6 +50,7 @@ class InvitationController extends Controller
                 'token' => $token,
                 'invite_link' => $invitation->inviteLink(),
                 'invite_url' => $invitation->inviteUrl(),
+                'public_url_configured' => PublicUrl::isConfigured(),
             ],
             'Invitation created',
             201

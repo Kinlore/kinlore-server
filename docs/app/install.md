@@ -43,8 +43,8 @@ The app build also declares the right to save photos to the phone. The app does 
 
 ### If you refused the permission
 
-If you refuse access, the app shows "Permission Required" and closes the picker.
-To give access later, open the Settings app of your phone, find Kinlore, and allow access to photos and videos.
+If you refuse access, the **Photos** tab of the add screen shows "Allow access to your photos". You can still add a milestone, a story or a growth record.
+To give access later, tap **Open Settings** on that tab. Or open the Settings app of your phone, find Kinlore, and allow access to photos and videos. When you come back to the app, the albums show.
 
 ## Network
 

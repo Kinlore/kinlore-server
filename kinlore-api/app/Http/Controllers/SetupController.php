@@ -8,6 +8,7 @@ use App\Http\Requests\Web\SetupRequest;
 use App\Models\User;
 use App\Services\AuthService;
 use App\Services\FamilyService;
+use App\Support\PublicUrl;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 
@@ -59,7 +60,7 @@ class SetupController extends Controller
     {
         return [
             'instanceName' => config('app.name'),
-            'server' => config('app.url') ?: url('/'),
+            'server' => PublicUrl::base(),
         ];
     }
 }

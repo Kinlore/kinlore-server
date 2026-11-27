@@ -7,8 +7,8 @@ An **export** is one ZIP file with all original photos and videos and all moment
 ## Start an export
 
 1. Open the **Settings** tab.
-2. Under **Family**, tap **Export**.
-3. Tap **Start Export**.
+2. In the family section, tap **Export**. The header shows the family name.
+3. Tap **Start export**.
 4. The new export shows in the list with the status **Waiting**, then **Building**.
 5. Pull the list down to see the newest status.
 6. When the status is **Ready**, the list shows the size of the file.
