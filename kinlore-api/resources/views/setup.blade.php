@@ -4,9 +4,10 @@
 
 @php
     $fields = [
-        'name' => ['label' => 'Your name', 'type' => 'text', 'autocomplete' => 'name'],
+        'first_name' => ['label' => 'First name', 'type' => 'text', 'autocomplete' => 'given-name'],
+        'last_name' => ['label' => 'Last name', 'type' => 'text', 'autocomplete' => 'family-name'],
+        'friendly_name' => ['label' => 'Friendly name', 'type' => 'text', 'autocomplete' => 'off', 'optional' => true, 'hint' => 'Your family sees this name in the app and on invitations. It fills in from your name, for example "Anna Example Family". Change it to anything you like; you can also change it later in the app.'],
         'email' => ['label' => 'Email', 'type' => 'email', 'autocomplete' => 'email'],
-        'family_name' => ['label' => 'Family name (optional)', 'type' => 'text', 'autocomplete' => 'off', 'optional' => true, 'hint' => 'Your family sees this name in the app and on invitations. Leave it empty to use your name, for example "Anna Example Family". You can change it later in the app.'],
         'password' => ['label' => 'Password', 'type' => 'password', 'autocomplete' => 'new-password', 'hint' => 'At least 8 characters.'],
         'password_confirmation' => ['label' => 'Repeat the password', 'type' => 'password', 'autocomplete' => 'new-password'],
         'setup_token' => ['label' => 'Setup token', 'type' => 'password', 'autocomplete' => 'off', 'hint' => 'The server log shows it at start. You can also run "php artisan kinlore:setup-token" on the server. If you set SETUP_TOKEN in the server settings, enter that value.'],
@@ -37,4 +38,23 @@
         @endforeach
         <button type="submit">Create admin account</button>
     </form>
+    <script>
+        // Fill "Friendly name" from the first and last name until the admin types in it. Without script, the
+        // field stays as typed, and the server uses the same suggestion when it is empty.
+        (() => {
+            const first = document.getElementById('first_name');
+            const last = document.getElementById('last_name');
+            const friendly = document.getElementById('friendly_name');
+            const suggestion = () => {
+                const full = `${first.value} ${last.value}`.trim().replace(/\s+/g, ' ');
+                return full ? `${full.slice(0, {{ \App\Services\FamilyService::NAME_MAX_LENGTH - 7 }}).trim()} Family` : '';
+            };
+            // A value from a failed submit counts as the admin's own when it differs from the suggestion.
+            let own = friendly.value !== '' && friendly.value !== suggestion();
+            const fill = () => { if (!own) friendly.value = suggestion(); };
+            first.addEventListener('input', fill);
+            last.addEventListener('input', fill);
+            friendly.addEventListener('input', () => { own = friendly.value.trim() !== ''; if (!own) fill(); });
+        })();
+    </script>
 @endsection

@@ -20,7 +20,8 @@ class WebSetupTest extends TestCase
     use RefreshDatabase;
 
     private const FORM = [
-        'name' => 'Owner',
+        'first_name' => 'Owner',
+        'last_name' => 'Example',
         'email' => 'owner@example.test',
         'password' => 'correct horse 42',
         'password_confirmation' => 'correct horse 42',
@@ -205,7 +206,8 @@ class WebSetupTest extends TestCase
 
         $this->get('/setup')->assertOk()
             ->assertSee('&lt;script&gt;alert(1)&lt;/script&gt;', false)
-            ->assertDontSee('<script>', false);
+            // The page has its own script (the friendly name fill); the name must not add one.
+            ->assertDontSee('<script>alert(1)', false);
     }
 
     public function test_form_action_uses_the_https_address_behind_a_reverse_proxy(): void

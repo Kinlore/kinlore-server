@@ -61,9 +61,9 @@ Returned by login, register and `/auth/me` (`/auth/me` adds the count fields):
 
 **First admin: web setup only.** The mobile app never creates the admin. After installing the server (with or without Docker), the owner opens `APP_URL` in a web browser:
 - `GET /` (web): when the instance has no user, redirects to `/setup`. Otherwise a small status page: "Kinlore is running", the server address to type in the app, and the app's sign-in steps. No user data.
-- `GET /setup` (web): the setup form (name, email, an optional family name, password, password confirmation, and the setup token). When the instance already has a user: redirect to `/`.
+- `GET /setup` (web): the setup form (`first_name`, `last_name`, an optional `friendly_name`, `email`, `password`, `password_confirmation`, and `setup_token`). A small script on the page fills `friendly_name` with `<first> <last> Family` until the admin types in it. When the instance already has a user: redirect to `/`.
 - The setup token is `SETUP_TOKEN` when it is set. Without it, the server makes a random token and keeps it in `storage/app/setup-token` until the first admin exists. `php artisan kinlore:setup-token` prints it, and the Docker container prints it in its log at start. No HTTP response contains the token.
-- `POST /setup` (web, CSRF-protected, throttled 5/min): creates the admin under a lock, so two parallel setups cannot both succeed. Validation errors show on the form. Success shows "Your admin account is ready" with the server address and the email to use in the app. It never shows the password.
+- `POST /setup` (web, CSRF-protected, throttled 5/min): creates the admin under a lock, so two parallel setups cannot both succeed. The account name is `first_name` and `last_name` joined by one space. `friendly_name` becomes the family name (below); empty gives `<first> <last> Family`. Validation errors show on the form. Success shows "Your admin account is ready" with the server address and the email to use in the app. It never shows the password.
 - The seeded admin (`SEED_USER_*`) also works and skips the web setup.
 - Behind a reverse proxy, the pages and form action use the proxy's `https` address (trusted proxies, section 10).
 
