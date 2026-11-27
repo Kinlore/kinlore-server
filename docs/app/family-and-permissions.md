@@ -33,14 +33,15 @@ A family member may also do these things, without a permission:
 
 A family member may not add a child.
 
-You see your own role in **Settings**: on the family card ("You:" with your name and role) and under **Your account**.
+You see your own role in **Settings**: under **Servers**, next to your name, and on the **Server** screen under **Your account**.
 
 ## Open the member list
 
 Only the admin sees these screens.
 
 1. Open the **Settings** tab.
-2. In the family section, tap **Members**. The header shows the family name.
+2. Under **Servers**, tap the server that shows **In use**. The app shows its **Server** screen.
+3. Under **Family**, tap **Members**. The header shows the server name.
 
 The **Members** screen has two lists:
 
@@ -49,7 +50,7 @@ The **Members** screen has two lists:
 
 ## Invite a person
 
-1. In **Settings**, tap **Invite someone**. Or, on the **Members** screen, tap the button at the top right ("Invite someone to" and the family name). The app shows "Invite to" with the family name and the server address.
+1. On the **Members** screen, tap **Invite someone**. The app shows "Invite to" with the family name and the server address.
 2. Optional: type an email in **Email (optional)**. With an email, only that address can use the invitation.
 3. Under **Role**, tap **Family** or **Partner**.
 4. For **Family**, turn the permissions on or off.
@@ -104,20 +105,20 @@ You cannot remove yourself.
 The family name is the name of the server for all members, for example "Anna Example Family".
 
 1. Open the **Settings** tab.
-2. Open the details of the active family. With one family: under **Families on this phone**, tap **Server details**. With several families: tap **Families**, then tap the info button of the active family. The app shows "Family details".
-3. Tap the pencil button at the top right ("Rename family").
-4. In **Family name**, type the new name. The app shows "This is the family name. All members see it."
+2. Under **Servers**, tap the server that shows **In use**. The app shows its **Server** screen.
+3. Under **Server**, tap **Rename**. The row shows "Everyone on this server sees the new name".
+4. In **Name**, type the new name. The app shows "You are the admin: everyone on this server sees the new name."
 5. Tap **Save name**.
 
 The name can have up to 60 characters. The other members see the new name after their next sync.
 
 ### Check that it worked
 
-The family card at the top of **Settings** shows the new name.
+Under **Servers** in **Settings**, the server shows the new name.
 
 ## Give the admin role to another member
 
-Each family has one admin. When you give the admin role to another member, you become a partner.
+Each server has one admin. When you give the admin role to another member, you become a partner.
 
 1. On the **Members** screen, tap the member.
 2. Tap **Make admin**.
@@ -127,7 +128,7 @@ After the change, you can no longer manage members, invitations or exports. Only
 
 ### Check that it worked
 
-In **Settings**, your role is "Partner". The **Members**, **Invite someone** and **Export** rows are not in **Settings**.
+In **Settings**, your role is "Partner". On the **Server** screen, the **Members** and **Export** rows are gone.
 
 ## Set a new password for a member
 

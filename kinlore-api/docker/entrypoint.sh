@@ -3,6 +3,10 @@ set -e
 
 echo "🚀 Starting Kinlore API..."
 
+# A config cache from the build folder or an earlier start holds old settings (an old APP_URL, for example).
+# Remove it before the first artisan call, so every start reads the environment of this container.
+rm -f bootstrap/cache/config.php
+
 # An empty bind mount (deploy/docker/bind-mounts.yml) has none of the folders Laravel writes to
 mkdir -p storage/app/private storage/app/public storage/framework/cache storage/framework/sessions storage/framework/views storage/logs
 
@@ -83,6 +87,15 @@ fi
 CADDY_TRUSTED_PROXIES="$(echo "${TRUSTED_PROXIES:-private_ranges}" | tr ',' ' ')"
 [ "$CADDY_TRUSTED_PROXIES" = "*" ] && CADDY_TRUSTED_PROXIES="0.0.0.0/0 ::/0"
 export CADDY_TRUSTED_PROXIES
+
+# The address in invitation and setup links. Compose takes APP_URL from the shell that runs it, then from the .env
+# next to docker-compose.yml; kinlore-api/.env does not set it.
+php artisan tinker --execute="
+echo '🌐 Public address (APP_URL): ' . config('app.url') . PHP_EOL;
+if (! App\\Support\\PublicUrl::isConfigured()) {
+    echo '⚠️  APP_URL is a placeholder. Links use the address of each request. Set APP_URL in the .env next to docker-compose.yml.' . PHP_EOL;
+}
+" || true
 
 echo "✅ Initialization complete, starting Caddy + PHP-FPM..."
 

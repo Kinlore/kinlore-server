@@ -26,6 +26,9 @@ class AuthService
     // Under storage/, so the web server never serves it. Relative to storage_path().
     public const string SETUP_TOKEN_FILE = 'app/setup-token';
 
+    // Token name when the app sends no device_name (app versions before 1.6).
+    public const string DEFAULT_TOKEN_NAME = 'mobile-app';
+
     public function __construct(
         private readonly FamilyService $family,
     ) {}
@@ -132,7 +135,7 @@ class AuthService
      * Register an invited user with the invitation's role and permissions.
      * The first admin is created on the web setup page instead (createFirstAdmin).
      *
-     * @param  array{name: string, email: string, password: string, invite_token: string}  $data
+     * @param  array{name: string, email: string, password: string, invite_token: string, device_name?: ?string}  $data
      * @return array{user: array, token: string, token_type: string}
      *
      * @throws ValidationException
@@ -154,7 +157,7 @@ class AuthService
             return $user;
         }));
 
-        $token = $user->createToken('mobile-app', ['*'])->plainTextToken;
+        $token = $user->createToken($data['device_name'] ?? self::DEFAULT_TOKEN_NAME, ['*'])->plainTextToken;
 
         return [
             'user' => $this->userPayload($user->refresh()),
@@ -203,7 +206,7 @@ class AuthService
      *
      * @throws ValidationException
      */
-    public function login(string $email, #[\SensitiveParameter] string $password): array
+    public function login(string $email, #[\SensitiveParameter] string $password, ?string $deviceName = null): array
     {
         $user = User::where('email', $email)->first();
         $valid = Hash::check($password, $user ? $user->password : self::DUMMY_PASSWORD_HASH);
@@ -214,7 +217,7 @@ class AuthService
             ]);
         }
 
-        $token = $user->createToken('mobile-app')->plainTextToken;
+        $token = $user->createToken($deviceName ?? self::DEFAULT_TOKEN_NAME)->plainTextToken;
 
         return [
             'user' => $this->userPayload($user),
@@ -233,12 +236,13 @@ class AuthService
         $user->tokens()->delete();
     }
 
-    // Revoke the current token and return a new one
+    // Revoke the current token and return a new one with the same device name
     public function refresh(User $user): string
     {
-        $user->currentAccessToken()->delete();
+        $current = $user->currentAccessToken();
+        $current->delete();
 
-        return $user->createToken('mobile-app')->plainTextToken;
+        return $user->createToken($current->name)->plainTextToken;
     }
 
     // docs/reference/api.md section 2

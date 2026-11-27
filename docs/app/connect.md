@@ -1,7 +1,7 @@
 # Connect to a server
 
-This page tells you how to connect the app to your family's server, sign in, and join a family with an invitation link.
-It also explains the family name, and what to do when the server is not set up yet.
+This page tells you how to connect the app to your family's server, sign in, and join a server with an invitation link.
+It also explains the server name, and what to do when the server is not set up yet.
 
 A **server** is the computer that keeps your family's photos and moments. In Kinlore, one server is one family. Each family has one **admin**: the person who manages the family.
 
@@ -21,7 +21,7 @@ A **server** is the computer that keeps your family's photos and moments. In Kin
 
 If you type no `https://` or `http://`, the app tries `https://` first. It tries `http://` only for an address on a home network.
 
-To use a different server, tap **Change server** on the sign-in screen. When the phone has more than one family, the button is **Use another family**. It opens "Choose a family". See [Several families](multiple-servers.md#switch-to-another-family).
+To use a different server, tap **Use another server** on the sign-in screen. With one server, it opens the screen where you type a server address. With more than one server, it opens "Choose a server". See [Several servers](multiple-servers.md#switch-to-another-server).
 
 ### What you see after the sign-in
 
@@ -33,7 +33,7 @@ To use a different server, tap **Change server** on the sign-in screen. When the
 ### Check that it worked
 
 - The **Timeline** tab shows the moments of a child.
-- Open the **Settings** tab. The card at the top shows the family name, the server address, and your name and role.
+- Open the **Settings** tab. Under **Servers**, the server shows **In use**, with its name, its address, and your name and role.
 
 ## Join with an invitation link
 
@@ -67,15 +67,15 @@ Use these steps when the link does not open the app.
 
 The app shows "Loading your family...", then the timeline of the family.
 
-## The family name
+## The server name
 
-The **family name** is the name of the server for all its members, for example "Anna Example Family".
+The name of a server is its **family name**: the name that all its members see, for example "Anna Example Family".
 
 - The server owner can set the family name when they set up the server.
 - The admin can change the family name in the app. See [Family and permissions](family-and-permissions.md#change-the-family-name).
 - The app gets the family name from the server with each sync. A **sync** is the exchange of changes between the phone and the server.
-- The app shows the family name in place of the server address: in **Settings**, in "Choose a family", on the **Families** screen, and in the header of the family screens, for example **Children** and **Members**.
-- A member who is not the admin can give the family a different name on their own phone only. See [Several families](multiple-servers.md#rename-a-family-on-this-phone).
+- The app shows the family name as the server name: in **Settings**, on the **Server** screen, in "Choose a server", and in the header of the family screens, for example **Children** and **Members**. The server address shows next to it.
+- A member who is not the admin can give the server a different name on their own phone only. See [Several servers](multiple-servers.md#change-the-server-name).
 
 ## When the server is not set up yet
 
